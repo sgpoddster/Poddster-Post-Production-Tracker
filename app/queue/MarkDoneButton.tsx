@@ -1,0 +1,37 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function MarkDoneButton({
+  projectId,
+  versionId,
+}: {
+  projectId: string
+  versionId?: string
+}) {
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+
+  async function markDone() {
+    if (!versionId) return
+    setLoading(true)
+    await fetch(`/api/projects/${projectId}/version/done`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ versionId }),
+    })
+    router.refresh()
+    setLoading(false)
+  }
+
+  return (
+    <button
+      onClick={markDone}
+      disabled={loading || !versionId}
+      className="px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-xs font-medium rounded-lg transition-colors"
+    >
+      {loading ? 'Saving…' : '✓ Done'}
+    </button>
+  )
+}

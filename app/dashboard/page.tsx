@@ -9,12 +9,17 @@ import { getUserProfile } from '@/lib/auth'
 import TriggerButton from './TriggerButton'
 import StartRevisionButton from './StartRevisionButton'
 import NewProjectButton from './NewProjectButton'
+import { SearchBar } from './SearchBar'
 import MarkDoneButton from '../queue/MarkDoneButton'
 import CompleteButton from '@/components/CompleteButton'
 import UndoButton from '@/components/UndoButton'
 import OnHoldButton from '@/components/OnHoldButton'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: { q?: string }
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -62,30 +67,51 @@ export default async function DashboardPage() {
     if (p.email) editorNames[p.email] = p.display_name || p.email
   }
 
-  const pending    = (projects ?? []).filter(p => p.status === 'pending_trigger')
-  const inProgress    = (projects ?? []).filter(p => ['active', 'in_revision'].includes(p.status))
-  const inReview      = (projects ?? []).filter(p => p.status === 'in_client_review')
-  const completed     = completedProjects ?? []
+  // Search filter
+  const q = (searchParams?.q ?? '').trim().toLowerCase()
+  const matchesSearch = (p: Project) => {
+    if (!q) return true
+    return (
+      (p.client_name ?? '').toLowerCase().includes(q) ||
+      (p.internal_id ?? '').toLowerCase().includes(q) ||
+      (editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '').toLowerCase().includes(q)
+    )
+  }
+
+  const allProjects = projects ?? []
+  const pending    = allProjects.filter(p => p.status === 'pending_trigger').filter(matchesSearch)
+  const inProgress = allProjects.filter(p => ['active', 'in_revision'].includes(p.status)).filter(matchesSearch)
+  const inReview   = allProjects.filter(p => p.status === 'in_client_review').filter(matchesSearch)
+  const completed  = (completedProjects ?? []).filter(matchesSearch)
+
+  const totalShown = pending.length + inProgress.length + inReview.length + completed.length
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-10">
-      <div className="flex items-start justify-between">
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
             {isAdmin ? 'Dashboard' : 'My Dashboard'}
           </h1>
           <p className="text-sm text-white/40 mt-1">
-            {isAdmin ? 'All projects' : `Showing your projects`}
+            {isAdmin ? 'All projects' : 'Showing your projects'}
           </p>
         </div>
-        <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
+        <div className="flex items-center gap-2 shrink-0">
+          <SearchBar defaultValue={searchParams?.q} />
+          <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
+        </div>
       </div>
+
+      {q && totalShown === 0 && (
+        <p className="text-sm text-white/30 text-center py-8">No projects match &ldquo;{q}&rdquo;</p>
+      )}
 
       <Section
         dot="bg-amber-500"
         title="Awaiting Trigger"
         count={pending.length}
-        empty="No projects waiting to be triggered."
+        empty={q ? `No matches in this section.` : 'No projects waiting to be triggered.'}
       >
         {pending.map(p => <PendingRow key={p.id} project={p} isAdmin={isAdmin}
           editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
@@ -95,7 +121,7 @@ export default async function DashboardPage() {
         dot="bg-blue-500"
         title="In Progress"
         count={inProgress.length}
-        empty="Nothing currently in progress."
+        empty={q ? `No matches in this section.` : 'Nothing currently in progress.'}
       >
         {inProgress.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
           editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
@@ -105,7 +131,7 @@ export default async function DashboardPage() {
         dot="bg-purple-500"
         title="Client Review"
         count={inReview.length}
-        empty="Nothing awaiting client review."
+        empty={q ? `No matches in this section.` : 'Nothing awaiting client review.'}
       >
         {inReview.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
           editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
@@ -115,7 +141,7 @@ export default async function DashboardPage() {
         dot="bg-green-500"
         title="Completed"
         count={completed.length}
-        empty="No completions in the last 30 days."
+        empty={q ? `No matches in this section.` : 'No completions in the last 30 days.'}
       >
         {completed.map(p => <CompletedRow key={p.id} project={p}
           editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
@@ -147,6 +173,12 @@ function Section({
   )
 }
 
+function isProjectOverdue(dueDate: string | null | undefined, status: string, onHold?: boolean): boolean {
+  if (!dueDate || onHold) return false
+  if (!['active', 'in_revision'].includes(status)) return false
+  return new Date(dueDate + 'T23:59:59') < new Date()
+}
+
 function PendingRow({ project, isAdmin, editorName }: {
   project: Project; isAdmin: boolean; editorName: string
 }) {
@@ -154,9 +186,9 @@ function PendingRow({ project, isAdmin, editorName }: {
     ? 'Episode' : `Highlight #${project.highlight_number}`
 
   return (
-    <div className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors group">
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
+    <div className="flex items-center justify-between px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-white/[0.03] transition-colors group">
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+        <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
@@ -171,10 +203,10 @@ function PendingRow({ project, isAdmin, editorName }: {
           </div>
         </div>
       </Link>
-      <div className="flex items-center gap-3 shrink-0 ml-4">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-3 sm:ml-4">
         {project.drive_link && (
           <a href={project.drive_link} target="_blank" rel="noreferrer"
-            className="text-xs text-white/30 hover:text-white/60 transition-colors"
+            className="hidden sm:block text-xs text-white/30 hover:text-white/60 transition-colors"
           >Drive ↗</a>
         )}
         <TriggerButton projectId={project.id} isAdmin={isAdmin} />
@@ -192,9 +224,9 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
     ? 'Episode' : `Highlight #${project.highlight_number}`
 
   return (
-    <div className="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors group opacity-60 hover:opacity-80">
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
+    <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-3.5 hover:bg-white/[0.02] transition-colors group opacity-60 hover:opacity-80">
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+        <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
@@ -210,7 +242,7 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
           </div>
         </div>
       </Link>
-      <div className="flex items-center gap-3 shrink-0 ml-4">
+      <div className="flex items-center gap-3 shrink-0 ml-3 sm:ml-4">
         <UndoButton projectId={project.id} />
       </div>
     </div>
@@ -223,13 +255,14 @@ function InProgressRow({ project, isAdmin, editorName }: {
   const currentVer = (project.versions ?? []).find(
     v => v.version_number === project.current_version
   )
+  const overdue = isProjectOverdue(currentVer?.due_date, project.status, project.on_hold)
 
   return (
-    <div className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors group">
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
+    <div className={`flex items-center justify-between px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-white/[0.03] transition-colors group ${overdue ? 'border-l-2 border-l-red-500/70' : ''}`}>
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+        <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
               {project.client_name || '—'}
             </span>
@@ -237,6 +270,9 @@ function InProgressRow({ project, isAdmin, editorName }: {
               <StatusBadge status={project.status} />
             )}
             <span className="text-xs text-white/30">V{project.current_version}</span>
+            {overdue && (
+              <span className="text-xs font-semibold text-red-400">overdue</span>
+            )}
           </div>
           <div className="text-xs text-white/35 mt-0.5">
             {project.type === 'episode' ? 'Episode' : `Highlight #${project.highlight_number}`}
@@ -245,16 +281,17 @@ function InProgressRow({ project, isAdmin, editorName }: {
           </div>
         </div>
       </Link>
-      <div className="flex items-center gap-3 shrink-0 ml-4">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-3 sm:ml-4">
         {currentVer?.due_date && project.status !== 'in_client_review' && (
-          <CountdownTimer
-            dueDate={currentVer.due_date}
-            onHold={project.on_hold}
-            holdDate={project.hold_date}
-          />
+          <div className="hidden sm:block">
+            <CountdownTimer
+              dueDate={currentVer.due_date}
+              onHold={project.on_hold}
+              holdDate={project.hold_date}
+            />
+          </div>
         )}
-        {/* Fixed-width button area so timer column never shifts */}
-        <div className="flex items-center gap-2 justify-end w-[140px]">
+        <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
           {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
             <OnHoldButton projectId={project.id} onHold={project.on_hold} />
           )}

@@ -56,7 +56,7 @@ export function CountdownTimer({ dueDate, onHold, holdDate }: Props) {
       <div className={`w-24 text-center text-xs font-bold px-2.5 py-1 rounded border ${classes}`}>
         {text}
       </div>
-      <span className="w-44 text-xs text-white/35">{formatFullDate(dueDate)}</span>
+      <span className="hidden lg:block w-44 text-xs text-white/35">{formatFullDate(dueDate)}</span>
     </div>
   )
 }

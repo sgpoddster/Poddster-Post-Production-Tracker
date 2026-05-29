@@ -161,6 +161,7 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
             placeholder="Search by client name…"
             className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-brand-red/50"
           />

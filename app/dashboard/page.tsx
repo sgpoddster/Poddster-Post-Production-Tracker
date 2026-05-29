@@ -10,6 +10,7 @@ import TriggerButton from './TriggerButton'
 import StartRevisionButton from './StartRevisionButton'
 import NewProjectButton from './NewProjectButton'
 import { SearchBar } from './SearchBar'
+import { ProducerFilter } from './ProducerFilter'
 import MarkDoneButton from '../queue/MarkDoneButton'
 import CompleteButton from '@/components/CompleteButton'
 import UndoButton from '@/components/UndoButton'
@@ -18,7 +19,7 @@ import OnHoldButton from '@/components/OnHoldButton'
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams?: { q?: string }
+  searchParams?: { q?: string; editor?: string }
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -67,8 +68,10 @@ export default async function DashboardPage({
     if (p.email) editorNames[p.email] = p.display_name || p.email
   }
 
-  // Search filter
-  const q = (searchParams?.q ?? '').trim().toLowerCase()
+  // Filters
+  const q              = (searchParams?.q ?? '').trim().toLowerCase()
+  const editorFilter   = searchParams?.editor ?? ''
+
   const matchesSearch = (p: Project) => {
     if (!q) return true
     return (
@@ -77,30 +80,40 @@ export default async function DashboardPage({
       (editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '').toLowerCase().includes(q)
     )
   }
+  const matchesEditor = (p: Project) => {
+    if (!editorFilter) return true
+    return p.assigned_editor === editorFilter
+  }
 
   const allProjects = projects ?? []
-  const pending    = allProjects.filter(p => p.status === 'pending_trigger').filter(matchesSearch)
-  const inProgress = allProjects.filter(p => ['active', 'in_revision'].includes(p.status)).filter(matchesSearch)
-  const inReview   = allProjects.filter(p => p.status === 'in_client_review').filter(matchesSearch)
-  const completed  = (completedProjects ?? []).filter(matchesSearch)
+  const filter = (p: Project) => matchesSearch(p) && matchesEditor(p)
+  const pending    = allProjects.filter(p => p.status === 'pending_trigger').filter(filter)
+  const inProgress = allProjects.filter(p => ['active', 'in_revision'].includes(p.status)).filter(filter)
+  const inReview   = allProjects.filter(p => p.status === 'in_client_review').filter(filter)
+  const completed  = (completedProjects ?? []).filter(filter)
 
   const totalShown = pending.length + inProgress.length + inReview.length + completed.length
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-            {isAdmin ? 'Dashboard' : 'My Dashboard'}
-          </h1>
-          <p className="text-sm text-white/40 mt-1">
-            {isAdmin ? 'All projects' : 'Showing your projects'}
-          </p>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              {isAdmin ? 'Dashboard' : 'My Dashboard'}
+            </h1>
+            <p className="text-sm text-white/40 mt-1">
+              {isAdmin ? 'All projects' : 'Showing your projects'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <SearchBar defaultValue={searchParams?.q} />
+            <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <SearchBar defaultValue={searchParams?.q} />
-          <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
-        </div>
+        {isAdmin && editors.length > 0 && (
+          <ProducerFilter editors={editors} selected={editorFilter || undefined} />
+        )}
       </div>
 
       {q && totalShown === 0 && (

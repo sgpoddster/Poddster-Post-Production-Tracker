@@ -53,15 +53,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // 4. Only handle asset.ready — ignore other event types silently
+  // 4. Only handle file.ready — ignore other event types silently
   const eventType = payload.type as string
-  if (eventType !== 'asset.ready') {
+  if (eventType !== 'file.ready') {
     return NextResponse.json({ skipped: true, reason: `event type '${eventType}' not handled` })
   }
 
-  // 5. Get asset name from payload
+  // 5. Get file name from payload — Frame.io v4 uses payload.data.name or payload.resource.name
+  const data = payload.data as Record<string, unknown> | undefined
   const resource = payload.resource as Record<string, unknown> | undefined
-  const assetName = (resource?.name as string | undefined) ?? ''
+  const assetName = ((data?.name ?? resource?.name) as string | undefined) ?? ''
 
   if (!assetName) {
     return NextResponse.json({ skipped: true, reason: 'no asset name' })

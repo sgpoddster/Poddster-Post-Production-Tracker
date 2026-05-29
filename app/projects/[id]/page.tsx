@@ -14,6 +14,7 @@ import EditProjectModal from './EditProjectModal'
 import CancelButton from './CancelButton'
 import DueDateEditor from './DueDateEditor'
 import CopyFilenameButton from './CopyFilenameButton'
+import CopyPortalLinkButton from './CopyPortalLinkButton'
 import { getUserProfile } from '@/lib/auth'
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
@@ -75,6 +76,9 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
         {/* Action buttons */}
         <div className="shrink-0 flex gap-2 flex-wrap justify-end">
+          {isAdmin && project.portal_token && (
+            <CopyPortalLinkButton portalToken={project.portal_token} />
+          )}
           {isAdmin && (
             <EditProjectModal project={project} editors={editors} clients={clients} />
           )}

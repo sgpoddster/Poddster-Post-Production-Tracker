@@ -4,19 +4,18 @@ import { createServiceClient } from '@/lib/supabase/server'
 // Frame.io v4 webhook — no signature verification needed (matches GAS implementation).
 // Payload only contains resource.id — we fetch the filename from the Frame.io API.
 
-async function fetchFileName(accountId: string, fileId: string): Promise<string> {
+async function fetchFileName(fileId: string): Promise<string> {
   const token = process.env.FRAMEIO_API_TOKEN
   if (!token) { console.warn('[frameio] FRAMEIO_API_TOKEN not set'); return '' }
   try {
+    // Use v2 API — developer tokens (fio-u-...) work here; v4 requires Adobe IMS OAuth
     const res = await fetch(
-      `https://api.frame.io/v4/accounts/${accountId}/files/${fileId}`,
+      `https://api.frame.io/v2/assets/${fileId}`,
       { headers: { Authorization: `Bearer ${token}` } }
     )
     if (!res.ok) { console.warn('[frameio] file fetch status:', res.status); return '' }
     const json = await res.json()
-    // v4 wraps response in data: {}
-    const file = json.data ?? json
-    return (file.name as string) ?? ''
+    return (json.name as string) ?? ''
   } catch (e) {
     console.error('[frameio] file fetch error:', e)
     return ''
@@ -69,16 +68,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: true, reason: `event '${eventType}' not handled` })
   }
 
-  // file.ready payload only contains resource.id — fetch name from Frame.io API
-  const accountId = getAny(payload, ['account.id'])
-  const fileId    = getAny(payload, ['resource.id'])
-  console.log('[frameio] accountId:', accountId, 'fileId:', fileId)
+  // file.ready payload only contains resource.id — fetch name from Frame.io v2 API
+  const fileId = getAny(payload, ['resource.id'])
+  console.log('[frameio] fileId:', fileId)
 
-  if (!accountId || !fileId) {
-    return NextResponse.json({ skipped: true, reason: 'missing account.id or resource.id' })
+  if (!fileId) {
+    return NextResponse.json({ skipped: true, reason: 'missing resource.id' })
   }
 
-  const fileName = await fetchFileName(accountId, fileId)
+  const fileName = await fetchFileName(fileId)
   console.log('[frameio] file name:', fileName)
 
   if (!fileName) {

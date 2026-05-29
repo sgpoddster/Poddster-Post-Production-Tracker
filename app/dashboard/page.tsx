@@ -19,7 +19,7 @@ import OnHoldButton from '@/components/OnHoldButton'
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams?: { q?: string; editor?: string }
+  searchParams?: { q?: string; editors?: string }
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -69,8 +69,10 @@ export default async function DashboardPage({
   }
 
   // Filters
-  const q              = (searchParams?.q ?? '').trim().toLowerCase()
-  const editorFilter   = searchParams?.editor ?? ''
+  const q             = (searchParams?.q ?? '').trim().toLowerCase()
+  const editorFilters = searchParams?.editors
+    ? searchParams.editors.split(',').filter(Boolean)
+    : []
 
   const matchesSearch = (p: Project) => {
     if (!q) return true
@@ -81,8 +83,8 @@ export default async function DashboardPage({
     )
   }
   const matchesEditor = (p: Project) => {
-    if (!editorFilter) return true
-    return p.assigned_editor === editorFilter
+    if (!editorFilters.length) return true
+    return editorFilters.includes(p.assigned_editor ?? '')
   }
 
   const allProjects = projects ?? []
@@ -112,7 +114,7 @@ export default async function DashboardPage({
           </div>
         </div>
         {isAdmin && editors.length > 0 && (
-          <ProducerFilter editors={editors} selected={editorFilter || undefined} />
+          <ProducerFilter editors={editors} selected={editorFilters} />
         )}
       </div>
 

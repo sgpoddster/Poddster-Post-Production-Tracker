@@ -1,98 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHmac, timingSafeEqual } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 
-// Frame.io sends:  X-Frameio-Signature: sha256=<hex_hmac>
-// We verify it against the raw body using FRAMEIO_WEBHOOK_SECRET.
-// If the env var is not set (local dev) we skip verification with a warning.
+// Frame.io v4 webhook — no signature verification needed (matches GAS implementation).
+// Payload is wrapped in a top-level { data: { ... } } envelope.
 
-function verifySignature(rawBody: string, signatureHeader: string | null): boolean {
-  const secret = process.env.FRAMEIO_WEBHOOK_SECRET
-  if (!secret) {
-    console.warn('[frameio webhook] FRAMEIO_WEBHOOK_SECRET not set — skipping signature check')
-    return true
-  }
-  if (!signatureHeader) {
-    console.warn('[frameio webhook] No signature header found')
-    return false
-  }
-
-  console.log('[frameio webhook] signature header:', signatureHeader)
-
-  // Frame.io v4 format: "t=<timestamp>,v1=<hex>" — signed over "<timestamp>.<body>"
-  if (signatureHeader.includes('v1=')) {
-    const parts = Object.fromEntries(signatureHeader.split(',').map(p => p.split('=')))
-    const timestamp = parts['t']
-    const v1 = parts['v1']
-    if (!timestamp || !v1) return false
-    const payload = `${timestamp}.${rawBody}`
-    const expected = createHmac('sha256', secret).update(payload).digest('hex')
-    try {
-      return timingSafeEqual(Buffer.from(v1), Buffer.from(expected))
-    } catch { return false }
-  }
-
-  // Legacy format: "sha256=<hex>" — signed over raw body only
-  const expected = 'sha256=' + createHmac('sha256', secret).update(rawBody).digest('hex')
-  try {
-    return timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expected))
-  } catch {
-    return false
-  }
+function getPath(obj: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce((cur: unknown, key) => {
+    return cur && typeof cur === 'object' ? (cur as Record<string, unknown>)[key] : undefined
+  }, obj)
 }
 
-// Extract the internal_id from a Frame.io asset name.
+function getAny(obj: Record<string, unknown>, paths: string[]): string {
+  for (const p of paths) {
+    const v = getPath(obj, p)
+    if (v !== undefined && v !== null && v !== '') return String(v)
+  }
+  return ''
+}
+
+// Extract the internal_id from a Frame.io file name.
 // Format: "{internal_id} {time} {date} - V{n}"
-// e.g.  "E82F2E 2pm 7th May 2026 - V1"
-// We take the first whitespace-delimited token.
-function extractInternalId(assetName: string): string | null {
-  const token = assetName.trim().split(/\s+/)[0]
-  // Internal IDs are 6–8 chars: 5-char job_id (A–F prefix) + suffix (E, E1, E2, H1 …)
+// e.g.  "F8C0AH1 230pm 7th May 2026 - V2"
+function extractInternalId(name: string): string | null {
+  const token = name.trim().split(/\s+/)[0]
   if (/^[A-F][A-F0-9]{4}(E\d*|H\d+)$/i.test(token)) return token.toUpperCase()
   return null
 }
 
 export async function POST(req: NextRequest) {
-  // 1. Read raw body (needed for HMAC verification before JSON.parse)
   const rawBody = await req.text()
+  console.log('[frameio] body:', rawBody.slice(0, 400))
 
-  // 2. Log everything for debugging, skip signature check temporarily
-  const allHeaders: Record<string, string> = {}
-  req.headers.forEach((v, k) => { allHeaders[k] = v })
-  console.log('[frameio] HEADERS:', JSON.stringify(allHeaders))
-  console.log('[frameio] BODY:', rawBody.slice(0, 500))
-
-  // 3. Parse payload
-  let payload: Record<string, unknown>
+  let payloadRaw: Record<string, unknown>
   try {
-    payload = JSON.parse(rawBody)
+    payloadRaw = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // 4. Only handle file.ready — ignore other event types silently
-  const eventType = payload.type as string
+  // Unwrap data envelope: Frame.io v4 wraps the event in { data: { ... } }
+  const payload = (payloadRaw.data && typeof payloadRaw.data === 'object')
+    ? payloadRaw.data as Record<string, unknown>
+    : payloadRaw
+
+  // Only handle file.ready
+  const eventType = getAny(payload, ['type', 'event'])
+  console.log('[frameio] event type:', eventType)
   if (eventType !== 'file.ready') {
-    return NextResponse.json({ skipped: true, reason: `event type '${eventType}' not handled` })
+    return NextResponse.json({ skipped: true, reason: `event '${eventType}' not handled` })
   }
 
-  // 5. Get file name from payload — Frame.io v4 uses payload.data.name or payload.resource.name
-  const data = payload.data as Record<string, unknown> | undefined
-  const resource = payload.resource as Record<string, unknown> | undefined
-  const assetName = ((data?.name ?? resource?.name) as string | undefined) ?? ''
+  // Get file name — try several payload locations
+  const fileName = getAny(payload, ['resource.name', 'name', 'data.name'])
+  console.log('[frameio] file name:', fileName)
 
-  if (!assetName) {
-    return NextResponse.json({ skipped: true, reason: 'no asset name' })
+  if (!fileName) {
+    return NextResponse.json({ skipped: true, reason: 'no file name in payload' })
   }
 
-  // 6. Parse internal_id from filename
-  const internalId = extractInternalId(assetName)
+  const internalId = extractInternalId(fileName)
   if (!internalId) {
-    console.log(`[frameio webhook] Asset "${assetName}" — no internal_id found, ignoring`)
+    console.log(`[frameio] "${fileName}" — no internal_id, ignoring`)
     return NextResponse.json({ skipped: true, reason: 'no internal_id in filename' })
   }
 
-  // 7. Look up the project
   const supabase = createServiceClient()
 
   const { data: project } = await supabase
@@ -102,20 +73,15 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!project) {
-    console.log(`[frameio webhook] No project found for internal_id "${internalId}"`)
+    console.log(`[frameio] No project for "${internalId}"`)
     return NextResponse.json({ skipped: true, reason: `project "${internalId}" not found` })
   }
 
-  // 8. Only act if the project is active or in_revision
   if (!['active', 'in_revision'].includes(project.status)) {
-    console.log(`[frameio webhook] Project "${internalId}" is "${project.status}" — no action`)
-    return NextResponse.json({
-      skipped: true,
-      reason: `project status is '${project.status}', not active/in_revision`,
-    })
+    console.log(`[frameio] "${internalId}" is "${project.status}" — no action`)
+    return NextResponse.json({ skipped: true, reason: `status is '${project.status}'` })
   }
 
-  // 9. Find the current version row
   const { data: version } = await supabase
     .from('versions')
     .select('id')
@@ -124,44 +90,18 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!version) {
-    console.error(`[frameio webhook] No version row for project "${internalId}" V${project.current_version}`)
     return NextResponse.json({ error: 'version row not found' }, { status: 500 })
   }
 
   const today = new Date().toISOString().split('T')[0]
 
-  // 10. Stamp done_date on the version
-  const { error: versionError } = await supabase
-    .from('versions')
-    .update({ done_date: today })
-    .eq('id', version.id)
+  await supabase.from('versions').update({ done_date: today }).eq('id', version.id)
+  await supabase.from('projects').update({
+    status: 'in_client_review',
+    previous_status: project.status,
+  }).eq('id', project.id)
 
-  if (versionError) {
-    console.error('[frameio webhook] version update error:', versionError)
-    return NextResponse.json({ error: versionError.message }, { status: 500 })
-  }
+  console.log(`[frameio] ✓ "${internalId}" → in_client_review (V${project.current_version})`)
 
-  // 11. Move project → in_client_review
-  const { error: projectError } = await supabase
-    .from('projects')
-    .update({
-      status: 'in_client_review',
-      previous_status: project.status,
-    })
-    .eq('id', project.id)
-
-  if (projectError) {
-    console.error('[frameio webhook] project update error:', projectError)
-    return NextResponse.json({ error: projectError.message }, { status: 500 })
-  }
-
-  console.log(`[frameio webhook] ✓ "${internalId}" moved to in_client_review (V${project.current_version}, done ${today})`)
-
-  return NextResponse.json({
-    success: true,
-    internalId,
-    projectId: project.id,
-    version: project.current_version,
-    doneDate: today,
-  })
+  return NextResponse.json({ success: true, internalId, version: project.current_version })
 }

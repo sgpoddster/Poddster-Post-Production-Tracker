@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
+import { sendAssignmentEmail } from '@/lib/email'
 
 export async function POST(
   req: NextRequest,
@@ -51,6 +52,28 @@ export async function POST(
   if (versionError) {
     console.error('Version insert error:', versionError)
     // Non-fatal — project is already active
+  }
+
+  // Send assignment email to editor (non-blocking — don't fail the trigger if email fails)
+  if (project.assigned_editor) {
+    const { data: editorProfile } = await supabase
+      .from('user_profiles')
+      .select('display_name')
+      .eq('email', project.assigned_editor)
+      .single()
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-production-tracker.vercel.app'
+
+    sendAssignmentEmail({
+      editorEmail:     project.assigned_editor,
+      editorName:      editorProfile?.display_name ?? project.assigned_editor.split('@')[0],
+      clientName:      project.client_name ?? 'Client',
+      projectType:     project.type,
+      highlightNumber: project.highlight_number,
+      filmingDate:     project.filming_date,
+      dueDate:         dueDateStr,
+      projectUrl:      `${appUrl}/projects/${id}`,
+    }).catch(e => console.error('[email] background error:', e))
   }
 
   return NextResponse.json({ success: true, project })

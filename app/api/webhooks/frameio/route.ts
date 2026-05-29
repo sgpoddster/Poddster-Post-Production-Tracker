@@ -2,7 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
 // Frame.io v4 webhook — no signature verification needed (matches GAS implementation).
-// Payload is wrapped in a top-level { data: { ... } } envelope.
+// Payload only contains resource.id — we fetch the filename from the Frame.io API.
+
+async function fetchFileName(accountId: string, fileId: string): Promise<string> {
+  const token = process.env.FRAMEIO_API_TOKEN
+  if (!token) { console.warn('[frameio] FRAMEIO_API_TOKEN not set'); return '' }
+  try {
+    const res = await fetch(
+      `https://api.frame.io/v4/accounts/${accountId}/files/${fileId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    if (!res.ok) { console.warn('[frameio] file fetch status:', res.status); return '' }
+    const json = await res.json()
+    // v4 wraps response in data: {}
+    const file = json.data ?? json
+    return (file.name as string) ?? ''
+  } catch (e) {
+    console.error('[frameio] file fetch error:', e)
+    return ''
+  }
+}
 
 function getPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce((cur: unknown, key) => {
@@ -50,12 +69,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: true, reason: `event '${eventType}' not handled` })
   }
 
-  // Get file name — try several payload locations
-  const fileName = getAny(payload, ['resource.name', 'name', 'data.name'])
+  // file.ready payload only contains resource.id — fetch name from Frame.io API
+  const accountId = getAny(payload, ['account.id'])
+  const fileId    = getAny(payload, ['resource.id'])
+  console.log('[frameio] accountId:', accountId, 'fileId:', fileId)
+
+  if (!accountId || !fileId) {
+    return NextResponse.json({ skipped: true, reason: 'missing account.id or resource.id' })
+  }
+
+  const fileName = await fetchFileName(accountId, fileId)
   console.log('[frameio] file name:', fileName)
 
   if (!fileName) {
-    return NextResponse.json({ skipped: true, reason: 'no file name in payload' })
+    return NextResponse.json({ skipped: true, reason: 'could not fetch file name from Frame.io API' })
   }
 
   const internalId = extractInternalId(fileName)

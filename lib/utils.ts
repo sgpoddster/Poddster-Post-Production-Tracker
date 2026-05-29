@@ -21,7 +21,7 @@ export function formatFilmingTimeShort(filmingTime: string | null): string {
   const m = parseInt(mStr ?? '0', 10)
   const suffix = h >= 12 ? 'pm' : 'am'
   const h12 = h % 12 === 0 ? 12 : h % 12
-  return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2, '0')}${suffix}`
+  return m === 0 ? `${h12}${suffix}` : `${h12}${String(m).padStart(2, '0')}${suffix}`
 }
 
 // Build the Frame.io-ready output filename for a project

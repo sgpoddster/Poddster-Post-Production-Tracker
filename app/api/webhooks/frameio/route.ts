@@ -12,10 +12,28 @@ function verifySignature(rawBody: string, signatureHeader: string | null): boole
     console.warn('[frameio webhook] FRAMEIO_WEBHOOK_SECRET not set — skipping signature check')
     return true
   }
-  if (!signatureHeader) return false
+  if (!signatureHeader) {
+    console.warn('[frameio webhook] No signature header found')
+    return false
+  }
 
+  console.log('[frameio webhook] signature header:', signatureHeader)
+
+  // Frame.io v4 format: "t=<timestamp>,v1=<hex>" — signed over "<timestamp>.<body>"
+  if (signatureHeader.includes('v1=')) {
+    const parts = Object.fromEntries(signatureHeader.split(',').map(p => p.split('=')))
+    const timestamp = parts['t']
+    const v1 = parts['v1']
+    if (!timestamp || !v1) return false
+    const payload = `${timestamp}.${rawBody}`
+    const expected = createHmac('sha256', secret).update(payload).digest('hex')
+    try {
+      return timingSafeEqual(Buffer.from(v1), Buffer.from(expected))
+    } catch { return false }
+  }
+
+  // Legacy format: "sha256=<hex>" — signed over raw body only
   const expected = 'sha256=' + createHmac('sha256', secret).update(rawBody).digest('hex')
-
   try {
     return timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expected))
   } catch {
@@ -38,17 +56,14 @@ export async function POST(req: NextRequest) {
   // 1. Read raw body (needed for HMAC verification before JSON.parse)
   const rawBody = await req.text()
 
-  // 2. Verify signature — log all headers to diagnose signing format
+  // 2. Verify signature
   const sig = req.headers.get('x-frameio-signature')
     ?? req.headers.get('x-frameio-signature-256')
     ?? req.headers.get('x-webhook-signature')
-  console.log('[frameio webhook] sig header:', sig)
-  console.log('[frameio webhook] all headers:', Object.fromEntries(req.headers.entries()))
-  console.log('[frameio webhook] raw body (first 300):', rawBody.slice(0, 300))
+  console.log('[frameio webhook] body preview:', rawBody.slice(0, 200))
   if (!verifySignature(rawBody, sig)) {
-    console.error('[frameio webhook] Invalid signature — proceeding anyway for debug')
-    // TODO: re-enable once signature format confirmed
-    // return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    console.error('[frameio webhook] Invalid signature')
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
   // 3. Parse payload

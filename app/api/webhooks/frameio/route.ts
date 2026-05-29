@@ -2,20 +2,47 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
 // Frame.io v4 webhook — no signature verification needed (matches GAS implementation).
-// Payload only contains resource.id — we fetch the filename from the Frame.io API.
+// Authentication: Adobe IMS OAuth — exchange refresh token for access token, then call v4 API.
 
-async function fetchFileName(fileId: string): Promise<string> {
-  const token = process.env.FRAMEIO_API_TOKEN
-  if (!token) { console.warn('[frameio] FRAMEIO_API_TOKEN not set'); return '' }
+const ADOBE_CLIENT_ID = '73aff1fed325400292f5abc97ee331b8'
+const ADOBE_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3'
+
+async function getAdobeAccessToken(): Promise<string> {
+  const clientSecret = process.env.ADOBE_CLIENT_SECRET
+  const refreshToken = process.env.FRAMEIO_REFRESH_TOKEN
+  if (!clientSecret || !refreshToken) {
+    throw new Error('ADOBE_CLIENT_SECRET or FRAMEIO_REFRESH_TOKEN not set')
+  }
+  const res = await fetch(ADOBE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type:    'refresh_token',
+      client_id:     ADOBE_CLIENT_ID,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Adobe token exchange failed: ${res.status} — ${text}`)
+  }
+  const json = await res.json()
+  if (!json.access_token) throw new Error('No access_token in Adobe IMS response')
+  return json.access_token as string
+}
+
+async function fetchFileName(accountId: string, fileId: string): Promise<string> {
   try {
-    // Use v2 API — developer tokens (fio-u-...) work here; v4 requires Adobe IMS OAuth
+    const accessToken = await getAdobeAccessToken()
     const res = await fetch(
-      `https://api.frame.io/v2/assets/${fileId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      `https://api.frame.io/v4/accounts/${accountId}/files/${fileId}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     )
     if (!res.ok) { console.warn('[frameio] file fetch status:', res.status); return '' }
     const json = await res.json()
-    return (json.name as string) ?? ''
+    const file = json.data ?? json
+    return (file.name as string) ?? ''
   } catch (e) {
     console.error('[frameio] file fetch error:', e)
     return ''
@@ -68,15 +95,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: true, reason: `event '${eventType}' not handled` })
   }
 
-  // file.ready payload only contains resource.id — fetch name from Frame.io v2 API
-  const fileId = getAny(payload, ['resource.id'])
-  console.log('[frameio] fileId:', fileId)
+  // file.ready payload only contains resource.id — fetch name via Adobe IMS + Frame.io v4 API
+  const accountId = getAny(payload, ['account.id'])
+  const fileId    = getAny(payload, ['resource.id'])
+  console.log('[frameio] accountId:', accountId, 'fileId:', fileId)
 
-  if (!fileId) {
-    return NextResponse.json({ skipped: true, reason: 'missing resource.id' })
+  if (!accountId || !fileId) {
+    return NextResponse.json({ skipped: true, reason: 'missing account.id or resource.id' })
   }
 
-  const fileName = await fetchFileName(fileId)
+  const fileName = await fetchFileName(accountId, fileId)
   console.log('[frameio] file name:', fileName)
 
   if (!fileName) {

@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poddster Post-Production — Architecture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f0f0f;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 48px 40px 80px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 48px;
+    }
+
+    /* ── layer labels ── */
+    .arch {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 1100px;
+    }
+
+    .layer {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+    }
+
+    .layer-label {
+      width: 110px;
+      min-width: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 16px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.2);
+    }
+
+    .layer-content {
+      flex: 1;
+      display: flex;
+      gap: 10px;
+      padding: 14px 0;
+      border-left: 1px solid rgba(255,255,255,0.06);
+      padding-left: 20px;
+      flex-wrap: wrap;
+    }
+
+    /* connector dots on the border */
+    .layer-content::before {
+      content: '';
+      position: absolute;
+      left: -5px;
+      top: 50%;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      transform: translateY(-50%);
+    }
+    .layer { position: relative; }
+
+    /* ── boxes ── */
+    .box {
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.5;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #1a1a1a;
+      position: relative;
+    }
+
+    .box-title {
+      font-weight: 600;
+      font-size: 12px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .box-detail {
+      font-size: 11px;
+      color: rgba(255,255,255,0.38);
+      line-height: 1.55;
+    }
+
+    .box-detail span {
+      display: block;
+    }
+
+    /* colour themes */
+    .blue   { border-color: rgba(59,130,246,0.3);  background: rgba(59,130,246,0.06); }
+    .blue   .box-title { color: #93c5fd; }
+    .green  { border-color: rgba(74,222,128,0.25); background: rgba(74,222,128,0.05); }
+    .green  .box-title { color: #86efac; }
+    .purple { border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.06); }
+    .purple .box-title { color: #c4b5fd; }
+    .amber  { border-color: rgba(251,191,36,0.25); background: rgba(251,191,36,0.05); }
+    .amber  .box-title { color: #fde68a; }
+    .red    { border-color: rgba(248,113,113,0.25); background: rgba(248,113,113,0.05); }
+    .red    .box-title { color: #fca5a5; }
+    .grey   { border-color: rgba(255,255,255,0.08); background: #1c1c1c; }
+    .grey   .box-title { color: rgba(255,255,255,0.6); }
+
+    /* wide variant */
+    .box.wide { flex: 1; min-width: 220px; }
+    .box.narrow { min-width: 150px; }
+    .box.full { width: 100%; }
+
+    /* ── arrows between layers ── */
+    .arrow-row {
+      display: flex;
+      align-items: center;
+      padding-left: 130px;
+      gap: 10px;
+      height: 28px;
+    }
+    .arrow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.2);
+    }
+    .arrow svg { flex-shrink: 0; }
+    .arrow-line {
+      width: 1px;
+      height: 28px;
+      background: rgba(255,255,255,0.08);
+      margin-left: 20px;
+    }
+
+    /* ── status flow ── */
+    .status-flow {
+      max-width: 1100px;
+      margin-top: 40px;
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 24px 28px;
+    }
+    .status-flow h2 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: rgba(255,255,255,0.3);
+      margin-bottom: 20px;
+    }
+    .flow-track {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      row-gap: 16px;
+    }
+    .status-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .status-pill {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-label {
+      font-size: 9px;
+      color: rgba(255,255,255,0.25);
+      text-align: center;
+      max-width: 90px;
+    }
+    .flow-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 8px;
+      gap: 2px;
+      padding-bottom: 20px;
+    }
+    .flow-arrow svg { color: rgba(255,255,255,0.2); }
+    .flow-arrow-label {
+      font-size: 9px;
+      color: rgba(255,255,255,0.2);
+      white-space: nowrap;
+    }
+    .flow-branch {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-left: 8px;
+    }
+    .flow-branch-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* status colours */
+    .s-pending  { background: rgba(251,191,36,0.15);  color: #fde68a;  border: 1px solid rgba(251,191,36,0.3); }
+    .s-active   { background: rgba(59,130,246,0.15);  color: #93c5fd;  border: 1px solid rgba(59,130,246,0.3); }
+    .s-review   { background: rgba(167,139,250,0.15); color: #c4b5fd;  border: 1px solid rgba(167,139,250,0.3); }
+    .s-revision { background: rgba(249,115,22,0.15);  color: #fdba74;  border: 1px solid rgba(249,115,22,0.3); }
+    .s-complete { background: rgba(74,222,128,0.15);  color: #86efac;  border: 1px solid rgba(74,222,128,0.3); }
+    .s-cancel   { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.1); }
+
+    /* ── data tables ── */
+    .tables-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+      max-width: 1100px;
+      margin-top: 40px;
+    }
+    .db-table {
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .db-table-header {
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .db-table-header .icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+    .db-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 5px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      font-size: 11px;
+    }
+    .db-row:last-child { border-bottom: none; }
+    .db-col { color: rgba(255,255,255,0.65); font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10.5px; }
+    .db-type { color: rgba(255,255,255,0.2); font-size: 10px; margin-left: auto; }
+    .db-pk { color: #fde68a; }
+    .db-fk { color: #c4b5fd; }
+
+    /* ── section headers ── */
+    .section-header {
+      max-width: 1100px;
+      margin-top: 52px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-header h2 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: rgba(255,255,255,0.3);
+    }
+    .section-header::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* ── legend ── */
+    .legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      max-width: 1100px;
+      margin-top: 12px;
+      margin-bottom: 32px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Poddster Post-Production</h1>
+  <p class="subtitle">Web App Architecture · Next.js 14 + Supabase</p>
+
+  <!-- ═══════════════════════════════════════════
+       LAYER DIAGRAM
+  ════════════════════════════════════════════ -->
+  <div class="section-header"><h2>System Layers</h2></div>
+
+  <div class="arch">
+
+    <!-- EXTERNAL -->
+    <div class="layer">
+      <div class="layer-label">External</div>
+      <div class="layer-content">
+
+        <div class="box amber narrow">
+          <div class="box-title">📅 Google Calendar</div>
+          <div class="box-detail">
+            <span>3 booking calendars</span>
+            <span>singapore@poddster.com</span>
+            <span>Nest + River group cals</span>
+          </div>
+        </div>
+
+        <div class="box amber narrow">
+          <div class="box-title">🎬 Frame.io</div>
+          <div class="box-detail">
+            <span>Output delivery platform</span>
+            <span>Manual upload (for now)</span>
+            <span>Webhook planned</span>
+          </div>
+        </div>
+
+        <div class="box amber narrow">
+          <div class="box-title">📊 Google Apps Script</div>
+          <div class="box-detail">
+            <span>Legacy Sheets tracker</span>
+            <span>POSTs to ingest API</span>
+            <span>x-api-key auth</span>
+          </div>
+        </div>
+
+        <div class="box amber narrow">
+          <div class="box-title">🔑 Google OAuth</div>
+          <div class="box-detail">
+            <span>SSO sign-in</span>
+            <span>calendar.readonly scope</span>
+            <span>provider_token stored</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- arrow -->
+    <div class="arrow-row">
+      <div class="arrow">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M6 10l-3-3M6 10l3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span>REST / OAuth</span>
+      </div>
+    </div>
+
+    <!-- BROWSER -->
+    <div class="layer">
+      <div class="layer-label">Browser</div>
+      <div class="layer-content">
+
+        <div class="box blue wide">
+          <div class="box-title">📋 Dashboard <span style="font-weight:400;color:rgba(255,255,255,0.3);font-size:10px">/ dashboard</span></div>
+          <div class="box-detail">
+            <span>4 sections: Awaiting Trigger · In Progress · Client Review · Completed</span>
+            <span>Admin sees all · Producer sees own · Action buttons per row</span>
+          </div>
+        </div>
+
+        <div class="box blue wide">
+          <div class="box-title">📌 Queue <span style="font-weight:400;color:rgba(255,255,255,0.3);font-size:10px">/ queue</span></div>
+          <div class="box-detail">
+            <span>Urgency-sorted active work</span>
+            <span>Most overdue first · Editor view = own only</span>
+          </div>
+        </div>
+
+        <div class="box blue wide">
+          <div class="box-title">🗂 Project Detail <span style="font-weight:400;color:rgba(255,255,255,0.3);font-size:10px">/ projects/[id]</span></div>
+          <div class="box-detail">
+            <span>Meta · Version timeline · Action buttons</span>
+            <span>Admin: Edit modal · Cancel · Due date editor · Copy filename</span>
+          </div>
+        </div>
+
+        <div class="box blue narrow">
+          <div class="box-title">⚙️ Admin <span style="font-weight:400;color:rgba(255,255,255,0.3);font-size:10px">/ admin</span></div>
+          <div class="box-detail">
+            <span>User roles</span>
+            <span>Client list</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- arrow -->
+    <div class="arrow-row">
+      <div class="arrow">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M6 10l-3-3M6 10l3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span>Server components fetch · Client components POST/PATCH</span>
+      </div>
+    </div>
+
+    <!-- NEXT.JS SERVER -->
+    <div class="layer">
+      <div class="layer-label">Next.js Server</div>
+      <div class="layer-content">
+
+        <div class="box green wide">
+          <div class="box-title">🔀 Middleware</div>
+          <div class="box-detail">
+            <span>Refresh Supabase session on every request</span>
+            <span>Redirect unauthenticated users → /login</span>
+            <span>APIs pass through (auth checked per-route)</span>
+          </div>
+        </div>
+
+        <div class="box green wide">
+          <div class="box-title">📡 API Routes</div>
+          <div class="box-detail">
+            <span>trigger · complete · cancel · hold/resume · undo</span>
+            <span>revision · version/done · version/due-date</span>
+            <span>PATCH project · create · add-output · ingest</span>
+          </div>
+        </div>
+
+        <div class="box green narrow">
+          <div class="box-title">🔐 Auth Callback</div>
+          <div class="box-detail">
+            <span>/auth/callback</span>
+            <span>Exchanges OAuth code</span>
+            <span>for Supabase session</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- arrow -->
+    <div class="arrow-row">
+      <div class="arrow">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M6 10l-3-3M6 10l3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span>Supabase JS SDK (server client)</span>
+      </div>
+    </div>
+
+    <!-- SUPABASE -->
+    <div class="layer">
+      <div class="layer-label">Supabase</div>
+      <div class="layer-content">
+
+        <div class="box purple wide">
+          <div class="box-title">🗄 Postgres Database</div>
+          <div class="box-detail">
+            <span>projects · versions · clients · user_profiles</span>
+            <span>Row-Level Security · anon / service_role keys</span>
+          </div>
+        </div>
+
+        <div class="box purple narrow">
+          <div class="box-title">🔑 Auth</div>
+          <div class="box-detail">
+            <span>Google OAuth provider</span>
+            <span>Session in cookies</span>
+            <span>provider_token for Calendar API</span>
+          </div>
+        </div>
+
+        <div class="box purple narrow">
+          <div class="box-title">⚡ Realtime</div>
+          <div class="box-detail">
+            <span>Not used yet</span>
+            <span>(router.refresh() used</span>
+            <span>for live updates)</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /arch -->
+
+
+  <!-- ═══════════════════════════════════════════
+       STATUS LIFECYCLE
+  ════════════════════════════════════════════ -->
+  <div class="section-header"><h2>Project Status Lifecycle</h2></div>
+
+  <div class="status-flow">
+    <div class="flow-track">
+
+      <div class="status-node">
+        <div class="status-pill s-pending">pending_trigger</div>
+        <div class="status-label">Created (manual or GAS ingest)</div>
+      </div>
+
+      <div class="flow-arrow">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M10 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="flow-arrow-label">Trigger<br/>(sets V1 deadline)</div>
+      </div>
+
+      <div class="status-node">
+        <div class="status-pill s-active">active</div>
+        <div class="status-label">Editor working on it</div>
+      </div>
+
+      <div class="flow-arrow">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M10 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="flow-arrow-label">Mark Done</div>
+      </div>
+
+      <div class="status-node">
+        <div class="status-pill s-review">in_client_review</div>
+        <div class="status-label">Waiting for client feedback</div>
+      </div>
+
+      <div class="flow-arrow" style="opacity:0.4">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M10 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="flow-arrow-label"></div>
+      </div>
+
+      <!-- branch point -->
+      <div style="display:flex;flex-direction:column;gap:14px;">
+
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="flow-arrow">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M10 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="flow-arrow-label">Approve</div>
+          </div>
+          <div class="status-node">
+            <div class="status-pill s-complete">complete</div>
+            <div class="status-label">Done ✓</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="flow-arrow">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M10 5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="flow-arrow-label">Revisions</div>
+          </div>
+          <div class="status-node">
+            <div class="status-pill s-revision">in_revision</div>
+            <div class="status-label">V2, V3… (loops back)</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- cancelled -->
+      <div style="margin-left:32px;display:flex;align-items:center;gap:8px;align-self:flex-start;margin-top:4px">
+        <div style="font-size:10px;color:rgba(255,255,255,0.18);white-space:nowrap">Any status →</div>
+        <div class="status-pill s-cancel" style="padding:4px 10px;font-size:10px;">cancelled</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.2)">(admin only)</div>
+      </div>
+
+    </div>
+
+    <!-- on hold note -->
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px;color:rgba(255,255,255,0.25);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:#fde68a;padding:3px 10px;border-radius:12px;font-weight:600;font-size:10px">⏸ On Hold</span>
+      <span>Freezes the countdown timer on any active/in_revision project. Resuming extends the due date by the number of calendar days paused. Admin only.</span>
+    </div>
+
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       DATABASE TABLES
+  ════════════════════════════════════════════ -->
+  <div class="section-header"><h2>Database Tables</h2></div>
+
+  <div class="tables-grid">
+
+    <div class="db-table">
+      <div class="db-table-header">
+        <div class="icon" style="background:rgba(59,130,246,0.15);color:#93c5fd">🗂</div>
+        projects
+        <span style="margin-left:auto;font-size:9px;font-weight:400;color:rgba(255,255,255,0.2)">core table</span>
+      </div>
+      <div class="db-row"><span class="db-col db-pk">id</span><span class="db-type">uuid PK</span></div>
+      <div class="db-row"><span class="db-col">job_id</span><span class="db-type">text</span></div>
+      <div class="db-row"><span class="db-col">internal_id</span><span class="db-type">text unique</span></div>
+      <div class="db-row"><span class="db-col">client_name / code</span><span class="db-type">text</span></div>
+      <div class="db-row"><span class="db-col">assigned_editor</span><span class="db-type">email</span></div>
+      <div class="db-row"><span class="db-col">assigned_producer</span><span class="db-type">email</span></div>
+      <div class="db-row"><span class="db-col">type</span><span class="db-type">episode|highlight</span></div>
+      <div class="db-row"><span class="db-col">filming_date / time</span><span class="db-type">date / text</span></div>
+      <div class="db-row"><span class="db-col">drive_link</span><span class="db-type">text</span></div>
+      <div class="db-row"><span class="db-col">status</span><span class="db-type">enum</span></div>
+      <div class="db-row"><span class="db-col">current_version</span><span class="db-type">int</span></div>
+      <div class="db-row"><span class="db-col">on_hold / hold_date</span><span class="db-type">bool / date</span></div>
+      <div class="db-row"><span class="db-col">source</span><span class="db-type">manual|calendar</span></div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-header">
+        <div class="icon" style="background:rgba(74,222,128,0.1);color:#86efac">📋</div>
+        versions
+      </div>
+      <div class="db-row"><span class="db-col db-pk">id</span><span class="db-type">uuid PK</span></div>
+      <div class="db-row"><span class="db-col db-fk">project_id</span><span class="db-type">uuid FK</span></div>
+      <div class="db-row"><span class="db-col">version_number</span><span class="db-type">int</span></div>
+      <div class="db-row"><span class="db-col">label</span><span class="db-type">First Cut / V2…</span></div>
+      <div class="db-row"><span class="db-col">submitted_date</span><span class="db-type">date</span></div>
+      <div class="db-row"><span class="db-col">due_date</span><span class="db-type">date</span></div>
+      <div class="db-row"><span class="db-col">done_date</span><span class="db-type">date</span></div>
+      <div class="db-row"><span class="db-col">notes</span><span class="db-type">text</span></div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-header">
+        <div class="icon" style="background:rgba(167,139,250,0.1);color:#c4b5fd">🏢</div>
+        clients
+      </div>
+      <div class="db-row"><span class="db-col db-pk">id</span><span class="db-type">uuid PK</span></div>
+      <div class="db-row"><span class="db-col">name</span><span class="db-type">text</span></div>
+      <div class="db-row"><span class="db-col">code</span><span class="db-type">text</span></div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-header">
+        <div class="icon" style="background:rgba(251,191,36,0.1);color:#fde68a">👤</div>
+        user_profiles
+      </div>
+      <div class="db-row"><span class="db-col db-pk db-fk">id</span><span class="db-type">uuid → auth.users</span></div>
+      <div class="db-row"><span class="db-col">email</span><span class="db-type">text</span></div>
+      <div class="db-row"><span class="db-col">display_name</span><span class="db-type">text</span></div>
+      <div class="db-row"><span class="db-col">role</span><span class="db-type">admin|producer</span></div>
+    </div>
+
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       KEY DATA FLOWS
+  ════════════════════════════════════════════ -->
+  <div class="section-header"><h2>Key Data Flows</h2></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:1100px">
+
+    <div class="box grey" style="padding:18px 20px">
+      <div class="box-title" style="color:rgba(255,255,255,0.7);margin-bottom:10px">🗓 New Project (Manual)</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:rgba(255,255,255,0.4)">
+        <div>1. Admin clicks <strong style="color:rgba(255,255,255,0.65)">+ New Project</strong></div>
+        <div>2. Optionally browses Google Calendar → picks booking → fields pre-filled via <code style="color:#86efac;font-size:10px">calendarParser.ts</code></div>
+        <div>3. Fills in client name/code manually (not in calendar data)</div>
+        <div>4. Submits → <code style="color:#86efac;font-size:10px">POST /api/projects/create</code></div>
+        <div>5. Job ID generated (5-char hex). One row per episode + per highlight</div>
+        <div>6. Status = <span style="color:#fde68a">pending_trigger</span> · appears in Awaiting Trigger</div>
+      </div>
+    </div>
+
+    <div class="box grey" style="padding:18px 20px">
+      <div class="box-title" style="color:rgba(255,255,255,0.7);margin-bottom:10px">🤖 Automated Ingest (GAS)</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:rgba(255,255,255,0.4)">
+        <div>1. GAS syncs Google Calendar → Sheets</div>
+        <div>2. For each new booking with edit services, GAS calls:</div>
+        <div>&nbsp;&nbsp;<code style="color:#86efac;font-size:10px">POST /api/bookings/ingest</code> with <code style="color:#86efac;font-size:10px">x-api-key</code> header</div>
+        <div>3. Upserts on <code style="color:#86efac;font-size:10px">internal_id</code> — safe to run repeatedly</div>
+        <div>4. Status = <span style="color:#fde68a">pending_trigger</span></div>
+      </div>
+    </div>
+
+    <div class="box grey" style="padding:18px 20px">
+      <div class="box-title" style="color:rgba(255,255,255,0.7);margin-bottom:10px">▶️ Trigger → Deadline Set</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:rgba(255,255,255,0.4)">
+        <div>1. <code style="color:#86efac;font-size:10px">POST /api/projects/[id]/trigger</code></div>
+        <div>2. Admin can pass a past <code style="color:#86efac;font-size:10px">submittedDate</code> to backdate</div>
+        <div>3. Project → <span style="color:#93c5fd">active</span></div>
+        <div>4. V1 version row created:</div>
+        <div>&nbsp;&nbsp;due_date = submittedDate + <strong style="color:rgba(255,255,255,0.65)">5 working days</strong></div>
+        <div>5. Countdown timer starts ticking on dashboard + queue</div>
+      </div>
+    </div>
+
+    <div class="box grey" style="padding:18px 20px">
+      <div class="box-title" style="color:rgba(255,255,255,0.7);margin-bottom:10px">🔄 Revision Cycle</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:rgba(255,255,255,0.4)">
+        <div>1. Editor marks done → <span style="color:#c4b5fd">in_client_review</span></div>
+        <div>2. Admin clicks Start Revision:</div>
+        <div>&nbsp;&nbsp;<code style="color:#86efac;font-size:10px">POST /api/projects/[id]/revision</code></div>
+        <div>3. New version row (V2, V3…) created</div>
+        <div>&nbsp;&nbsp;due_date = today + <strong style="color:rgba(255,255,255,0.65)">3 working days</strong></div>
+        <div>4. Status → <span style="color:#fdba74">in_revision</span> · current_version bumped</div>
+        <div>5. Frame.io filename auto-updates to new V#</div>
+      </div>
+    </div>
+
+    <div class="box grey" style="padding:18px 20px">
+      <div class="box-title" style="color:rgba(255,255,255,0.7);margin-bottom:10px">📋 Frame.io Filename</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:rgba(255,255,255,0.4)">
+        <div>Built by <code style="color:#86efac;font-size:10px">buildOutputFilename()</code> in utils.ts</div>
+        <div style="margin:4px 0">
+          <code style="background:rgba(255,255,255,0.06);padding:4px 8px;border-radius:6px;color:rgba(255,255,255,0.6);font-size:10.5px;display:block">
+            A3F2BE1&nbsp;&nbsp;2pm&nbsp;&nbsp;7th May 2026&nbsp;&nbsp;-&nbsp;&nbsp;V1
+          </code>
+        </div>
+        <div>= <code style="color:#fde68a;font-size:10px">internal_id</code> + start time + ordinal date + version</div>
+        <div>"Copy filename" button on project detail page</div>
+        <div>Tooltip previews before copy · flashes ✓ on success</div>
+      </div>
+    </div>
+
+    <div class="box grey" style="padding:18px 20px">
+      <div class="box-title" style="color:rgba(255,255,255,0.7);margin-bottom:10px">⏸ On Hold / Resume</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:rgba(255,255,255,0.4)">
+        <div><strong style="color:rgba(255,255,255,0.65)">Hold:</strong> <code style="color:#86efac;font-size:10px">POST /hold</code> → saves hold_date, freezes timer display</div>
+        <div><strong style="color:rgba(255,255,255,0.65)">Resume:</strong> <code style="color:#86efac;font-size:10px">POST /resume</code> →</div>
+        <div>&nbsp;&nbsp;daysPaused = today − hold_date</div>
+        <div>&nbsp;&nbsp;due_date += daysPaused (calendar days)</div>
+        <div>&nbsp;&nbsp;on_hold = false, hold_date = null</div>
+        <div>Admin only · amber button when active</div>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       ID SYSTEM
+  ════════════════════════════════════════════ -->
+  <div class="section-header"><h2>ID System</h2></div>
+
+  <div style="max-width:1100px;background:#1a1a1a;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:24px 28px">
+    <div style="display:flex;align-items:flex-start;gap:40px;flex-wrap:wrap">
+
+      <div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">Job ID (shoot level)</div>
+        <div style="font-size:28px;font-weight:700;font-family:'SF Mono','Fira Code',monospace;color:#fde68a;letter-spacing:2px">A3F2B</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:6px">Random 5-char hex<br/>Prefix always A–F<br/>Shared by all rows<br/>from the same shoot</div>
+      </div>
+
+      <div style="padding-top:8px;color:rgba(255,255,255,0.15);font-size:24px">→</div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:2px;text-transform:uppercase;letter-spacing:.08em">Internal IDs (deliverable level)</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <code style="font-size:15px;font-weight:700;color:#93c5fd;letter-spacing:1px">A3F2BE1</code>
+          <span style="font-size:11px;color:rgba(255,255,255,0.3)">Episode 1</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <code style="font-size:15px;font-weight:700;color:#93c5fd;letter-spacing:1px">A3F2BE2</code>
+          <span style="font-size:11px;color:rgba(255,255,255,0.3)">Episode 2 (multi-episode shoots)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <code style="font-size:15px;font-weight:700;color:#c4b5fd;letter-spacing:1px">A3F2BH1</code>
+          <span style="font-size:11px;color:rgba(255,255,255,0.3)">Highlight 1</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <code style="font-size:15px;font-weight:700;color:#c4b5fd;letter-spacing:1px">A3F2BH2</code>
+          <span style="font-size:11px;color:rgba(255,255,255,0.3)">Highlight 2</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <code style="font-size:15px;font-weight:700;color:#c4b5fd;letter-spacing:1px">A3F2BH3</code>
+          <span style="font-size:11px;color:rgba(255,255,255,0.3)">Highlight 3</span>
+        </div>
+      </div>
+
+      <div style="padding-top:8px;max-width:300px;border-left:1px solid rgba(255,255,255,0.06);padding-left:28px">
+        <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">Deadline Rules</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.7">
+          <div>V1 First Cut &nbsp;→&nbsp; <strong style="color:rgba(255,255,255,0.7)">5 working days</strong> from trigger</div>
+          <div>V2+ Revisions &nbsp;→&nbsp; <strong style="color:rgba(255,255,255,0.7)">3 working days</strong> from trigger</div>
+          <div style="margin-top:8px">Weekends skipped. Public holidays TBD.</div>
+          <div style="margin-top:8px">Admin can set due date manually on any version via the inline editor on the project detail page.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="margin-top:60px;font-size:10px;color:rgba(255,255,255,0.12);max-width:1100px">
+    Poddster Post-Production Tracker · Built with Next.js 14, Supabase, Tailwind CSS
+  </div>
+
+</body>
+</html>

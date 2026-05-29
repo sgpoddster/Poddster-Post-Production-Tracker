@@ -1,62 +1,128 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { Project } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
+import { CountdownTimer } from '@/components/CountdownTimer'
+import { getUserProfile } from '@/lib/auth'
 import TriggerButton from './TriggerButton'
 import StartRevisionButton from './StartRevisionButton'
+import NewProjectButton from './NewProjectButton'
+import MarkDoneButton from '../queue/MarkDoneButton'
+import CompleteButton from '@/components/CompleteButton'
+import UndoButton from '@/components/UndoButton'
+import OnHoldButton from '@/components/OnHoldButton'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: projects } = await supabase
+  const profile = await getUserProfile()
+  const isAdmin = profile?.role === 'admin'
+
+  // Fetch active/pending projects — admin sees all, producer sees their own
+  let query = supabase
     .from('projects')
     .select('*, versions(*)')
     .not('status', 'in', '("complete","cancelled")')
     .order('filming_date', { ascending: true })
 
+  if (!isAdmin) {
+    query = query.eq('assigned_editor', user.email)
+  }
+
+  // Fetch recently completed (last 30 days), newest first
+  let completedQuery = supabase
+    .from('projects')
+    .select('*, versions(*)')
+    .eq('status', 'complete')
+    .gte('updated_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    .order('updated_at', { ascending: false })
+
+  if (!isAdmin) {
+    completedQuery = completedQuery.eq('assigned_editor', user.email)
+  }
+
+  const [{ data: projects }, { data: completedProjects }, { data: clientsData }, { data: profilesData }] =
+    await Promise.all([
+      query,
+      completedQuery,
+      supabase.from('clients').select('id, name, code').order('name'),
+      supabase.from('user_profiles').select('email, display_name').order('display_name'),
+    ])
+
+  const clients = clientsData ?? []
+  const editors = profilesData ?? []
+
+  // email → display name lookup
+  const editorNames: Record<string, string> = {}
+  for (const p of profilesData ?? []) {
+    if (p.email) editorNames[p.email] = p.display_name || p.email
+  }
+
   const pending    = (projects ?? []).filter(p => p.status === 'pending_trigger')
-  const inProgress = (projects ?? []).filter(p =>
-    ['active', 'in_revision', 'delivered'].includes(p.status)
-  )
+  const inProgress    = (projects ?? []).filter(p => ['active', 'in_revision'].includes(p.status))
+  const inReview      = (projects ?? []).filter(p => p.status === 'in_client_review')
+  const completed     = completedProjects ?? []
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-10">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">AM Dashboard</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Trigger projects when footage is ready to edit</p>
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-10">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            {isAdmin ? 'Dashboard' : 'My Dashboard'}
+          </h1>
+          <p className="text-sm text-white/40 mt-1">
+            {isAdmin ? 'All projects' : `Showing your projects`}
+          </p>
+        </div>
+        <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
       </div>
 
-      {/* ── Pending Trigger ────────────────────────────────── */}
       <Section
-        dot="bg-amber-400"
+        dot="bg-amber-500"
         title="Awaiting Trigger"
         count={pending.length}
         empty="No projects waiting to be triggered."
       >
-        {pending.map(p => (
-          <PendingRow key={p.id} project={p} />
-        ))}
+        {pending.map(p => <PendingRow key={p.id} project={p} isAdmin={isAdmin}
+          editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
       </Section>
 
-      {/* ── In Progress ───────────────────────────────────── */}
       <Section
-        dot="bg-blue-400"
+        dot="bg-blue-500"
         title="In Progress"
         count={inProgress.length}
         empty="Nothing currently in progress."
       >
-        {inProgress.map(p => (
-          <InProgressRow key={p.id} project={p} />
-        ))}
+        {inProgress.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
+          editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
+      </Section>
+
+      <Section
+        dot="bg-purple-500"
+        title="Client Review"
+        count={inReview.length}
+        empty="Nothing awaiting client review."
+      >
+        {inReview.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
+          editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
+      </Section>
+
+      <Section
+        dot="bg-green-500"
+        title="Completed"
+        count={completed.length}
+        empty="No completions in the last 30 days."
+      >
+        {completed.map(p => <CompletedRow key={p.id} project={p}
+          editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
       </Section>
     </main>
   )
 }
-
-// ── Sub-components ──────────────────────────────────────────────────────────
 
 function Section({
   dot, title, count, empty, children
@@ -65,16 +131,15 @@ function Section({
 }) {
   return (
     <section>
-      <div className="flex items-center gap-2 mb-3">
-        <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-          {title} <span className="font-normal text-gray-400 normal-case">({count})</span>
-        </h2>
+      <div className="flex items-center gap-2.5 mb-4">
+        <span className={`w-2 h-2 rounded-full ${dot}`} />
+        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest">{title}</h2>
+        <span className="text-xs text-white/25">{count}</span>
       </div>
       {count === 0 ? (
-        <p className="text-sm text-gray-400 pl-5">{empty}</p>
+        <p className="text-sm text-white/25 pl-4">{empty}</p>
       ) : (
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100">
+        <div className="rounded-lg border border-white/[0.06] bg-brand-surface overflow-hidden divide-y divide-white/[0.06]">
           {children}
         </div>
       )}
@@ -82,78 +147,130 @@ function Section({
   )
 }
 
-function PendingRow({ project }: { project: Project }) {
+function PendingRow({ project, isAdmin, editorName }: {
+  project: Project; isAdmin: boolean; editorName: string
+}) {
+  const typeLabel = project.type === 'episode'
+    ? 'Episode' : `Highlight #${project.highlight_number}`
+
   return (
-    <div className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors">
-      <div className="flex items-center gap-4 min-w-0">
-        <code className="text-xs text-gray-300 shrink-0 w-14">{project.job_id}</code>
+    <div className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors group">
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
+        <code className="text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {project.client_name || '—'}
-            {project.client_code && (
-              <span className="ml-1.5 text-xs text-gray-400">({project.client_code})</span>
-            )}
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
+              {project.client_name || '—'}
+            </span>
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">
-            {project.filming_date ? formatDate(project.filming_date) : '—'}
-            {project.filming_time ? ` · ${project.filming_time}` : ''}
-            {' · '}
-            {project.type === 'episode'
-              ? '🎬 Episode'
-              : `🎯 Highlight #${project.highlight_number}`}
-            {project.setup ? ` · ${project.setup}` : ''}
+          <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
+            <span>{typeLabel}</span>
+            {project.filming_date && <><span className="text-white/15">·</span>{formatDate(project.filming_date)}{project.filming_time ? ` · ${project.filming_time}` : ''}</>}
+            <span className="text-white/15">·</span>
+            <span className="font-medium text-white/60">{editorName}</span>
           </div>
         </div>
-      </div>
+      </Link>
       <div className="flex items-center gap-3 shrink-0 ml-4">
         {project.drive_link && (
-          <a
-            href={project.drive_link}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-blue-500 hover:underline"
-          >
-            Drive ↗
-          </a>
+          <a href={project.drive_link} target="_blank" rel="noreferrer"
+            className="text-xs text-white/30 hover:text-white/60 transition-colors"
+          >Drive ↗</a>
         )}
-        <span className="text-xs text-gray-400">{project.assigned_editor || 'No editor'}</span>
-        <TriggerButton projectId={project.id} />
+        <TriggerButton projectId={project.id} isAdmin={isAdmin} />
       </div>
     </div>
   )
 }
 
-function InProgressRow({ project }: { project: Project }) {
+function CompletedRow({ project, editorName }: { project: Project; editorName: string }) {
+  const completedVer = (project.versions ?? [])
+    .sort((a: { version_number: number }, b: { version_number: number }) => b.version_number - a.version_number)
+    .find((v: { done_date: string | null }) => v.done_date)
+
+  const typeLabel = project.type === 'episode'
+    ? 'Episode' : `Highlight #${project.highlight_number}`
+
+  return (
+    <div className="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors group opacity-60 hover:opacity-80">
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
+        <code className="text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
+              {project.client_name || '—'}
+            </span>
+            <span className="text-xs text-white/30">V{project.current_version}</span>
+          </div>
+          <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5">
+            <span>{typeLabel}</span>
+            {completedVer?.done_date && <><span className="text-white/15">·</span>Done {formatDate(completedVer.done_date)}</>}
+            <span className="text-white/15">·</span>
+            <span className="font-medium text-white/60">{editorName}</span>
+          </div>
+        </div>
+      </Link>
+      <div className="flex items-center gap-3 shrink-0 ml-4">
+        <UndoButton projectId={project.id} />
+      </div>
+    </div>
+  )
+}
+
+function InProgressRow({ project, isAdmin, editorName }: {
+  project: Project; isAdmin: boolean; editorName: string
+}) {
   const currentVer = (project.versions ?? []).find(
     v => v.version_number === project.current_version
   )
 
   return (
-    <div className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors">
-      <div className="flex items-center gap-4 min-w-0">
-        <code className="text-xs text-gray-300 shrink-0 w-20">{project.internal_id}</code>
+    <div className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors group">
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
+        <code className="text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {project.client_name || '—'}
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
+              {project.client_name || '—'}
+            </span>
+            {project.status !== 'in_client_review' && (
+              <StatusBadge status={project.status} />
+            )}
+            <span className="text-xs text-white/30">V{project.current_version}</span>
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">
-            {project.type === 'episode'
-              ? '🎬 Episode'
-              : `🎯 Highlight #${project.highlight_number}`}
-            {currentVer?.due_date ? ` · Due ${formatDate(currentVer.due_date)}` : ''}
-            {' · '}V{project.current_version}
+          <div className="text-xs text-white/35 mt-0.5">
+            {project.type === 'episode' ? 'Episode' : `Highlight #${project.highlight_number}`}
+            <span className="text-white/15 mx-1.5">·</span>
+            <span className="font-medium text-white/60">{editorName}</span>
           </div>
         </div>
-      </div>
+      </Link>
       <div className="flex items-center gap-3 shrink-0 ml-4">
-        <span className="text-xs text-gray-400">{project.assigned_editor || '—'}</span>
-        <StatusBadge status={project.status} />
-        {project.status === 'delivered' && (
-          <StartRevisionButton
-            projectId={project.id}
-            currentVersion={project.current_version}
+        {currentVer?.due_date && project.status !== 'in_client_review' && (
+          <CountdownTimer
+            dueDate={currentVer.due_date}
+            onHold={project.on_hold}
+            holdDate={project.hold_date}
           />
         )}
+        {/* Fixed-width button area so timer column never shifts */}
+        <div className="flex items-center gap-2 justify-end w-[140px]">
+          {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
+            <OnHoldButton projectId={project.id} onHold={project.on_hold} />
+          )}
+          {(project.status === 'active' || project.status === 'in_revision') && !project.on_hold && (
+            <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />
+          )}
+          {project.status === 'in_client_review' && (
+            <>
+              <CompleteButton projectId={project.id} />
+              {isAdmin && (
+                <StartRevisionButton projectId={project.id} currentVersion={project.current_version} />
+              )}
+              <UndoButton projectId={project.id} />
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

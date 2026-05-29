@@ -1,7 +1,7 @@
 export type ProjectStatus =
   | 'pending_trigger'
   | 'active'
-  | 'delivered'
+  | 'in_client_review'
   | 'in_revision'
   | 'complete'
   | 'cancelled'
@@ -25,11 +25,15 @@ export interface Project {
   setup: string | null
   drive_link: string | null
   footage_ok: boolean
+  shoot_duration: string | null
+  seats: number | null
   services: string | null
   addons: string | null
   notes: string | null
   current_version: number
   status: ProjectStatus
+  on_hold: boolean
+  hold_date: string | null
   source: ProjectSource
   frame_asset_id: string | null
   created_at: string

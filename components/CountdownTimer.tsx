@@ -1,56 +1,62 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { formatFullDate } from '@/lib/utils'
 
-interface Props { dueDate: string }   // 'YYYY-MM-DD'
-
-type TimerStatus = 'overdue' | 'today' | 'soon' | 'ok'
-
-const colours: Record<TimerStatus, string> = {
-  overdue: 'bg-red-100 text-red-700 border-red-200',
-  today:   'bg-amber-100 text-amber-700 border-amber-200',
-  soon:    'bg-orange-100 text-orange-700 border-orange-200',
-  ok:      'bg-green-100 text-green-700 border-green-200',
+interface Props {
+  dueDate: string           // 'YYYY-MM-DD'
+  onHold?: boolean
+  holdDate?: string | null  // 'YYYY-MM-DD' — the day it was frozen
 }
 
-export function CountdownTimer({ dueDate }: Props) {
-  const [label, setLabel] = useState('')
-  const [status, setStatus] = useState<TimerStatus>('ok')
+export function CountdownTimer({ dueDate, onHold, holdDate }: Props) {
+  const [diffDays, setDiffDays] = useState<number | null>(null)
 
   useEffect(() => {
     function compute() {
-      const due = new Date(dueDate + 'T23:59:59')
-      const now = new Date()
-      const diffMs = due.getTime() - now.getTime()
-      const diffDays = Math.floor(diffMs / 86_400_000)
-
-      if (diffMs < 0) {
-        const daysLate = Math.ceil(-diffMs / 86_400_000)
-        setStatus('overdue')
-        setLabel(`${daysLate}d overdue`)
-      } else if (diffDays === 0) {
-        setStatus('today')
-        const hrs = Math.floor(diffMs / 3_600_000)
-        setLabel(hrs > 0 ? `${hrs}h left` : 'Due today')
-      } else if (diffDays <= 2) {
-        setStatus('soon')
-        setLabel(`${diffDays}d left`)
+      if (onHold && holdDate) {
+        const due  = new Date(dueDate  + 'T23:59:59')
+        const held = new Date(holdDate + 'T23:59:59')
+        setDiffDays(Math.floor((due.getTime() - held.getTime()) / 86_400_000))
       } else {
-        setStatus('ok')
-        setLabel(`${diffDays}d`)
+        const due = new Date(dueDate + 'T23:59:59')
+        const now = new Date()
+        setDiffDays(Math.floor((due.getTime() - now.getTime()) / 86_400_000))
       }
     }
-
     compute()
     const id = setInterval(compute, 60_000)
     return () => clearInterval(id)
-  }, [dueDate])
+  }, [dueDate, onHold, holdDate])
 
-  if (!label) return null
+  if (diffDays === null) return null
+
+  // Compute label and classes regardless of hold state — same structure always
+  let text: string
+  let classes: string
+
+  if (onHold) {
+    text = diffDays < 0
+      ? `${Math.abs(diffDays) + 1}d overdue`
+      : diffDays === 0 ? 'Due today' : `${diffDays}d left`
+    classes = 'text-orange-200 bg-orange-600/40 border-orange-500/50'
+  } else if (diffDays < 0) {
+    text = `${Math.abs(diffDays) + 1}d overdue`
+    classes = 'text-white bg-brand-red border-brand-red'
+  } else if (diffDays <= 2) {
+    text = diffDays === 0 ? 'Due today' : `${diffDays}d left`
+    classes = 'text-black bg-amber-400 border-amber-400'
+  } else {
+    text = `${diffDays}d left`
+    classes = 'text-black bg-green-400 border-green-400'
+  }
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${colours[status]}`}>
-      ⏱ {label}
-    </span>
+    <div className="flex items-center gap-3 shrink-0">
+      <div className={`w-24 text-center text-xs font-bold px-2.5 py-1 rounded border ${classes}`}>
+        {text}
+      </div>
+      <span className="w-44 text-xs text-white/35">{formatFullDate(dueDate)}</span>
+    </div>
   )
 }

@@ -7,12 +7,14 @@ interface Client {
   id: string
   name: string
   code: string | null
+  first_name: string | null
+  last_name: string | null
   email: string | null
   email_2: string | null
   email_3: string | null
 }
 
-const empty = { name: '', code: '', email: '', email_2: '', email_3: '' }
+const empty = { name: '', code: '', first_name: '', last_name: '', email: '', email_2: '', email_3: '' }
 
 function ClientEmails({ client }: { client: Client }) {
   const emails = [client.email, client.email_2, client.email_3].filter(Boolean)
@@ -32,11 +34,13 @@ function EditRow({ client, onSave, onCancel }: {
   onCancel: () => void
 }) {
   const [form, setForm] = useState({
-    name:    client.name,
-    code:    client.code    ?? '',
-    email:   client.email   ?? '',
-    email_2: client.email_2 ?? '',
-    email_3: client.email_3 ?? '',
+    name:       client.name,
+    code:       client.code       ?? '',
+    first_name: client.first_name ?? '',
+    last_name:  client.last_name  ?? '',
+    email:      client.email      ?? '',
+    email_2:    client.email_2    ?? '',
+    email_3:    client.email_3    ?? '',
   })
   const [loading, setLoading] = useState(false)
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -59,10 +63,11 @@ function EditRow({ client, onSave, onCancel }: {
 
   return (
     <div className="px-5 py-4 space-y-3 bg-white/[0.02]">
+      {/* Row 1: Name + Code */}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <label className="text-[10px] text-white/30 uppercase tracking-wider">Name *</label>
-          <input value={form.name} onChange={set('name')} placeholder="Client name"
+          <label className="text-[10px] text-white/30 uppercase tracking-wider">Client name *</label>
+          <input value={form.name} onChange={set('name')} placeholder="Display name"
             className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
         </div>
         <div className="space-y-1">
@@ -71,6 +76,20 @@ function EditRow({ client, onSave, onCancel }: {
             className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
         </div>
       </div>
+      {/* Row 2: First + Last name */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <label className="text-[10px] text-white/30 uppercase tracking-wider">First name</label>
+          <input value={form.first_name} onChange={set('first_name')} placeholder="First name"
+            className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] text-white/30 uppercase tracking-wider">Last name</label>
+          <input value={form.last_name} onChange={set('last_name')} placeholder="Last name"
+            className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+        </div>
+      </div>
+      {/* Row 3: Emails */}
       <div className="space-y-2">
         <label className="text-[10px] text-white/30 uppercase tracking-wider">Email addresses</label>
         {(['email', 'email_2', 'email_3'] as const).map((key, i) => (
@@ -166,6 +185,11 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-white">{c.name}</span>
                       {c.code && <span className="text-xs text-white/35 font-mono">{c.code}</span>}
+                      {(c.first_name || c.last_name) && (
+                        <span className="text-xs text-white/30">
+                          {[c.first_name, c.last_name].filter(Boolean).join(' ')}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-0.5">
                       <ClientEmails client={c} />
@@ -197,10 +221,11 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
       ) : (
         <form onSubmit={addClient} className="rounded-lg border border-white/[0.08] bg-brand-surface p-4 space-y-3">
           <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">New client</p>
+          {/* Client name + Code */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <label className="text-[10px] text-white/30 uppercase tracking-wider">Name *</label>
-              <input value={newForm.name} onChange={setNew('name')} placeholder="Client name" required
+              <label className="text-[10px] text-white/30 uppercase tracking-wider">Client name *</label>
+              <input value={newForm.name} onChange={setNew('name')} placeholder="Display name" required
                 className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
             </div>
             <div className="space-y-1">
@@ -209,6 +234,20 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                 className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
             </div>
           </div>
+          {/* First + Last name */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] text-white/30 uppercase tracking-wider">First name</label>
+              <input value={newForm.first_name} onChange={setNew('first_name')} placeholder="First name"
+                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-white/30 uppercase tracking-wider">Last name</label>
+              <input value={newForm.last_name} onChange={setNew('last_name')} placeholder="Last name"
+                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+            </div>
+          </div>
+          {/* Emails */}
           <div className="space-y-2">
             <label className="text-[10px] text-white/30 uppercase tracking-wider">Email addresses</label>
             {(['email', 'email_2', 'email_3'] as const).map((key, i) => (

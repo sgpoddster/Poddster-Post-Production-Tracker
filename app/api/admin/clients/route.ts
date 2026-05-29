@@ -15,17 +15,19 @@ export async function POST(request: Request) {
   const { error, status, supabase } = await requireAdmin()
   if (error || !supabase) return NextResponse.json({ error }, { status })
 
-  const { name, code, email, email_2, email_3 } = await request.json()
+  const { name, code, first_name, last_name, email, email_2, email_3 } = await request.json()
   if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 })
 
   const { data: client, error: dbError } = await supabase
     .from('clients')
     .insert({
       name,
-      code:    code    || null,
-      email:   email   || null,
-      email_2: email_2 || null,
-      email_3: email_3 || null,
+      code:       code       || null,
+      first_name: first_name || null,
+      last_name:  last_name  || null,
+      email:      email      || null,
+      email_2:    email_2    || null,
+      email_3:    email_3    || null,
     })
     .select()
     .single()
@@ -38,7 +40,7 @@ export async function PATCH(request: Request) {
   const { error, status, supabase } = await requireAdmin()
   if (error || !supabase) return NextResponse.json({ error }, { status })
 
-  const { id, name, code, email, email_2, email_3 } = await request.json()
+  const { id, name, code, first_name, last_name, email, email_2, email_3 } = await request.json()
   if (!id)   return NextResponse.json({ error: 'id is required' }, { status: 400 })
   if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 })
 
@@ -46,10 +48,12 @@ export async function PATCH(request: Request) {
     .from('clients')
     .update({
       name,
-      code:    code    || null,
-      email:   email   || null,
-      email_2: email_2 || null,
-      email_3: email_3 || null,
+      code:       code       || null,
+      first_name: first_name || null,
+      last_name:  last_name  || null,
+      email:      email      || null,
+      email_2:    email_2    || null,
+      email_3:    email_3    || null,
     })
     .eq('id', id)
     .select()

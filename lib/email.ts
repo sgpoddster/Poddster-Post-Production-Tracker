@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 import { formatFullDate } from './utils'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Instantiated lazily inside sendAssignmentEmail to avoid build-time crash when env var is absent
 
 export async function sendAssignmentEmail({
   editorEmail,
@@ -26,6 +26,8 @@ export async function sendAssignmentEmail({
     console.warn('[email] RESEND_API_KEY not set — skipping')
     return
   }
+
+  const resend = new Resend(process.env.RESEND_API_KEY)
 
   const typeLabel = projectType === 'episode' ? 'Episode' : `Highlight #${highlightNumber ?? ''}`
   const dueDateFormatted = formatFullDate(dueDate)

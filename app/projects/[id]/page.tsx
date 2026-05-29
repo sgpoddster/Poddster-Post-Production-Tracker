@@ -32,13 +32,17 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   ] = await Promise.all([
     supabase.from('projects').select('*, versions(*)').eq('id', params.id).single(),
     supabase.from('user_profiles').select('email, display_name').order('display_name'),
-    supabase.from('clients').select('id, name, code').order('name'),
+    supabase.from('clients').select('id, name, code, portal_token').order('name'),
   ])
 
   if (!project) notFound()
 
   const editors = profilesData ?? []
   const clients = clientsData ?? []
+
+  // Find this project's client record to get the portal token
+  const clientRecord = clients.find(c => c.name === project.client_name)
+  const portalToken = clientRecord?.portal_token ?? null
 
   // Build display name map
   const editorNames: Record<string, string> = {}
@@ -76,8 +80,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
         {/* Action buttons */}
         <div className="shrink-0 flex gap-2 flex-wrap justify-end">
-          {isAdmin && project.portal_token && (
-            <CopyPortalLinkButton portalToken={project.portal_token} />
+          {isAdmin && portalToken && (
+            <CopyPortalLinkButton portalToken={portalToken} />
           )}
           {isAdmin && (
             <EditProjectModal project={project} editors={editors} clients={clients} />

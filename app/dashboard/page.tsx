@@ -99,21 +99,21 @@ export default async function DashboardPage({
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10">
       <div className="flex flex-col gap-3">
+        {/* Row 1: title + new project button */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                {isAdmin ? 'Dashboard' : 'My Dashboard'}
-              </h1>
-            </div>
-            {isAdmin && editors.length > 0 && (
-              <ProducerFilter editors={editors} selected={editorFilters} />
-            )}
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+            {isAdmin ? 'Dashboard' : 'My Dashboard'}
+          </h1>
+          <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
+        </div>
+        {/* Row 2: search + producer filter */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
             <SearchBar defaultValue={searchParams?.q} />
-            <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
           </div>
+          {isAdmin && editors.length > 0 && (
+            <ProducerFilter editors={editors} selected={editorFilters} />
+          )}
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const supabase = await createClient()
@@ -11,9 +11,15 @@ export async function POST(
 
   const today = new Date().toISOString().split('T')[0]
 
+  let reason: string | null = null
+  try {
+    const body = await req.json()
+    reason = body?.reason ?? null
+  } catch { /* no body */ }
+
   const { error } = await supabase
     .from('projects')
-    .update({ on_hold: true, hold_date: today })
+    .update({ on_hold: true, hold_date: today, hold_reason: reason })
     .eq('id', params.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

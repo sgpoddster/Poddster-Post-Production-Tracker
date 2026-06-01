@@ -307,7 +307,7 @@ function InProgressRow({ project, isAdmin, editorName }: {
         )}
         <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
           {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
-            <OnHoldButton projectId={project.id} onHold={project.on_hold} />
+            <OnHoldButton projectId={project.id} onHold={project.on_hold} holdReason={project.hold_reason} />
           )}
           {(project.status === 'active' || project.status === 'in_revision') && !project.on_hold && (
             <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />

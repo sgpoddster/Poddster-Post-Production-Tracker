@@ -94,7 +94,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
             <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />
           )}
           {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
-            <OnHoldButton projectId={project.id} onHold={project.on_hold} />
+            <OnHoldButton projectId={project.id} onHold={project.on_hold} holdReason={project.hold_reason} />
           )}
           {project.status === 'in_client_review' && (
             <>

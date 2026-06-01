@@ -12,6 +12,21 @@ interface Client {
   email: string | null
   email_2: string | null
   email_3: string | null
+  portal_token: string | null
+}
+
+function CopyPortalLink({ token }: { token: string }) {
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    await navigator.clipboard.writeText(`${window.location.origin}/client/${token}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button onClick={copy} className="text-xs text-white/25 hover:text-white/60 transition-colors">
+      {copied ? '✓ Copied' : 'Portal link'}
+    </button>
+  )
 }
 
 const empty = { name: '', code: '', first_name: '', last_name: '', email: '', email_2: '', email_3: '' }
@@ -197,6 +212,7 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
+                  {c.portal_token && <CopyPortalLink token={c.portal_token} />}
                   <button onClick={() => setEditingId(c.id)}
                     className="text-xs text-white/30 hover:text-white/60 transition-colors">
                     Edit

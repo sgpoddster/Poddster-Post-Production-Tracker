@@ -20,7 +20,7 @@ export default async function AdminPage({
 
   const [{ data: users }, { data: clients }] = await Promise.all([
     supabase.from('user_profiles').select('*').order('display_name'),
-    supabase.from('clients').select('*').order('name'),
+    supabase.from('clients').select('*, portal_token').order('name'),
   ])
 
   return (

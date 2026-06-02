@@ -32,11 +32,12 @@ async function getAdobeAccessToken(): Promise<string> {
   return json.access_token as string
 }
 
-async function fetchFile(accountId: string, fileId: string): Promise<Record<string, unknown> | null> {
+async function fetchFile(accountId: string, fileId: string, include = 'metadata'): Promise<Record<string, unknown> | null> {
   try {
     const accessToken = await getAdobeAccessToken()
+    const qs = include ? `?include=${include}` : ''
     const res = await fetch(
-      `https://api.frame.io/v4/accounts/${accountId}/files/${fileId}?include=metadata`,
+      `https://api.frame.io/v4/accounts/${accountId}/files/${fileId}${qs}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )
     if (!res.ok) { console.warn('[frameio] file fetch status:', res.status); return null }
@@ -46,6 +47,18 @@ async function fetchFile(accountId: string, fileId: string): Promise<Record<stri
     console.error('[frameio] file fetch error:', e)
     return null
   }
+}
+
+// TEMP inspector — GET /api/webhooks/frameio?file=<id>&include=metadata
+// Lets us pull any file's full object on demand (e.g. one already set to Approved).
+const TEMP_ACCOUNT_ID = 'c385b04f-c1b3-496b-93fd-70388b468756'
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url)
+  const fileId  = url.searchParams.get('file')
+  const include = url.searchParams.get('include') ?? 'metadata'
+  if (!fileId) return NextResponse.json({ error: 'pass ?file=<id>' }, { status: 400 })
+  const file = await fetchFile(TEMP_ACCOUNT_ID, fileId, include)
+  return NextResponse.json(file ?? { error: 'fetch failed' })
 }
 
 function getPath(obj: Record<string, unknown>, path: string): unknown {

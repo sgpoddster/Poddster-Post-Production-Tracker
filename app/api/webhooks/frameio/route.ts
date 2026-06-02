@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
 
 // Frame.io v4 webhook.
 // Authentication: Adobe IMS OAuth — exchange refresh token for access token, then call v4 API.
@@ -176,22 +177,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, action: 'in_client_review', internalId })
   }
 
-  // ── status change: Approved → Complete ────────────────────────────────────
+  // ── status change ─────────────────────────────────────────────────────────
   const status = extractStatus(file)
   console.log(`[frameio] "${internalId}" status field = ${status ?? '(none)'}`)
 
-  if (status !== 'Approved') {
-    return NextResponse.json({ skipped: true, reason: `status '${status}' not actionable` })
-  }
-  if (['complete', 'cancelled'].includes(project.status)) {
-    return NextResponse.json({ skipped: true, reason: `already '${project.status}'` })
+  // Approved → Complete (from any active state; skip if already closed)
+  if (status === 'Approved') {
+    if (['complete', 'cancelled'].includes(project.status)) {
+      return NextResponse.json({ skipped: true, reason: `already '${project.status}'` })
+    }
+    await supabase.from('projects').update({
+      status: 'complete',
+      previous_status: project.status,
+    }).eq('id', project.id)
+    console.log(`[frameio] ✓ "${internalId}" Approved → complete`)
+    return NextResponse.json({ success: true, action: 'complete', internalId })
   }
 
-  await supabase.from('projects').update({
-    status: 'complete',
-    previous_status: project.status,
-  }).eq('id', project.id)
+  // Needs Review → client wants changes → start the next revision.
+  // Guard: only when currently in Client Review, so repeated events don't double-bump.
+  if (status === 'Needs Review') {
+    if (project.status !== 'in_client_review') {
+      return NextResponse.json({ skipped: true, reason: `not in client review (is '${project.status}')` })
+    }
+    const nextVersion = project.current_version + 1
+    const dueDate = addWorkDays(new Date(), workDaysForVersion(nextVersion))
+    const dueDateStr = dueDate.toISOString().split('T')[0]
 
-  console.log(`[frameio] ✓ "${internalId}" Approved → complete`)
-  return NextResponse.json({ success: true, action: 'complete', internalId })
+    await supabase.from('versions').insert({
+      project_id:     project.id,
+      version_number: nextVersion,
+      label:          versionLabel(nextVersion),
+      due_date:       dueDateStr,
+    })
+    await supabase.from('projects').update({
+      status: 'in_revision',
+      current_version: nextVersion,
+      previous_status: project.status,
+    }).eq('id', project.id)
+
+    console.log(`[frameio] ✓ "${internalId}" Needs Review → in_revision (V${nextVersion})`)
+    return NextResponse.json({ success: true, action: 'start_revision', internalId, newVersion: nextVersion })
+  }
+
+  return NextResponse.json({ skipped: true, reason: `status '${status}' not actionable` })
 }

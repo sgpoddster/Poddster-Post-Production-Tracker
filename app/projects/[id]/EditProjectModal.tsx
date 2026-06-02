@@ -33,6 +33,7 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
     setup: string; seats: string; shoot_duration: string
     drive_link: string
     assigned_editor: string
+    editor: string
     notes: string
   }
 
@@ -46,6 +47,7 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
     shoot_duration: project.shoot_duration ?? '',
     drive_link: project.drive_link ?? '',
     assigned_editor: project.assigned_editor ?? '',
+    editor: project.editor ?? '',
     notes: project.notes ?? '',
   })
 
@@ -203,20 +205,37 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs text-white/40 mb-1.5">Producer</label>
-                <select
-                  value={form.assigned_editor}
-                  onChange={field('assigned_editor')}
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
-                >
-                  <option value="">— unassigned —</option>
-                  {editors.map(e => (
-                    <option key={e.email} value={e.email}>
-                      {e.display_name || e.email}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5">Producer</label>
+                  <select
+                    value={form.assigned_editor}
+                    onChange={field('assigned_editor')}
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                  >
+                    <option value="">— unassigned —</option>
+                    {editors.map(e => (
+                      <option key={e.email} value={e.email}>
+                        {e.display_name || e.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5">Editor</label>
+                  <select
+                    value={form.editor}
+                    onChange={field('editor')}
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                  >
+                    <option value="">— Same as producer —</option>
+                    {editors.map(e => (
+                      <option key={e.email} value={e.email}>
+                        {e.display_name || e.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>

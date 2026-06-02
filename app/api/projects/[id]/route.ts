@@ -20,7 +20,7 @@ export async function PATCH(
     'client_name', 'client_code',
     'filming_date', 'filming_time', 'setup', 'seats', 'shoot_duration',
     'drive_link', 'services', 'addons',
-    'assigned_editor',
+    'assigned_editor', 'editor',
     'notes',
   ] as const
 

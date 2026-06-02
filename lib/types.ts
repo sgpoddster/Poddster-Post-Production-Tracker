@@ -17,7 +17,8 @@ export interface Project {
   client_name: string | null
   client_code: string | null
   assigned_producer: string | null
-  assigned_editor: string | null
+  assigned_editor: string | null   // the Producer (used for queue, filters, emails)
+  editor: string | null            // the actual Editor (display only; defaults to producer)
   type: ProjectType
   highlight_number: number | null
   filming_date: string | null       // 'YYYY-MM-DD'

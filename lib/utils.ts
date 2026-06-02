@@ -84,6 +84,19 @@ export function versionLabel(n: number): string {
   return n === 1 ? 'First Cut' : `V${n}`
 }
 
+// Format the assignee for display: "Producer", or "Producer (Editor)" when
+// a different editor is assigned. nameMap maps email → display name.
+export function formatAssignee(
+  producerEmail: string | null,
+  editorEmail: string | null,
+  nameMap: Record<string, string>,
+): string {
+  const producer = producerEmail ? (nameMap[producerEmail] ?? producerEmail) : '—'
+  if (!editorEmail || editorEmail === producerEmail) return producer
+  const editor = nameMap[editorEmail] ?? editorEmail
+  return `${producer} (${editor})`
+}
+
 // Working days from submitted date per version
 // V1 = 5 days, V2+ = 3 days
 export function workDaysForVersion(versionNumber: number): number {

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { formatDate, versionLabel } from '@/lib/utils'
+import { formatDate, versionLabel, formatAssignee } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import StartRevisionButton from '@/app/dashboard/StartRevisionButton'
 import TriggerButton from '@/app/dashboard/TriggerButton'
@@ -130,9 +130,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           </MetaCell>
         )}
         <MetaCell label="Producer">
-          {project.assigned_editor
-            ? (editorNames[project.assigned_editor] ?? project.assigned_editor)
-            : '—'}
+          {formatAssignee(project.assigned_editor, project.editor, editorNames)}
         </MetaCell>
         {project.seats != null && (
           <MetaCell label="Seats">{project.seats}</MetaCell>

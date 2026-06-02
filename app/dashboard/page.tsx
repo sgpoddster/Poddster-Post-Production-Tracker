@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project } from '@/lib/types'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatAssignee } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { getUserProfile } from '@/lib/auth'
@@ -128,7 +128,7 @@ export default async function DashboardPage({
         empty={q ? `No matches in this section.` : 'No projects waiting to be triggered.'}
       >
         {pending.map(p => <PendingRow key={p.id} project={p} isAdmin={isAdmin}
-          editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
+          editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
       </Section>
 
       <Section
@@ -138,7 +138,7 @@ export default async function DashboardPage({
         empty={q ? `No matches in this section.` : 'Nothing currently in progress.'}
       >
         {inProgress.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
-          editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
+          editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
       </Section>
 
       <Section
@@ -148,7 +148,7 @@ export default async function DashboardPage({
         empty={q ? `No matches in this section.` : 'Nothing awaiting client review.'}
       >
         {inReview.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
-          editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
+          editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
       </Section>
 
       <Section
@@ -158,7 +158,7 @@ export default async function DashboardPage({
         empty={q ? `No matches in this section.` : 'No completions in the last 30 days.'}
       >
         {completed.map(p => <CompletedRow key={p.id} project={p}
-          editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />)}
+          editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
       </Section>
     </main>
   )

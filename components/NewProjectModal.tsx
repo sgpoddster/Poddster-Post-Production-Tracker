@@ -35,14 +35,34 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     order_id: '',
     drive_link: '',
     assigned_editor: '',
+    editor: '',
     notes: '',
     episode_count: 1,
     highlight_count: 0,
     starting_version: 1,
   })
 
+  // Tracks whether the editor was manually chosen — once it is, picking a
+  // producer no longer overwrites it.
+  const [editorTouched, setEditorTouched] = useState(false)
+
   function set(field: string, value: string | number) {
     setForm(f => ({ ...f, [field]: value }))
+  }
+
+  // Picking a producer carries across to the editor by default (until the
+  // editor has been manually set).
+  function setProducer(value: string) {
+    setForm(f => ({
+      ...f,
+      assigned_editor: value,
+      editor: editorTouched ? f.editor : value,
+    }))
+  }
+
+  function setEditor(value: string) {
+    setEditorTouched(true)
+    setForm(f => ({ ...f, editor: value }))
   }
 
   function applyCalendarEvent(data: CalendarPrefill) {
@@ -94,6 +114,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
         seats:             form.seats ? parseInt(form.seats, 10) : null,
         drive_link:        form.drive_link || null,
         assigned_editor:   form.assigned_editor || null,
+        editor:            form.editor || form.assigned_editor || null,
         notes:             form.notes || null,
         episode_count:     form.episode_count,
         highlight_count:   form.highlight_count,
@@ -263,21 +284,38 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
             </div>
           </div>
 
-          {/* Producer */}
-          <div>
-            <Label>Assign Producer *</Label>
-            <select
-              value={form.assigned_editor}
-              onChange={e => set('assigned_editor', e.target.value)}
-              className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
-            >
-              <option value="">— Unassigned —</option>
-              {editors.map(ed => (
-                <option key={ed.email} value={ed.email}>
-                  {ed.display_name || ed.email}
-                </option>
-              ))}
-            </select>
+          {/* Producer + Editor */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Producer *</Label>
+              <select
+                value={form.assigned_editor}
+                onChange={e => setProducer(e.target.value)}
+                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+              >
+                <option value="">— Unassigned —</option>
+                {editors.map(ed => (
+                  <option key={ed.email} value={ed.email}>
+                    {ed.display_name || ed.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label>Editor</Label>
+              <select
+                value={form.editor}
+                onChange={e => setEditor(e.target.value)}
+                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+              >
+                <option value="">— Same as producer —</option>
+                {editors.map(ed => (
+                  <option key={ed.email} value={ed.email}>
+                    {ed.display_name || ed.email}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Notes */}

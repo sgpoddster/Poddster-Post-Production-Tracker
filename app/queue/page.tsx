@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project, Version } from '@/lib/types'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatAssignee } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { getUserProfile } from '@/lib/auth'
@@ -78,7 +78,7 @@ export default async function QueuePage() {
         <div className="rounded-lg border border-white/[0.06] bg-brand-surface overflow-hidden divide-y divide-white/[0.06]">
           {sorted.map(p => (
             <QueueRow key={p.id} project={p} isAdmin={isAdmin}
-              editorName={editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '—'} />
+              editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />
           ))}
         </div>
       )}

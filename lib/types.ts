@@ -34,6 +34,7 @@ export interface Project {
   status: ProjectStatus
   on_hold: boolean
   hold_date: string | null
+  hold_reason: string | null
   source: ProjectSource
   frame_asset_id: string | null
   created_at: string

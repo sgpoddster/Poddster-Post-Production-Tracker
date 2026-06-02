@@ -107,9 +107,21 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
       }
     }
 
+    // Deduplicate — the same booking can appear on more than one calendar,
+    // which produces duplicate React keys and breaks list reconciliation
+    // (the filter appears to "lock" after the first search).
+    const seen = new Set<string>()
+    const unique: DisplayEvent[] = []
+    for (const ev of results) {
+      const key = `${ev.summary}|${ev.startISO}|${ev.endISO}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      unique.push(ev)
+    }
+
     // Newest first
-    results.sort((a, b) => b.startISO.localeCompare(a.startISO))
-    setEvents(results)
+    unique.sort((a, b) => b.startISO.localeCompare(a.startISO))
+    setEvents(unique)
     setLoading(false)
   }, [])
 
@@ -178,6 +190,11 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
               >✕</button>
             )}
           </div>
+          {search.trim() && !loading && (
+            <p className="text-xs text-white/30">
+              {filtered.length} match{filtered.length !== 1 ? 'es' : ''} for &ldquo;{search.trim()}&rdquo;
+            </p>
+          )}
         </div>
 
         {/* Event list */}
@@ -198,7 +215,11 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
             </div>
           )}
           {!loading && !error && filtered.map(ev => (
-            <EventRow key={ev.id} event={ev} onSelect={() => onSelect(ev.parsed)} />
+            <EventRow
+              key={`${ev.id}|${ev.summary}|${ev.startISO}`}
+              event={ev}
+              onSelect={() => onSelect(ev.parsed)}
+            />
           ))}
         </div>
       </div>

@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     notes,
     episode_count = 1,
     highlight_count = 0,
+    starting_version = 1,
     drive_link,
   } = body
 
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
       addons:            addons || null,
       notes:             notes || null,
       status:            'pending_trigger',
-      current_version:   1,
+      current_version:   Math.max(1, Number(starting_version)),
       source:            'manual',
     })
   }
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
       addons:            addons || null,
       notes:             notes || null,
       status:            'pending_trigger',
-      current_version:   1,
+      current_version:   Math.max(1, Number(starting_version)),
       source:            'manual',
     })
   }

@@ -38,6 +38,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     notes: '',
     episode_count: 1,
     highlight_count: 0,
+    starting_version: 1,
   })
 
   function set(field: string, value: string | number) {
@@ -89,6 +90,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
         notes:             form.notes || null,
         episode_count:     form.episode_count,
         highlight_count:   form.highlight_count,
+        starting_version:  form.starting_version,
       }),
     })
 
@@ -231,6 +233,27 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
                 {selectedClient && ` for ${selectedClient.name}`}
               </p>
             )}
+          </div>
+
+          {/* Starting version */}
+          <div>
+            <Label>Starting Version</Label>
+            <div className="flex items-center gap-3">
+              <select
+                value={form.starting_version}
+                onChange={e => set('starting_version', parseInt(e.target.value))}
+                className="w-32 bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+              >
+                {Array.from({ length: 10 }, (_, i) => i + 1).map(v => (
+                  <option key={v} value={v}>V{v}</option>
+                ))}
+              </select>
+              {form.starting_version > 1 && (
+                <p className="text-xs text-white/30">
+                  V1–V{form.starting_version - 1} will be created as empty placeholders
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Producer */}

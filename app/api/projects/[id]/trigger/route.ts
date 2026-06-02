@@ -25,26 +25,48 @@ export async function POST(
 
   const submittedDateStr = submittedDate.toISOString().split('T')[0]
 
-  // Move project to active
+  // Fetch current project to get starting_version
+  const { data: existing } = await supabase
+    .from('projects')
+    .select('current_version')
+    .eq('id', id)
+    .single()
+
+  const startingVersion = existing?.current_version ?? 1
+
+  // Move project to active (keep current_version as-is)
   const { data: project, error: updateError } = await supabase
     .from('projects')
-    .update({ status: 'active', current_version: 1 })
+    .update({ status: 'active' })
     .eq('id', id)
     .select()
     .single()
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
-  // Due date calculated from submittedDate (may be in the past for backdated triggers)
-  const dueDate    = addWorkDays(submittedDate, workDaysForVersion(1))
+  // Insert empty placeholder rows for any versions before the starting version
+  if (startingVersion > 1) {
+    const placeholders = Array.from({ length: startingVersion - 1 }, (_, i) => ({
+      project_id:     id,
+      version_number: i + 1,
+      label:          versionLabel(i + 1),
+      submitted_date: null,
+      due_date:       null,
+      done_date:      null,
+    }))
+    await supabase.from('versions').insert(placeholders)
+  }
+
+  // Insert the active starting version with due date
+  const dueDate    = addWorkDays(submittedDate, workDaysForVersion(startingVersion))
   const dueDateStr = dueDate.toISOString().split('T')[0]
 
   const { error: versionError } = await supabase
     .from('versions')
     .insert({
       project_id:     id,
-      version_number: 1,
-      label:          versionLabel(1),
+      version_number: startingVersion,
+      label:          versionLabel(startingVersion),
       submitted_date: submittedDateStr,
       due_date:       dueDateStr,
     })
@@ -54,7 +76,7 @@ export async function POST(
     // Non-fatal — project is already active
   }
 
-  // Send assignment email to editor (non-blocking — don't fail the trigger if email fails)
+  // Send assignment email to editor (non-blocking)
   if (project.assigned_editor) {
     const { data: editorProfile } = await supabase
       .from('user_profiles')

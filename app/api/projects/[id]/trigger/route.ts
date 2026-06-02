@@ -34,10 +34,13 @@ export async function POST(
 
   const startingVersion = existing?.current_version ?? 1
 
-  // Move project to active (keep current_version as-is)
+  // V1 = first cut (active); V2+ means it's coming in mid-pipeline as a revision
+  const newStatus = startingVersion > 1 ? 'in_revision' : 'active'
+
+  // Move project into the pipeline (keep current_version as-is)
   const { data: project, error: updateError } = await supabase
     .from('projects')
-    .update({ status: 'active' })
+    .update({ status: newStatus })
     .eq('id', id)
     .select()
     .single()

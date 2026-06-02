@@ -120,8 +120,7 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
 
   const filtered = search.trim()
     ? events.filter(ev =>
-        ev.summary.toLowerCase().includes(search.toLowerCase()) ||
-        (ev.description ?? '').toLowerCase().includes(search.toLowerCase())
+        ev.summary.toLowerCase().includes(search.trim().toLowerCase())
       )
     : events
 

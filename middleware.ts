@@ -25,7 +25,9 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
-  const isPublic = pathname.startsWith('/login') || pathname.startsWith('/auth')
+  const isPublic = pathname.startsWith('/login')
+    || pathname.startsWith('/auth')
+    || pathname.startsWith('/client')   // public client portal — no login required
   const isApi    = pathname.startsWith('/api')
 
   // Redirect unauthenticated users to /login

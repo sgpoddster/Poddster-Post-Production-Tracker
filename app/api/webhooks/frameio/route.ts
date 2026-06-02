@@ -36,7 +36,7 @@ async function fetchFile(accountId: string, fileId: string): Promise<Record<stri
   try {
     const accessToken = await getAdobeAccessToken()
     const res = await fetch(
-      `https://api.frame.io/v4/accounts/${accountId}/files/${fileId}`,
+      `https://api.frame.io/v4/accounts/${accountId}/files/${fileId}?include=metadata`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )
     if (!res.ok) { console.warn('[frameio] file fetch status:', res.status); return null }

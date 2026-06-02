@@ -32,20 +32,19 @@ async function getAdobeAccessToken(): Promise<string> {
   return json.access_token as string
 }
 
-async function fetchFileName(accountId: string, fileId: string): Promise<string> {
+async function fetchFile(accountId: string, fileId: string): Promise<Record<string, unknown> | null> {
   try {
     const accessToken = await getAdobeAccessToken()
     const res = await fetch(
       `https://api.frame.io/v4/accounts/${accountId}/files/${fileId}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )
-    if (!res.ok) { console.warn('[frameio] file fetch status:', res.status); return '' }
+    if (!res.ok) { console.warn('[frameio] file fetch status:', res.status); return null }
     const json = await res.json()
-    const file = json.data ?? json
-    return (file.name as string) ?? ''
+    return (json.data ?? json) as Record<string, unknown>
   } catch (e) {
     console.error('[frameio] file fetch error:', e)
-    return ''
+    return null
   }
 }
 
@@ -88,14 +87,9 @@ export async function POST(req: NextRequest) {
     ? payloadRaw.data as Record<string, unknown>
     : payloadRaw
 
-  // Only handle file.ready
   const eventType = getAny(payload, ['type', 'event'])
   console.log('[frameio] event type:', eventType)
-  if (eventType !== 'file.ready') {
-    return NextResponse.json({ skipped: true, reason: `event '${eventType}' not handled` })
-  }
 
-  // file.ready payload only contains resource.id — fetch name via Adobe IMS + Frame.io v4 API
   const accountId = getAny(payload, ['account.id'])
   const fileId    = getAny(payload, ['resource.id'])
   console.log('[frameio] accountId:', accountId, 'fileId:', fileId)
@@ -104,7 +98,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: true, reason: 'missing account.id or resource.id' })
   }
 
-  const fileName = await fetchFileName(accountId, fileId)
+  // Fetch the full file object once (we need the name; also lets us inspect status fields)
+  const file = await fetchFile(accountId, fileId)
+
+  // TEMP INSPECTION: dump the full file object so we can see the status field shape.
+  // Remove once the Approved→Complete automation is built.
+  console.log('[frameio] FULL FILE OBJECT:', JSON.stringify(file, null, 2))
+
+  // Only the file.ready event drives the "delivered → client review" automation
+  if (eventType !== 'file.ready') {
+    return NextResponse.json({ inspected: true, event: eventType })
+  }
+
+  const fileName = (file?.name as string) ?? ''
   console.log('[frameio] file name:', fileName)
 
   if (!fileName) {

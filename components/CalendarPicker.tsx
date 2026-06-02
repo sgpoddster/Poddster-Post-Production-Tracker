@@ -41,6 +41,11 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
   const [error, setError]         = useState<string | null>(null)
   const [search, setSearch]       = useState('')
 
+  function changeRange(idx: number) {
+    setRangeIdx(idx)
+    setSearch('')   // clear search so the new range isn't filtered by the old query
+  }
+
   const fetchEvents = useCallback(async (days: number) => {
     setLoading(true)
     setError(null)
@@ -145,7 +150,7 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
             {RANGE_OPTIONS.map((opt, i) => (
               <button
                 key={opt.label}
-                onClick={() => setRangeIdx(i)}
+                onClick={() => changeRange(i)}
                 className={`px-2.5 py-1 text-xs rounded transition-colors ${
                   i === rangeIdx
                     ? 'bg-brand-red/20 border border-brand-red/40 text-brand-red'
@@ -157,14 +162,23 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
             ))}
           </div>
           {/* Search */}
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
-            placeholder="Search by client name…"
-            className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-brand-red/50"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
+              placeholder="Search by client name…"
+              className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 pr-7 text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-brand-red/50"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-sm leading-none"
+              >✕</button>
+            )}
+          </div>
         </div>
 
         {/* Event list */}

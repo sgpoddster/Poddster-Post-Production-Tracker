@@ -69,7 +69,14 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.client_id) { setError('Please select a client'); return }
+    if (!form.client_id)       { setError('Please select a client'); return }
+    if (!form.filming_date)    { setError('Please enter the filming date'); return }
+    if (!form.filming_hour)    { setError('Please select a start time'); return }
+    if (!form.setup)           { setError('Please enter the room / setup'); return }
+    if (!form.seats)           { setError('Please enter the number of seats'); return }
+    if (!form.shoot_duration)  { setError('Please select the shoot duration'); return }
+    if (form.episode_count + form.highlight_count === 0) { setError('Please add at least one episode or highlight'); return }
+    if (!form.assigned_editor) { setError('Please assign a producer'); return }
     setLoading(true)
     setError(null)
 
@@ -155,11 +162,11 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
           {/* Filming */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
-              <Label>Filming Date</Label>
+              <Label>Filming Date *</Label>
               <Input type="date" value={form.filming_date} onChange={v => set('filming_date', v)} />
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <Label>Start Time</Label>
+              <Label>Start Time *</Label>
               <div className="flex gap-2">
                 <select
                   value={form.filming_hour}
@@ -184,15 +191,15 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
               </div>
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <Label>Room / Setup</Label>
+              <Label>Room / Setup *</Label>
               <Input value={form.setup} onChange={v => set('setup', v)} placeholder="e.g. Nova, Nest, River" />
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <Label>No. of Seats</Label>
+              <Label>No. of Seats *</Label>
               <Input type="number" value={form.seats} onChange={v => set('seats', v)} placeholder="e.g. 4" />
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <Label>Shoot Duration</Label>
+              <Label>Shoot Duration *</Label>
               <select
                 value={form.shoot_duration}
                 onChange={e => set('shoot_duration', e.target.value)}
@@ -258,7 +265,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
 
           {/* Producer */}
           <div>
-            <Label>Assign Producer</Label>
+            <Label>Assign Producer *</Label>
             <select
               value={form.assigned_editor}
               onChange={e => set('assigned_editor', e.target.value)}

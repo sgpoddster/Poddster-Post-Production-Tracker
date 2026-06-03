@@ -6,6 +6,12 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ## 2026-06 — Email via Google Apps Script (no DNS needed)
 
+### Fixed
+- Assignment email is now **awaited** in the trigger route so it actually sends
+  before the Vercel function freezes (was fire-and-forget).
+- Removed the clapperboard emoji from the email heading — it rendered as broken
+  `�` diamonds through the GmailApp send path.
+
 ### Changed
 - **Email sending moved from Resend to a Google Apps Script web app** running in
   the `sgproduction@poddster.com` mailbox (`GmailApp.sendEmail`). Avoids the

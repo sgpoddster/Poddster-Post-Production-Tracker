@@ -75,7 +75,7 @@ export async function sendAssignmentEmail({
 
               <p style="margin:0 0 6px;font-size:13px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.08em;">New assignment</p>
               <h1 style="margin:0 0 24px;font-size:24px;font-weight:700;color:#ffffff;line-height:1.2;">
-                Hey ${firstName}! 🎬
+                Hey ${firstName}!
               </h1>
 
               <p style="margin:0 0 28px;font-size:15px;color:rgba(255,255,255,0.65);line-height:1.6;">

@@ -1,6 +1,6 @@
 # Poddster Post-Production Tracker — Architecture
 
-> Last updated: May 2026
+> Last updated: June 2026 · see `docs/changelog.md` for the running change log
 
 ---
 
@@ -19,9 +19,10 @@ A web app for the Poddster team (Singapore podcast studio) to manage the post-pr
 | Styling | Tailwind CSS |
 | Database | Supabase (Postgres) |
 | Auth | Supabase Auth — Google OAuth (SSO) |
-| Hosting | Vercel (planned) |
-| External data in | Google Calendar API (client-side, read-only) |
-| External data out | Frame.io (manual upload, filename helper) |
+| Hosting | Vercel |
+| External data in | Google Calendar API (client-side, read-only); Frame.io v4 webhooks |
+| External data out | Resend (transactional email); Frame.io filename helper |
+| Frame.io auth | Adobe IMS OAuth (refresh-token → access-token) for v4 API |
 | Legacy ingest | Google Apps Script → `/api/bookings/ingest` |
 
 ---
@@ -78,8 +79,9 @@ The core table. One row per deliverable (episodes and highlights are separate ro
 | `order_id` | text | From booking system (optional) |
 | `client_name` | text | Company/show name |
 | `client_code` | text | Short code, e.g. `PODS` |
-| `assigned_editor` | text | Email address |
-| `assigned_producer` | text | Email address |
+| `assigned_editor` | text | Email — the **Producer** (drives queue, filters, emails) |
+| `editor` | text | Email — the actual **Editor** (display only; defaults to producer) |
+| `assigned_producer` | text | Legacy column, unused |
 | `type` | enum | `episode` or `highlight` |
 | `highlight_number` | int | 1, 2, 3… for highlight rows; null for episodes |
 | `filming_date` | date | `YYYY-MM-DD` |
@@ -93,6 +95,8 @@ The core table. One row per deliverable (episodes and highlights are separate ro
 | `current_version` | int | Which version is active (1, 2, 3…) |
 | `on_hold` | boolean | Timer frozen |
 | `hold_date` | date | When hold was placed (for deadline extension on resume) |
+| `hold_reason` | text | Optional note captured when placing a hold |
+| `previous_status` | enum | Status before the last transition (for Undo) |
 | `source` | enum | `manual`, `calendar`, `force_push` |
 | `frame_asset_id` | text | Future Frame.io integration |
 | `created_at` / `updated_at` | timestamptz | Auto-managed |
@@ -114,13 +118,16 @@ One row per version of each project (V1 First Cut, V2, V3…).
 
 ### `clients`
 
-Lookup table for the client quick-fill dropdown.
+Lookup table for the client quick-fill dropdown and the client portal.
 
-| Column | Type |
-|---|---|
-| `id` | uuid |
-| `name` | text |
-| `code` | text |
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `name` | text | Display name, includes code in brackets e.g. `Adam Fayed (4AF)` |
+| `code` | text | Auto-extracted from the name's parentheses on save |
+| `first_name` / `last_name` | text | Contact name |
+| `email`, `email_2`, `email_3` | text | Up to 3 contact emails (portal + completion mail) |
+| `portal_token` | uuid | Per-client key for the public `/client/[token]` portal |
 
 ### `user_profiles`
 
@@ -194,10 +201,11 @@ Weekends are skipped. No public holidays yet (planned).
 |---|---|---|
 | `/` | All | Redirects to `/dashboard` |
 | `/login` | Public | Google OAuth sign-in |
-| `/dashboard` | All | Four sections: Awaiting Trigger, In Progress, Client Review, Completed (last 30 days). Admin sees all projects; producer sees own. |
-| `/queue` | All | Flat urgency-sorted list of active/in_revision work. Admin sees all; editor sees own. |
-| `/projects/[id]` | All | Full project detail: meta, version timeline, action buttons. Admin gets Edit, Cancel, Due Date editor. |
-| `/admin` | Admin only | User role management + client list management |
+| `/dashboard` | All | Four sections: Awaiting Trigger, In Progress, Client Review, Completed (last 30 days). Search box; admin producer multi-select filter; overdue flagging. Admin sees all; producer sees own. |
+| `/queue` | All | Flat urgency-sorted list of active/in_revision work. Filters: producer (admin), due window (Today/+1/+2/All working days), client. Admin sees all; editor sees own. |
+| `/projects/[id]` | All | Full project detail: meta, version timeline, action buttons. Admin gets Edit (incl. version selector), Cancel, Due Date editor, Copy client link. |
+| `/admin` | Admin only | Tabs: **Team** (role management) and **Clients** (search, add at top, emails ×3, names, portal link). |
+| `/client/[token]` | Public | Login-free client portal — all of a client's projects grouped by session, statuses + version timelines. Served via service-role read; whitelisted in middleware. |
 
 ---
 
@@ -209,9 +217,9 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 
 | Method | Route | What it does |
 |---|---|---|
-| `POST` | `/api/projects/create` | Create one or more project rows from the New Project form. Generates Job ID. |
-| `POST` | `/api/projects/[id]/trigger` | Move to `active`, create V1 row with deadline. Accepts optional `submittedDate`. |
-| `PATCH` | `/api/projects/[id]` | Edit project metadata (client, editor, dates, drive link etc). Admin only. |
+| `POST` | `/api/projects/create` | Create one or more project rows from the New Project form. Generates Job ID. Accepts `editor` and `starting_version`. |
+| `POST` | `/api/projects/[id]/trigger` | Move into the pipeline, create the active version row with deadline. V1 → `active`; V2+ → `in_revision` (with empty placeholders for earlier versions). Accepts optional `submittedDate`. Sends the editor assignment email. |
+| `PATCH` | `/api/projects/[id]` | Edit project metadata (client, producer/editor, dates, drive link, notes). Code auto-derived from name. **Version change**: reshapes version rows, flips First Cut ↔ Revision, recalculates the deadline. Admin only. |
 | `POST` | `/api/projects/[id]/cancel` | Set status to `cancelled`. Admin only. |
 | `POST` | `/api/projects/[id]/hold` | Freeze timer (`on_hold = true`, `hold_date = today`). |
 | `POST` | `/api/projects/[id]/resume` | Unfreeze, extend due_date by days paused. |
@@ -226,6 +234,12 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 | Method | Route | What it does |
 |---|---|---|
 | `POST` | `/api/projects/add-output` | Register a Frame.io output asset against a Job ID (future). |
+
+### Frame.io webhook
+
+| Method | Route | What it does |
+|---|---|---|
+| `POST` | `/api/webhooks/frameio` | Handles `file.ready` (delivered cut → Client Review, sets `done_date`), and status changes via `metadata.value.updated` / `file.updated`: **Needs Review** → start next revision (back to In Progress); **Approved** → Complete. Resolves the project by parsing the Internal ID from the filename. Auth: Adobe IMS OAuth → Frame.io v4 API. |
 
 ### Ingest (GAS)
 
@@ -406,8 +420,17 @@ This is the automated path for bookings that flow through the GAS pipeline. Manu
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Client + Server | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Client + Server | Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Bypasses RLS for ingest route |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Bypasses RLS for ingest, webhook, client portal |
 | `INGEST_API_KEY` | Server only | Shared secret for GAS → ingest endpoint |
+| `NEXT_PUBLIC_APP_URL` | Server | Base URL for links in emails |
+| `ADOBE_CLIENT_SECRET` | Server only | Adobe IMS OAuth (Frame.io v4) |
+| `FRAMEIO_REFRESH_TOKEN` | Server only | Adobe IMS refresh token (Frame.io v4) — see note below |
+| `RESEND_API_KEY` | Server only | Transactional email (editor assignment, future client mail) |
+
+> **Frame.io token caveat:** the refresh token is shared with the GAS Frame
+> audit tool, and Adobe IMS can rotate it — when it does, the Vercel copy goes
+> stale (`access_denied`) and must be re-synced. A durable fix (GAS writes the
+> live access token to Supabase; the webhook reads it) is planned.
 
 ---
 
@@ -415,10 +438,14 @@ This is the automated path for bookings that flow through the GAS pipeline. Manu
 
 | Feature | Notes |
 |---|---|
-| GAS ingest script | `Code.gs` is empty — needs the 5-phase sync from the old Sheets tracker |
-| Overdue dashboard | Late project flagging with a dedicated view |
-| Frame.io webhook | Auto-mark Done when an asset is uploaded |
-| Search / filter | Dashboard and queue filtering by client, editor, status |
-| Mobile layout | Works but not fully optimised |
-| Vercel deployment | Env vars need setting in Vercel dashboard |
+| GAS ingest script | `Code.gs` ingest path exists; full 5-phase calendar sync still to wire up |
+| Durable Frame.io token | GAS → Supabase token bridge so `access_denied` stops recurring |
+| Completion email to clients | Email all stored client addresses when a project completes |
+| Resend domain verification | DNS records for `poddster.com` so emails actually send |
+| Stats / reporting | Looker Studio connected to Supabase Postgres (preferred over in-app) |
 | Public holidays | Deadline calc currently skips weekends only |
+
+### Done since the May baseline
+Frame.io webhook (file.ready + Approved/Needs Review automation), dashboard &
+queue search/filters, mobile layout pass, Vercel deployment, client portal,
+editor field, editor assignment emails, client emails/names, version editing.

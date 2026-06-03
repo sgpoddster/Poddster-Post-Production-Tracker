@@ -55,60 +55,6 @@ async function fetchFile(accountId: string, fileId: string, include = 'metadata'
   }
 }
 
-// TEMP: list the workspace's Frame.io webhooks so we can see what events are subscribed.
-//   GET /api/webhooks/frameio?webhooks=1
-const TEMP_ACCOUNT_ID   = 'c385b04f-c1b3-496b-93fd-70388b468756'
-const TEMP_WORKSPACE_ID = '35d53c79-6d1e-42a3-aae2-7aabf1260e48'
-export async function GET(req: NextRequest) {
-  const url = new URL(req.url)
-
-  if (url.searchParams.get('webhooks')) {
-    try {
-      const token = await getAdobeAccessToken()
-      const res = await fetch(
-        `https://api.frame.io/v4/accounts/${TEMP_ACCOUNT_ID}/workspaces/${TEMP_WORKSPACE_ID}/webhooks`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      const json = await res.json()
-      return NextResponse.json({ status: res.status, data: json })
-    } catch (e) {
-      return NextResponse.json({ error: String(e) }, { status: 500 })
-    }
-  }
-
-  // TEMP: create a 2nd webhook for the status events (PATCH isn't supported).
-  //   GET /api/webhooks/frameio?update_webhook=1
-  if (url.searchParams.get('update_webhook')) {
-    try {
-      const token = await getAdobeAccessToken()
-      const res = await fetch(
-        `https://api.frame.io/v4/accounts/${TEMP_ACCOUNT_ID}/workspaces/${TEMP_WORKSPACE_ID}/webhooks`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            data: {
-              name: 'PP Tracker — status changes',
-              url: 'https://poddster-post-production-tracker.vercel.app/api/webhooks/frameio',
-              events: ['metadata.value.updated', 'file.updated'],
-            },
-          }),
-        }
-      )
-      const json = await res.json()
-      return NextResponse.json({ status: res.status, data: json })
-    } catch (e) {
-      return NextResponse.json({ error: String(e) }, { status: 500 })
-    }
-  }
-
-  const fileId  = url.searchParams.get('file')
-  const include = url.searchParams.get('include') ?? 'metadata'
-  if (!fileId) return NextResponse.json({ error: 'pass ?file=<id> or ?webhooks=1' }, { status: 400 })
-  const file = await fetchFile(TEMP_ACCOUNT_ID, fileId, include)
-  return NextResponse.json(file ?? { error: 'fetch failed' })
-}
-
 function getPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce((cur: unknown, key) => {
     return cur && typeof cur === 'object' ? (cur as Record<string, unknown>)[key] : undefined

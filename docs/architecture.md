@@ -243,7 +243,7 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 
 | Method | Route | What it does |
 |---|---|---|
-| `POST` | `/api/webhooks/frameio` | Handles `file.ready` (delivered cut → Client Review, sets `done_date`), and status changes via `metadata.value.updated` / `file.updated`: **Needs Review** → start next revision (back to In Progress); **Approved** → Complete. Resolves the project by parsing the Internal ID from the filename. Auth: Adobe IMS OAuth → Frame.io v4 API. |
+| `POST` | `/api/webhooks/frameio` | Handles `file.ready` (delivered cut → Client Review, sets `done_date`), and status changes via `metadata.value.updated` / `file.updated`: **Needs Review** → start next revision (back to In Progress); **Approved** → Complete. Resolves the project by parsing the Internal ID from the filename, reads the built-in "Status" field via `include=metadata`. Auth: Adobe IMS OAuth → Frame.io v4 API. **Two webhooks** point here: one subscribed to `file.ready`, one to `metadata.value.updated` + `file.updated` (v4 can't PATCH a webhook's events). |
 
 ### Ingest (GAS)
 

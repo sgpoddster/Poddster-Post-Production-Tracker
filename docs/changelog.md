@@ -4,6 +4,23 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Frame.io status automation live
+
+### Added / Confirmed
+- The Frame.io **Status** automation is now wired up and tested end-to-end:
+  - **Needs Review** → project returns to the queue as a revision (in_revision, V+1).
+  - **Approved** → project marked **Complete**.
+- A second Frame.io webhook ("PP Tracker — status changes") was created on the
+  workspace subscribed to `metadata.value.updated` + `file.updated`, pointing at
+  the same `/api/webhooks/frameio` endpoint. (v4 has no PATCH for webhooks, so a
+  separate webhook is used rather than editing the existing `file.ready` one.)
+
+### Removed
+- Temporary debug GET handlers on the webhook route (`?file=`, `?webhooks=`,
+  `?update_webhook=`). The route is POST-only again.
+
+---
+
 ## 2026-06 — Draft rename + Back-to-Draft
 
 ### Changed

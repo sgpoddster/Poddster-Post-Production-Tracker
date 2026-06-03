@@ -1,7 +1,27 @@
-import { Resend } from 'resend'
 import { formatFullDate } from './utils'
 
-// Instantiated lazily inside sendAssignmentEmail to avoid build-time crash when env var is absent
+// Email is sent via a Google Apps Script web app running in the
+// sgproduction@poddster.com mailbox (GmailApp.sendEmail). No DNS/Resend needed.
+async function sendViaGas(to: string, subject: string, html: string) {
+  const url = process.env.GAS_EMAIL_WEBHOOK_URL
+  const secret = process.env.GAS_EMAIL_SECRET
+  if (!url) {
+    console.warn('[email] GAS_EMAIL_WEBHOOK_URL not set — skipping')
+    return
+  }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret, to, subject, html, fromName: 'Poddster Post Production' }),
+    redirect: 'follow',
+  })
+  const text = await res.text()
+  if (!res.ok || text.includes('"error"')) {
+    console.error('[email] GAS relay error:', res.status, text.slice(0, 200))
+  } else {
+    console.log(`[email] sent to ${to}`)
+  }
+}
 
 export async function sendAssignmentEmail({
   editorEmail,
@@ -22,13 +42,6 @@ export async function sendAssignmentEmail({
   dueDate: string
   projectUrl: string
 }) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[email] RESEND_API_KEY not set — skipping')
-    return
-  }
-
-  const resend = new Resend(process.env.RESEND_API_KEY)
-
   const typeLabel = projectType === 'episode' ? 'Episode' : `Highlight #${highlightNumber ?? ''}`
   const dueDateFormatted = formatFullDate(dueDate)
   const filmingFormatted = filmingDate ? formatFullDate(filmingDate) : null
@@ -124,14 +137,7 @@ export async function sendAssignmentEmail({
 </html>`
 
   try {
-    const { error } = await resend.emails.send({
-      from: 'Poddster Post <notifications@poddster.com>',
-      to: editorEmail,
-      subject: `New edit: ${clientName} – ${typeLabel}`,
-      html,
-    })
-    if (error) console.error('[email] send error:', error)
-    else console.log(`[email] sent to ${editorEmail}`)
+    await sendViaGas(editorEmail, `New edit: ${clientName} – ${typeLabel}`, html)
   } catch (e) {
     console.error('[email] unexpected error:', e)
   }

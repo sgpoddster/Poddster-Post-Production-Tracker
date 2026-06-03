@@ -21,7 +21,7 @@ A web app for the Poddster team (Singapore podcast studio) to manage the post-pr
 | Auth | Supabase Auth — Google OAuth (SSO) |
 | Hosting | Vercel |
 | External data in | Google Calendar API (client-side, read-only); Frame.io v4 webhooks |
-| External data out | Resend (transactional email); Frame.io filename helper |
+| External data out | Email via Google Apps Script web app (GmailApp, sgproduction@poddster.com); Frame.io filename helper |
 | Frame.io auth | Adobe IMS OAuth (refresh-token → access-token) for v4 API |
 | Legacy ingest | Google Apps Script → `/api/bookings/ingest` |
 
@@ -425,7 +425,8 @@ This is the automated path for bookings that flow through the GAS pipeline. Manu
 | `NEXT_PUBLIC_APP_URL` | Server | Base URL for links in emails |
 | `ADOBE_CLIENT_SECRET` | Server only | Adobe IMS OAuth (Frame.io v4) |
 | `FRAMEIO_REFRESH_TOKEN` | Server only | Adobe IMS refresh token (Frame.io v4) — see note below |
-| `RESEND_API_KEY` | Server only | Transactional email (editor assignment, future client mail) |
+| `GAS_EMAIL_WEBHOOK_URL` | Server only | Google Apps Script web-app URL that sends mail via GmailApp |
+| `GAS_EMAIL_SECRET` | Server only | Shared secret the GAS relay checks before sending |
 
 > **Frame.io token caveat:** the refresh token is shared with the GAS Frame
 > audit tool, and Adobe IMS can rotate it — when it does, the Vercel copy goes
@@ -440,8 +441,7 @@ This is the automated path for bookings that flow through the GAS pipeline. Manu
 |---|---|
 | GAS ingest script | `Code.gs` ingest path exists; full 5-phase calendar sync still to wire up |
 | Durable Frame.io token | GAS → Supabase token bridge so `access_denied` stops recurring |
-| Completion email to clients | Email all stored client addresses when a project completes |
-| Resend domain verification | DNS records for `poddster.com` so emails actually send |
+| Completion email to clients | Email all stored client addresses when a project completes (via the same GAS relay) |
 | Stats / reporting | Looker Studio connected to Supabase Postgres (preferred over in-app) |
 | Public holidays | Deadline calc currently skips weekends only |
 

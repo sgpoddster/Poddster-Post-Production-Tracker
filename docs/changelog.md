@@ -4,6 +4,21 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Email via Google Apps Script (no DNS needed)
+
+### Changed
+- **Email sending moved from Resend to a Google Apps Script web app** running in
+  the `sgproduction@poddster.com` mailbox (`GmailApp.sendEmail`). Avoids the
+  DigitalOcean DNS / domain-verification dependency entirely — mail sends from
+  the production mailbox with Google's own deliverability.
+- `lib/email.ts` now POSTs the rendered HTML to the GAS web app
+  (`GAS_EMAIL_WEBHOOK_URL` + `GAS_EMAIL_SECRET`) instead of calling Resend.
+- GAS relay script committed at `docs/gas-email-webapp.gs` (deploy under the
+  sgproduction mailbox; Execute as: me, Access: anyone, guarded by a shared secret).
+- Resend remains an option later for custom-domain client-facing mail.
+
+---
+
 ## 2026-06 — Frame.io status automation, queue filters, version editing
 
 ### Added

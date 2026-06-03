@@ -79,7 +79,9 @@ export async function POST(
     // Non-fatal — project is already active
   }
 
-  // Send assignment email to editor (non-blocking)
+  // Send assignment email to editor.
+  // Awaited (not fire-and-forget) so it actually runs before the serverless
+  // function freezes on return; errors are swallowed so they never fail the trigger.
   if (project.assigned_editor) {
     const { data: editorProfile } = await supabase
       .from('user_profiles')
@@ -89,7 +91,7 @@ export async function POST(
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-production-tracker.vercel.app'
 
-    sendAssignmentEmail({
+    await sendAssignmentEmail({
       editorEmail:     project.assigned_editor,
       editorName:      editorProfile?.display_name ?? project.assigned_editor.split('@')[0],
       clientName:      project.client_name ?? 'Client',

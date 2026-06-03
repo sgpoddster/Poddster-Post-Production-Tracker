@@ -76,6 +76,29 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // TEMP: add the status events to our webhook. GET /api/webhooks/frameio?update_webhook=1
+  if (url.searchParams.get('update_webhook')) {
+    try {
+      const token = await getAdobeAccessToken()
+      const webhookId = '24477d99-4143-40e0-8b7b-cc82dcd78481'
+      const res = await fetch(`https://api.frame.io/v4/webhooks/${webhookId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: {
+            name: 'Post Production Tracking app',
+            url: 'https://poddster-post-production-tracker.vercel.app/api/webhooks/frameio',
+            events: ['file.ready', 'metadata.value.updated', 'file.updated'],
+          },
+        }),
+      })
+      const json = await res.json()
+      return NextResponse.json({ status: res.status, data: json })
+    } catch (e) {
+      return NextResponse.json({ error: String(e) }, { status: 500 })
+    }
+  }
+
   const fileId  = url.searchParams.get('file')
   const include = url.searchParams.get('include') ?? 'metadata'
   if (!fileId) return NextResponse.json({ error: 'pass ?file=<id> or ?webhooks=1' }, { status: 400 })

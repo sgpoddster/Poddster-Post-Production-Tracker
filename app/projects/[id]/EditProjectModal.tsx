@@ -28,18 +28,18 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
   const router = useRouter()
 
   type FormState = {
-    client_name: string; client_code: string
+    client_name: string
     filming_date: string; filming_time: string
     setup: string; seats: string; shoot_duration: string
     drive_link: string
     assigned_editor: string
     editor: string
+    current_version: string
     notes: string
   }
 
   const [form, setForm] = useState<FormState>({
     client_name: project.client_name ?? '',
-    client_code: project.client_code ?? '',
     filming_date: project.filming_date ?? '',
     filming_time: project.filming_time ?? '',
     setup: project.setup ?? '',
@@ -48,6 +48,7 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
     drive_link: project.drive_link ?? '',
     assigned_editor: project.assigned_editor ?? '',
     editor: project.editor ?? '',
+    current_version: String(project.current_version ?? 1),
     notes: project.notes ?? '',
   })
 
@@ -57,18 +58,22 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
     }
   }
 
-  // When client is selected from dropdown, auto-fill name + code
+  // When client is selected from dropdown, auto-fill name
   function handleClientSelect(e: React.ChangeEvent<HTMLSelectElement>) {
     const client = clients.find(c => c.id === e.target.value)
     if (client) {
-      setForm(f => ({ ...f, client_name: client.name, client_code: client.code }))
+      setForm(f => ({ ...f, client_name: client.name }))
     }
   }
 
   async function save() {
     setSaving(true)
     setError(null)
-    const payload = { ...form, seats: form.seats ? parseInt(form.seats, 10) : null }
+    const payload = {
+      ...form,
+      seats: form.seats ? parseInt(form.seats, 10) : null,
+      current_version: parseInt(form.current_version, 10) || 1,
+    }
     const res = await fetch(`/api/projects/${project.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -115,29 +120,34 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
                   defaultValue=""
                   className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
                 >
-                  <option value="" disabled>Select to fill name & code…</option>
+                  <option value="" disabled>Select to fill name…</option>
                   {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                    <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
                   <label className="block text-xs text-white/40 mb-1.5">Client Name</label>
                   <input
                     value={form.client_name}
                     onChange={field('client_name')}
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                    placeholder="e.g. Benjamin Loh (QW2)"
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-white/25"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Client Code</label>
-                  <input
-                    value={form.client_code}
-                    onChange={field('client_code')}
+                  <label className="block text-xs text-white/40 mb-1.5">Version</label>
+                  <select
+                    value={form.current_version}
+                    onChange={field('current_version')}
                     className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
-                  />
+                  >
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map(v => (
+                      <option key={v} value={v}>{v === 1 ? 'V1 · First Cut' : `V${v} · Revision`}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

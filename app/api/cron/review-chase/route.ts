@@ -25,14 +25,22 @@ async function run(req: NextRequest) {
   const live = process.env.REVIEW_CHASE_LIVE === 'true'
   const mode = testTo ? 'test' : live ? 'live' : 'dry-run'
 
+  // Test-only knobs (ignored in live runs):
+  //   onlyClient=<name>  → restrict to one client
+  //   days=<n>           → pretend every project's been in review n days
+  const onlyClient = params.get('onlyClient')
+  const daysOverride = params.get('days') ? Number(params.get('days')) : null
+
   const supabase = createServiceClient()
   const todayMs = Date.now()
   const dayMs = 86_400_000
 
-  const { data: projects } = await supabase
+  let query = supabase
     .from('projects')
     .select('id, client_name, type, highlight_number, filming_date, current_version, review_chase_stage, versions(*)')
     .eq('status', 'in_client_review')
+  if (onlyClient) query = query.eq('client_name', onlyClient)
+  const { data: projects } = await query
 
   // Determine which projects are due for stage 1 (≥7d) or stage 2 (≥14d)
   type Due = { stage: 1 | 2; project: { id: string; client_name: string | null; type: 'episode' | 'highlight'; highlight_number: number | null; filming_date: string | null } }
@@ -40,8 +48,10 @@ async function run(req: NextRequest) {
 
   for (const p of projects ?? []) {
     const ver = (p.versions ?? []).find((v: { version_number: number }) => v.version_number === p.current_version)
-    if (!ver?.done_date) continue
-    const days = Math.floor((todayMs - new Date(ver.done_date + 'T00:00:00').getTime()) / dayMs)
+    const days = daysOverride ?? (ver?.done_date
+      ? Math.floor((todayMs - new Date(ver.done_date + 'T00:00:00').getTime()) / dayMs)
+      : null)
+    if (days == null) continue
     const stage = p.review_chase_stage ?? 0
 
     if (stage < 1 && days >= 7 && days < 14) due.push({ stage: 1, project: p })

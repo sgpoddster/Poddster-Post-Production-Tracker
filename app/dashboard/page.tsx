@@ -124,12 +124,12 @@ export default async function DashboardPage({
       <section>
         <div className="flex items-center gap-2.5 mb-4">
           <span className="w-2 h-2 rounded-full bg-amber-500" />
-          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest">Awaiting Trigger</h2>
+          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest">Draft</h2>
           <span className="text-xs text-white/25">{pending.length}</span>
         </div>
         <PendingTriggerList
           isAdmin={isAdmin}
-          emptyText={q ? 'No matches in this section.' : 'No projects waiting to be triggered.'}
+          emptyText={q ? 'No matches in this section.' : 'No drafts yet.'}
           items={pending.map(p => ({
             id: p.id,
             job_id: p.job_id,

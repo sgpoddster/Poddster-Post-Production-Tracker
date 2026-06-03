@@ -4,6 +4,25 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Draft rename + Back-to-Draft
+
+### Changed
+- **"Awaiting Trigger" renamed to "Draft"** across the UI (dashboard section,
+  status badge). The client portal keeps its client-facing "Awaiting Files".
+- **Hold button is now a small menu.** Not on hold → *Put on hold* / *Back to
+  Draft*. On hold → *Take off hold* / *Back to Draft*.
+
+### Added
+- **Back to Draft** (admin) — moves a triggered project back to `pending_trigger`,
+  clearing its version rows and hold state (`POST /api/projects/[id]/draft`).
+  `current_version` is preserved so a re-trigger restores the same starting version.
+
+### Note
+- Taking a project off hold continues the timer **from where it left off** — the
+  deadline is extended by the days paused (existing resume behaviour, unchanged).
+
+---
+
 ## 2026-06 — Batch trigger (multi-select)
 
 ### Added

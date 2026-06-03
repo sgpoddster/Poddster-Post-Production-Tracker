@@ -171,7 +171,9 @@ Extends Supabase Auth users with app-specific data.
 
      Any non-complete status → cancelled  (admin only)
      Any status → undo (reverts to previous_status)
-     active / in_revision → on hold (timer frozen, resumes with date extension)
+     active / in_revision → on hold (timer frozen, resumes from where it left off)
+     active / in_revision → Back to Draft (clears versions → pending_trigger, admin)
+     pending_trigger is labelled "Draft" in the UI
 ```
 
 ---
@@ -222,8 +224,9 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 | `POST` | `/api/projects/trigger-batch` | Trigger several pending projects (must share one Job ID) at once; sends **one** consolidated assignment email listing all deliverables. |
 | `PATCH` | `/api/projects/[id]` | Edit project metadata (client, producer/editor, dates, drive link, notes). Code auto-derived from name. **Version change**: reshapes version rows, flips First Cut ↔ Revision, recalculates the deadline. Admin only. |
 | `POST` | `/api/projects/[id]/cancel` | Set status to `cancelled`. Admin only. |
-| `POST` | `/api/projects/[id]/hold` | Freeze timer (`on_hold = true`, `hold_date = today`). |
-| `POST` | `/api/projects/[id]/resume` | Unfreeze, extend due_date by days paused. |
+| `POST` | `/api/projects/[id]/hold` | Freeze timer (`on_hold = true`, `hold_date = today`, optional `hold_reason`). |
+| `POST` | `/api/projects/[id]/resume` | Unfreeze, extend due_date by days paused (timer continues from where it left off). |
+| `POST` | `/api/projects/[id]/draft` | Move back to `pending_trigger` (Draft): clears version rows + hold state. Admin only. |
 | `POST` | `/api/projects/[id]/complete` | Move to `complete`, save `previous_status`. |
 | `POST` | `/api/projects/[id]/undo` | Revert to `previous_status`. |
 | `POST` | `/api/projects/[id]/revision` | Create next version row, set status to `in_revision`. |

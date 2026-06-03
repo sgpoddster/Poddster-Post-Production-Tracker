@@ -76,22 +76,25 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // TEMP: add the status events to our webhook. GET /api/webhooks/frameio?update_webhook=1
+  // TEMP: create a 2nd webhook for the status events (PATCH isn't supported).
+  //   GET /api/webhooks/frameio?update_webhook=1
   if (url.searchParams.get('update_webhook')) {
     try {
       const token = await getAdobeAccessToken()
-      const webhookId = '24477d99-4143-40e0-8b7b-cc82dcd78481'
-      const res = await fetch(`https://api.frame.io/v4/accounts/${TEMP_ACCOUNT_ID}/workspaces/${TEMP_WORKSPACE_ID}/webhooks/${webhookId}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: {
-            name: 'Post Production Tracking app',
-            url: 'https://poddster-post-production-tracker.vercel.app/api/webhooks/frameio',
-            events: ['file.ready', 'metadata.value.updated', 'file.updated'],
-          },
-        }),
-      })
+      const res = await fetch(
+        `https://api.frame.io/v4/accounts/${TEMP_ACCOUNT_ID}/workspaces/${TEMP_WORKSPACE_ID}/webhooks`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: {
+              name: 'PP Tracker — status changes',
+              url: 'https://poddster-post-production-tracker.vercel.app/api/webhooks/frameio',
+              events: ['metadata.value.updated', 'file.updated'],
+            },
+          }),
+        }
+      )
       const json = await res.json()
       return NextResponse.json({ status: res.status, data: json })
     } catch (e) {

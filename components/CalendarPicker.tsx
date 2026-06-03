@@ -65,43 +65,51 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
     const from = new Date()
     from.setDate(from.getDate() - days)
 
-    const params = new URLSearchParams({
+    const baseParams = {
       singleEvents: 'true',
       orderBy:      'startTime',
       timeMin:      from.toISOString(),
       timeMax:      to.toISOString(),
-      maxResults:   '250',
-    })
+      maxResults:   '2500',                                   // Google's per-page max
+    }
 
     const results: DisplayEvent[] = []
 
     for (const calId of CALENDAR_IDS) {
       try {
-        const res = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?${params}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-        if (res.status === 401) {
-          setError('Your Google session has expired. Sign out and sign back in to refresh it.')
-          setLoading(false)
-          return
-        }
-        if (!res.ok) continue
+        let pageToken: string | undefined = undefined
+        let guard = 0                                         // safety: cap pages
+        do {
+          const params = new URLSearchParams(baseParams)
+          if (pageToken) params.set('pageToken', pageToken)
 
-        const json = await res.json()
-        const items: RawCalendarEvent[] = json.items ?? []
+          const res = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?${params}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+          if (res.status === 401) {
+            setError('Your Google session has expired. Sign out and sign back in to refresh it.')
+            setLoading(false)
+            return
+          }
+          if (!res.ok) break
 
-        for (const ev of items) {
-          if (!ev.start) continue
-          results.push({
-            id:          ev.id,
-            summary:     ev.summary ?? '(No title)',
-            startISO:    ev.start.dateTime ?? ev.start.date ?? '',
-            endISO:      ev.end?.dateTime  ?? ev.end?.date  ?? '',
-            description: ev.description ?? null,
-            parsed:      parseCalendarEvent(ev),
-          })
-        }
+          const json = await res.json()
+          const items: RawCalendarEvent[] = json.items ?? []
+
+          for (const ev of items) {
+            if (!ev.start) continue
+            results.push({
+              id:          ev.id,
+              summary:     ev.summary ?? '(No title)',
+              startISO:    ev.start.dateTime ?? ev.start.date ?? '',
+              endISO:      ev.end?.dateTime  ?? ev.end?.date  ?? '',
+              description: ev.description ?? null,
+              parsed:      parseCalendarEvent(ev),
+            })
+          }
+          pageToken = json.nextPageToken                      // follow pagination
+        } while (pageToken && ++guard < 10)
       } catch {
         // silently skip a calendar that fails
       }

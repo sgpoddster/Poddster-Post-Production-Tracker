@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
     try {
       const token = await getAdobeAccessToken()
       const webhookId = '24477d99-4143-40e0-8b7b-cc82dcd78481'
-      const res = await fetch(`https://api.frame.io/v4/webhooks/${webhookId}`, {
+      const res = await fetch(`https://api.frame.io/v4/accounts/${TEMP_ACCOUNT_ID}/workspaces/${TEMP_WORKSPACE_ID}/webhooks/${webhookId}`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -8,8 +8,13 @@ import { CountdownTimer } from '@/components/CountdownTimer'
 import { getUserProfile } from '@/lib/auth'
 import MarkDoneButton from './MarkDoneButton'
 import OnHoldButton from '@/components/OnHoldButton'
+import { ProducerFilter } from '@/app/dashboard/ProducerFilter'
 
-export default async function QueuePage() {
+export default async function QueuePage({
+  searchParams,
+}: {
+  searchParams?: { editors?: string }
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -30,13 +35,21 @@ export default async function QueuePage() {
 
   const [{ data: projects }, { data: profilesData }] = await Promise.all([
     query,
-    supabase.from('user_profiles').select('email, display_name'),
+    supabase.from('user_profiles').select('email, display_name').order('display_name'),
   ])
 
+  const editors = profilesData ?? []
   const editorNames: Record<string, string> = {}
-  for (const p of profilesData ?? []) {
+  for (const p of editors) {
     if (p.email) editorNames[p.email] = p.display_name || p.email
   }
+
+  // Producer filter (admin only) via ?editors=email1,email2
+  const editorFilters = searchParams?.editors
+    ? searchParams.editors.split(',').filter(Boolean)
+    : []
+  const matchesEditor = (p: Project) =>
+    editorFilters.length === 0 || editorFilters.includes(p.assigned_editor ?? '')
 
   // Sort: most overdue / soonest due first, no-due-date at the bottom
   function daysRemaining(p: Project): number {
@@ -54,20 +67,28 @@ export default async function QueuePage() {
     )
   }
 
-  const sorted = (projects ?? []).slice().sort((a, b) => daysRemaining(a) - daysRemaining(b))
+  const sorted = (projects ?? [])
+    .filter(matchesEditor)
+    .slice()
+    .sort((a, b) => daysRemaining(a) - daysRemaining(b))
 
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-10">
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">
-          {isAdmin ? 'All Queues' : 'My Queue'}
-        </h1>
-        <p className="text-sm text-white/40 mt-1">
-          {isAdmin
-            ? 'All active work across all editors, sorted by urgency'
-            : 'Your active projects — most urgent first'}
-        </p>
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            {isAdmin ? 'All Queues' : 'My Queue'}
+          </h1>
+          <p className="text-sm text-white/40 mt-1">
+            {isAdmin
+              ? 'All active work across all editors, sorted by urgency'
+              : 'Your active projects — most urgent first'}
+          </p>
+        </div>
+        {isAdmin && editors.length > 0 && (
+          <ProducerFilter editors={editors} selected={editorFilters} />
+        )}
       </div>
 
       {sorted.length === 0 ? (

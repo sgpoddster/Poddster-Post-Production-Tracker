@@ -235,3 +235,83 @@ export async function sendBatchAssignmentEmail({
     console.error('[email] unexpected error:', e)
   }
 }
+
+// ── Review chase emails to the client (no response after 7 / 14 days) ────────
+export async function sendReviewChaseEmail({
+  toEmails,
+  clientFirstName,
+  clientName,
+  stage,
+  items,
+  portalUrl,
+}: {
+  toEmails: string[]
+  clientFirstName: string | null
+  clientName: string
+  stage: 1 | 2
+  items: { type: 'episode' | 'highlight'; highlightNumber?: number | null; filmingDate: string | null }[]
+  portalUrl: string | null
+}) {
+  const to = toEmails.filter(Boolean)
+  if (to.length === 0) {
+    console.warn(`[email] review chase: no email on file for ${clientName} — skipping`)
+    return
+  }
+
+  const greeting = clientFirstName ? `Hi ${clientFirstName},` : 'Hi,'
+
+  const rows = items
+    .map(i => {
+      const label = i.type === 'episode' ? 'Episode' : `Highlight #${i.highlightNumber ?? ''}`
+      const date = i.filmingDate ? formatFullDate(i.filmingDate) : ''
+      return `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;color:rgba(255,255,255,0.85);">${label}${date ? `<span style="color:rgba(255,255,255,0.35);"> · recorded ${date}</span>` : ''}</td></tr>`
+    })
+    .join('')
+
+  const intro = stage === 1
+    ? `Your ${items.length > 1 ? 'edits are' : 'edit is'} ready and waiting for your review — we haven't heard back yet. Whenever you get a moment, please take a look and let us know if it's good to go or if you'd like any changes.`
+    : `We're still waiting to hear back on the ${items.length > 1 ? 'edits' : 'edit'} below. If we don't hear from you, we'll move this into our 30-day archive — just reply or review whenever you're ready and we'll pick it straight back up.`
+
+  const heading = stage === 1 ? 'Ready for your review' : 'Final reminder'
+  const accent = stage === 1 ? '#3b82f6' : '#f59e0b'
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;padding:40px 20px;"><tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+      <tr><td style="padding-bottom:32px;">
+        <span style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:0.05em;">PODDSTER</span>
+        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:8px;">Post Production</span>
+      </td></tr>
+      <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
+        <p style="margin:0 0 6px;font-size:13px;color:${accent};text-transform:uppercase;letter-spacing:0.08em;">${heading}</p>
+        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">${greeting}</h1>
+        <p style="margin:0 0 24px;font-size:15px;color:rgba(255,255,255,0.65);line-height:1.6;">${intro}</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:8px;margin-bottom:28px;">
+          <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:11px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.07em;">Awaiting your review</span>
+          </td></tr>
+          ${rows}
+        </table>
+        ${portalUrl ? `<a href="${portalUrl}" style="display:inline-block;background:#e53e3e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">View your projects →</a>` : ''}
+      </td></tr>
+      <tr><td style="padding-top:24px;">
+        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
+          Questions? Just reply to this email — it reaches the Poddster production team.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
+
+  const subject = stage === 1
+    ? `Your edit${items.length > 1 ? 's are' : ' is'} ready for review – ${clientName}`
+    : `Final reminder: your edit${items.length > 1 ? 's are' : ' is'} waiting – ${clientName}`
+
+  try {
+    await sendViaGas(to.join(','), subject, html)
+  } catch (e) {
+    console.error('[email] review chase error:', e)
+  }
+}

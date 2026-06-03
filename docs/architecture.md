@@ -245,6 +245,12 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 |---|---|---|
 | `POST` | `/api/webhooks/frameio` | Handles `file.ready` (delivered cut → Client Review, sets `done_date`), and status changes via `metadata.value.updated` / `file.updated`: **Needs Review** → start next revision (back to In Progress); **Approved** → Complete. Resolves the project by parsing the Internal ID from the filename, reads the built-in "Status" field via `include=metadata`. Auth: Adobe IMS OAuth → Frame.io v4 API. **Two webhooks** point here: one subscribed to `file.ready`, one to `metadata.value.updated` + `file.updated` (v4 can't PATCH a webhook's events). |
 
+### Cron (GAS-triggered)
+
+| Method | Route | What it does |
+|---|---|---|
+| `GET/POST` | `/api/cron/review-chase` | Daily: emails clients sitting in Client Review for 7 days (reminder) / 14 days (final notice). Reads only our tables (days since current version `done_date`). One email per client per stage, sent once via `review_chase_stage`. Auth: `?key=<INGEST_API_KEY>`. Fired by a GAS daily time-trigger. |
+
 ### Ingest (GAS)
 
 | Method | Route | What it does |

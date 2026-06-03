@@ -35,6 +35,7 @@ export async function POST(
     .update({
       status: 'in_client_review',
       previous_status: project?.status ?? 'active',
+      review_chase_stage: 0,
     })
     .eq('id', params.id)
 

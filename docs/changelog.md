@@ -4,6 +4,23 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Client review-chase emails
+
+### Added
+- **Automated review chase.** A daily job emails clients who haven't responded
+  to a Client Review (measured purely from our own data — days since the current
+  version's `done_date`; no Frame.io needed):
+  - **Day 7** still in review → reminder email
+  - **Day 14** still in review → final notice ("we'll archive in 30 days")
+  - Consolidated **one email per client** per stage; sent once (no spam).
+  - Archiving itself is **manual in Frame.io** — the app just nudges + tracks.
+- `POST /api/cron/review-chase?key=<INGEST_API_KEY>` runs the check.
+- `review_chase_stage` column on projects (0/1/2); resets to 0 whenever a fresh
+  version enters Client Review (manual Done or Frame.io `file.ready`).
+- GAS daily-trigger script at `docs/gas-review-chase-trigger.gs`.
+
+---
+
 ## 2026-06 — Frame.io status automation live
 
 ### Added / Confirmed

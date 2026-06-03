@@ -36,6 +36,7 @@ export interface Project {
   on_hold: boolean
   hold_date: string | null
   hold_reason: string | null
+  review_chase_stage: number   // 0 none, 1 reminder sent, 2 final notice sent
   source: ProjectSource
   frame_asset_id: string | null
   created_at: string

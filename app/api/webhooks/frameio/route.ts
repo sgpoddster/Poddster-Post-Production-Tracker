@@ -171,6 +171,7 @@ export async function POST(req: NextRequest) {
     await supabase.from('projects').update({
       status: 'in_client_review',
       previous_status: project.status,
+      review_chase_stage: 0,
     }).eq('id', project.id)
 
     console.log(`[frameio] ✓ "${internalId}" → in_client_review (V${project.current_version})`)

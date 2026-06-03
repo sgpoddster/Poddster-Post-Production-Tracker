@@ -2,18 +2,20 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project, Version } from '@/lib/types'
-import { formatDate, formatAssignee } from '@/lib/utils'
+import { formatDate, formatAssignee, addWorkDays } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { getUserProfile } from '@/lib/auth'
 import MarkDoneButton from './MarkDoneButton'
 import OnHoldButton from '@/components/OnHoldButton'
 import { ProducerFilter } from '@/app/dashboard/ProducerFilter'
+import { DueFilter } from './DueFilter'
+import { ClientFilter } from './ClientFilter'
 
 export default async function QueuePage({
   searchParams,
 }: {
-  searchParams?: { editors?: string }
+  searchParams?: { editors?: string; due?: string; client?: string }
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -51,6 +53,23 @@ export default async function QueuePage({
   const matchesEditor = (p: Project) =>
     editorFilters.length === 0 || editorFilters.includes(p.assigned_editor ?? '')
 
+  // Due-date window filter via ?due=0|1|2 (working days from today). Absent = all.
+  const dueParam = searchParams?.due ?? 'all'
+  const dueTargetStr = ['0', '1', '2'].includes(dueParam)
+    ? addWorkDays(new Date(), Number(dueParam)).toISOString().split('T')[0]
+    : null
+  const dueDateOf = (p: Project) =>
+    (p.versions ?? []).find((v: Version) => v.version_number === p.current_version)?.due_date ?? null
+  const matchesDue = (p: Project) => {
+    if (!dueTargetStr) return true
+    const d = dueDateOf(p)
+    return d != null && d <= dueTargetStr   // due on/before target (overdue included)
+  }
+
+  // Client filter via ?client=<name>
+  const clientFilter = searchParams?.client ?? null
+  const matchesClient = (p: Project) => !clientFilter || p.client_name === clientFilter
+
   // Sort: most overdue / soonest due first, no-due-date at the bottom
   function daysRemaining(p: Project): number {
     const ver = (p.versions ?? []).find((v: Version) => v.version_number === p.current_version)
@@ -67,28 +86,43 @@ export default async function QueuePage({
     )
   }
 
+  // Clients present in the queue (respect the producer + due filters so the
+  // client list reflects what's actually showing), for the client dropdown.
+  const clientPool = (projects ?? []).filter(p => matchesEditor(p) && matchesDue(p))
+  const clientsInQueue = Array.from(
+    new Set(clientPool.map(p => p.client_name).filter((n): n is string => !!n))
+  ).sort((a, b) => a.localeCompare(b))
+
   const sorted = (projects ?? [])
-    .filter(matchesEditor)
+    .filter(p => matchesEditor(p) && matchesDue(p) && matchesClient(p))
     .slice()
     .sort((a, b) => daysRemaining(a) - daysRemaining(b))
 
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            {isAdmin ? 'All Queues' : 'My Queue'}
-          </h1>
-          <p className="text-sm text-white/40 mt-1">
-            {isAdmin
-              ? 'All active work across all editors, sorted by urgency'
-              : 'Your active projects — most urgent first'}
-          </p>
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">
+              {isAdmin ? 'All Queues' : 'My Queue'}
+            </h1>
+            <p className="text-sm text-white/40 mt-1">
+              {isAdmin
+                ? 'All active work across all editors, sorted by urgency'
+                : 'Your active projects — most urgent first'}
+            </p>
+          </div>
+          {isAdmin && editors.length > 0 && (
+            <ProducerFilter editors={editors} selected={editorFilters} />
+          )}
         </div>
-        {isAdmin && editors.length > 0 && (
-          <ProducerFilter editors={editors} selected={editorFilters} />
-        )}
+
+        {/* Due-window toggle + client filter */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <DueFilter selected={dueParam} />
+          <ClientFilter clients={clientsInQueue} selected={clientFilter} />
+        </div>
       </div>
 
       {sorted.length === 0 ? (

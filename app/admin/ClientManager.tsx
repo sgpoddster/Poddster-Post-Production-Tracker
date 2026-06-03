@@ -135,6 +135,15 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
   const [newForm, setNewForm] = useState(empty)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+
+  const q = query.trim().toLowerCase()
+  const filtered = q
+    ? clients.filter(c =>
+        [c.name, c.code, c.first_name, c.last_name, c.email, c.email_2, c.email_3]
+          .some(v => (v ?? '').toLowerCase().includes(q))
+      )
+    : clients
 
   const setNew = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setNewForm(f => ({ ...f, [k]: e.target.value }))
@@ -185,11 +194,96 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
 
   return (
     <div className="space-y-3">
+      {/* Toolbar: search + add */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by name, email, code…"
+            className="w-full bg-brand-surface2 border border-white/10 rounded-lg pl-8 pr-7 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25"
+          />
+          {query && (
+            <button onClick={() => setQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-sm leading-none">✕</button>
+          )}
+        </div>
+        {!adding && (
+          <button onClick={() => setAdding(true)}
+            className="shrink-0 px-3 py-1.5 bg-brand-red hover:bg-brand-red-dim text-white text-xs font-medium rounded-lg transition-colors">
+            + Add client
+          </button>
+        )}
+      </div>
+
+      {/* Add new client form (top) */}
+      {adding && (
+        <form onSubmit={addClient} className="rounded-lg border border-white/[0.08] bg-brand-surface p-4 space-y-3">
+          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">New client</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] text-white/30 uppercase tracking-wider">Client name *</label>
+              <input value={newForm.name} onChange={setNew('name')} placeholder="Display name" required
+                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-white/30 uppercase tracking-wider">Code</label>
+              <input value={newForm.code} onChange={setNew('code')} placeholder="e.g. ABC"
+                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] text-white/30 uppercase tracking-wider">First name</label>
+              <input value={newForm.first_name} onChange={setNew('first_name')} placeholder="First name"
+                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-white/30 uppercase tracking-wider">Last name</label>
+              <input value={newForm.last_name} onChange={setNew('last_name')} placeholder="Last name"
+                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] text-white/30 uppercase tracking-wider">Email addresses</label>
+            {(['email', 'email_2', 'email_3'] as const).map((key, i) => (
+              <input key={key} value={newForm[key]} onChange={setNew(key)}
+                placeholder={i === 0 ? 'Primary email' : `Alternative email ${i + 1}`}
+                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+            ))}
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button type="submit" disabled={loading || !newForm.name.trim()}
+              className="px-4 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-xs font-medium rounded transition-colors">
+              {loading ? 'Adding…' : 'Add client'}
+            </button>
+            <button type="button" onClick={() => { setAdding(false); setNewForm(empty) }}
+              className="px-3 py-1.5 text-white/40 hover:text-white/60 text-xs transition-colors">
+              Cancel
+            </button>
+          </div>
+          {error && <p className="text-xs text-brand-red">{error}</p>}
+        </form>
+      )}
+
+      {/* Result count when searching */}
+      {q && (
+        <p className="text-xs text-white/30 px-1">
+          {filtered.length} of {clients.length} clients
+        </p>
+      )}
+
       <div className="rounded-lg border border-white/[0.06] bg-brand-surface overflow-hidden divide-y divide-white/[0.06]">
         {clients.length === 0 && (
           <p className="px-5 py-4 text-sm text-white/25">No clients yet.</p>
         )}
-        {clients.map(c => (
+        {clients.length > 0 && filtered.length === 0 && (
+          <p className="px-5 py-4 text-sm text-white/25">No clients match &ldquo;{query.trim()}&rdquo;</p>
+        )}
+        {filtered.map(c => (
           <div key={c.id}>
             {editingId === c.id ? (
               <EditRow client={c} onSave={handleSaved} onCancel={() => setEditingId(null)} />
@@ -227,64 +321,6 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
           </div>
         ))}
       </div>
-
-      {/* Add new client */}
-      {!adding ? (
-        <button onClick={() => setAdding(true)}
-          className="text-xs text-white/40 hover:text-white/70 transition-colors px-1">
-          + Add client
-        </button>
-      ) : (
-        <form onSubmit={addClient} className="rounded-lg border border-white/[0.08] bg-brand-surface p-4 space-y-3">
-          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">New client</p>
-          {/* Client name + Code */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-[10px] text-white/30 uppercase tracking-wider">Client name *</label>
-              <input value={newForm.name} onChange={setNew('name')} placeholder="Display name" required
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] text-white/30 uppercase tracking-wider">Code</label>
-              <input value={newForm.code} onChange={setNew('code')} placeholder="e.g. ABC"
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
-            </div>
-          </div>
-          {/* First + Last name */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-[10px] text-white/30 uppercase tracking-wider">First name</label>
-              <input value={newForm.first_name} onChange={setNew('first_name')} placeholder="First name"
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] text-white/30 uppercase tracking-wider">Last name</label>
-              <input value={newForm.last_name} onChange={setNew('last_name')} placeholder="Last name"
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
-            </div>
-          </div>
-          {/* Emails */}
-          <div className="space-y-2">
-            <label className="text-[10px] text-white/30 uppercase tracking-wider">Email addresses</label>
-            {(['email', 'email_2', 'email_3'] as const).map((key, i) => (
-              <input key={key} value={newForm[key]} onChange={setNew(key)}
-                placeholder={i === 0 ? 'Primary email' : `Alternative email ${i + 1}`}
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
-            ))}
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <button type="submit" disabled={loading || !newForm.name.trim()}
-              className="px-4 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-xs font-medium rounded transition-colors">
-              {loading ? 'Adding…' : 'Add client'}
-            </button>
-            <button type="button" onClick={() => { setAdding(false); setNewForm(empty) }}
-              className="px-3 py-1.5 text-white/40 hover:text-white/60 text-xs transition-colors">
-              Cancel
-            </button>
-          </div>
-          {error && <p className="text-xs text-brand-red">{error}</p>}
-        </form>
-      )}
     </div>
   )
 }

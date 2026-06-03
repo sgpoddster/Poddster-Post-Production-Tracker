@@ -218,7 +218,8 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 | Method | Route | What it does |
 |---|---|---|
 | `POST` | `/api/projects/create` | Create one or more project rows from the New Project form. Generates Job ID. Accepts `editor` and `starting_version`. |
-| `POST` | `/api/projects/[id]/trigger` | Move into the pipeline, create the active version row with deadline. V1 → `active`; V2+ → `in_revision` (with empty placeholders for earlier versions). Accepts optional `submittedDate`. Sends the editor assignment email. |
+| `POST` | `/api/projects/[id]/trigger` | Move into the pipeline, create the active version row with deadline. V1 → `active`; V2+ → `in_revision` (with empty placeholders for earlier versions). Accepts optional `submittedDate`. Sends the editor assignment email (awaited). |
+| `POST` | `/api/projects/trigger-batch` | Trigger several pending projects (must share one Job ID) at once; sends **one** consolidated assignment email listing all deliverables. |
 | `PATCH` | `/api/projects/[id]` | Edit project metadata (client, producer/editor, dates, drive link, notes). Code auto-derived from name. **Version change**: reshapes version rows, flips First Cut ↔ Revision, recalculates the deadline. Admin only. |
 | `POST` | `/api/projects/[id]/cancel` | Set status to `cancelled`. Admin only. |
 | `POST` | `/api/projects/[id]/hold` | Freeze timer (`on_hold = true`, `hold_date = today`). |

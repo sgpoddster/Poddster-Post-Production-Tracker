@@ -4,6 +4,20 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Batch trigger (multi-select)
+
+### Added
+- **Multi-select trigger** in the Awaiting Trigger section. Checkboxes let you
+  select multiple deliverables **from the same Job ID** (others lock out once a
+  selection starts) and fire them together with a "Trigger all selected" bar.
+- New endpoint `POST /api/projects/trigger-batch` — triggers the selected
+  projects and sends **one consolidated email** to the producer listing all the
+  deliverables (e.g. "1 Episode + 3 Highlights") instead of one email each.
+- `sendBatchAssignmentEmail()` builds the consolidated email.
+- Individual per-row Trigger buttons remain for one-offs.
+
+---
+
 ## 2026-06 — Email via Google Apps Script (no DNS needed)
 
 ### Fixed

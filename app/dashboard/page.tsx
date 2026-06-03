@@ -6,11 +6,11 @@ import { formatDate, formatAssignee } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { getUserProfile } from '@/lib/auth'
-import TriggerButton from './TriggerButton'
 import StartRevisionButton from './StartRevisionButton'
 import NewProjectButton from './NewProjectButton'
 import { SearchBar } from './SearchBar'
 import { ProducerFilter } from './ProducerFilter'
+import PendingTriggerList from './PendingTriggerList'
 import MarkDoneButton from '../queue/MarkDoneButton'
 import CompleteButton from '@/components/CompleteButton'
 import UndoButton from '@/components/UndoButton'
@@ -121,15 +121,29 @@ export default async function DashboardPage({
         <p className="text-sm text-white/30 text-center py-8">No projects match &ldquo;{q}&rdquo;</p>
       )}
 
-      <Section
-        dot="bg-amber-500"
-        title="Awaiting Trigger"
-        count={pending.length}
-        empty={q ? `No matches in this section.` : 'No projects waiting to be triggered.'}
-      >
-        {pending.map(p => <PendingRow key={p.id} project={p} isAdmin={isAdmin}
-          editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
-      </Section>
+      <section>
+        <div className="flex items-center gap-2.5 mb-4">
+          <span className="w-2 h-2 rounded-full bg-amber-500" />
+          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest">Awaiting Trigger</h2>
+          <span className="text-xs text-white/25">{pending.length}</span>
+        </div>
+        <PendingTriggerList
+          isAdmin={isAdmin}
+          emptyText={q ? 'No matches in this section.' : 'No projects waiting to be triggered.'}
+          items={pending.map(p => ({
+            id: p.id,
+            job_id: p.job_id,
+            internal_id: p.internal_id,
+            client_name: p.client_name,
+            type: p.type,
+            highlight_number: p.highlight_number,
+            filming_date: p.filming_date,
+            filming_time: p.filming_time,
+            drive_link: p.drive_link,
+            editorName: formatAssignee(p.assigned_editor, p.editor, editorNames),
+          }))}
+        />
+      </section>
 
       <Section
         dot="bg-blue-500"
@@ -191,42 +205,6 @@ function isProjectOverdue(dueDate: string | null | undefined, status: string, on
   if (!dueDate || onHold) return false
   if (!['active', 'in_revision'].includes(status)) return false
   return new Date(dueDate + 'T23:59:59') < new Date()
-}
-
-function PendingRow({ project, isAdmin, editorName }: {
-  project: Project; isAdmin: boolean; editorName: string
-}) {
-  const typeLabel = project.type === 'episode'
-    ? 'Episode' : `Highlight #${project.highlight_number}`
-
-  return (
-    <div className="flex items-center justify-between px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-white/[0.03] transition-colors group">
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
-            <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
-              {project.client_name || '—'}
-            </span>
-          </div>
-          <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
-            <span>{typeLabel}</span>
-            {project.filming_date && <><span className="text-white/15">·</span>{formatDate(project.filming_date)}{project.filming_time ? ` · ${project.filming_time}` : ''}</>}
-            <span className="text-white/15">·</span>
-            <span className="font-medium text-white/60">{editorName}</span>
-          </div>
-        </div>
-      </Link>
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-3 sm:ml-4">
-        {project.drive_link && (
-          <a href={project.drive_link} target="_blank" rel="noreferrer"
-            className="hidden sm:block text-xs text-white/30 hover:text-white/60 transition-colors"
-          >Drive ↗</a>
-        )}
-        <TriggerButton projectId={project.id} isAdmin={isAdmin} />
-      </div>
-    </div>
-  )
 }
 
 function CompletedRow({ project, editorName }: { project: Project; editorName: string }) {

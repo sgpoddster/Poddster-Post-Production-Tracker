@@ -153,10 +153,12 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
     if (!newForm.name.trim()) return
     setLoading(true)
     setError(null)
+    // Code is always inside the name parentheses, e.g. "Benjamin Loh (QW2)" → QW2
+    const code = newForm.name.match(/\(([^)]+)\)/)?.[1]?.trim() ?? ''
     const res = await fetch('/api/admin/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newForm),
+      body: JSON.stringify({ ...newForm, code }),
     })
     if (!res.ok) {
       const d = await res.json()
@@ -223,17 +225,11 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
       {adding && (
         <form onSubmit={addClient} className="rounded-lg border border-white/[0.08] bg-brand-surface p-4 space-y-3">
           <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">New client</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-[10px] text-white/30 uppercase tracking-wider">Client name *</label>
-              <input value={newForm.name} onChange={setNew('name')} placeholder="Display name" required
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] text-white/30 uppercase tracking-wider">Code</label>
-              <input value={newForm.code} onChange={setNew('code')} placeholder="e.g. ABC"
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
-            </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-white/30 uppercase tracking-wider">Client name *</label>
+            <input value={newForm.name} onChange={setNew('name')} placeholder="e.g. Benjamin Loh (QW2)" required
+              className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
+            <p className="text-[10px] text-white/25">Include the code in brackets — it's picked up automatically.</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">

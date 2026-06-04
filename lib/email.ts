@@ -1,5 +1,8 @@
 import { formatFullDate, buildOutputFilename } from './utils'
 
+// Hosted logo for email headers (red wordmark, served from the app's public dir)
+const LOGO_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-production-tracker.vercel.app'}/logo.png`
+
 // Email is sent via a Google Apps Script web app running in the
 // sgproduction@poddster.com mailbox (GmailApp.sendEmail). No DNS/Resend needed.
 async function sendViaGas(to: string, subject: string, html: string) {
@@ -64,8 +67,8 @@ export async function sendAssignmentEmail({
           <!-- Logo -->
           <tr>
             <td style="padding-bottom:32px;">
-              <span style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:0.05em;">PODDSTER</span>
-              <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:8px;">Post Production</span>
+              <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
+              <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
             </td>
           </tr>
 
@@ -190,8 +193,8 @@ export async function sendBatchAssignmentEmail({
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;padding:40px 20px;"><tr><td align="center">
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
-        <span style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:0.05em;">PODDSTER</span>
-        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:8px;">Post Production</span>
+        <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
+        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
         <p style="margin:0 0 6px;font-size:13px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.08em;">New assignment</p>
@@ -293,8 +296,8 @@ export async function sendReviewChaseEmail({
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;padding:40px 20px;"><tr><td align="center">
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
-        <span style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:0.05em;">PODDSTER</span>
-        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:8px;">Post Production</span>
+        <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
+        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
         <p style="margin:0 0 6px;font-size:13px;color:${accent};text-transform:uppercase;letter-spacing:0.08em;">${heading}</p>

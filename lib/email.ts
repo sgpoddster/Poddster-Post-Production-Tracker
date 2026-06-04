@@ -5,7 +5,7 @@ const LOGO_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-pr
 
 // Email is sent via a Google Apps Script web app running in the
 // sgproduction@poddster.com mailbox (GmailApp.sendEmail). No DNS/Resend needed.
-async function sendViaGas(to: string, subject: string, html: string) {
+async function sendViaGas(to: string, subject: string, html: string, cc?: string) {
   const url = process.env.GAS_EMAIL_WEBHOOK_URL
   const secret = process.env.GAS_EMAIL_SECRET
   if (!url) {
@@ -15,7 +15,7 @@ async function sendViaGas(to: string, subject: string, html: string) {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret, to, subject, html, fromName: 'Poddster Post Production' }),
+    body: JSON.stringify({ secret, to, subject, html, cc: cc || undefined, fromName: 'Poddster Post Production' }),
     redirect: 'follow',
   })
   const text = await res.text()
@@ -242,6 +242,7 @@ export async function sendBatchAssignmentEmail({
 // ── Review chase emails to the client (no response after 7 / 14 days) ────────
 export async function sendReviewChaseEmail({
   toEmails,
+  ccEmails = [],
   clientFirstName,
   clientName,
   stage,
@@ -249,6 +250,7 @@ export async function sendReviewChaseEmail({
   portalUrl,
 }: {
   toEmails: string[]
+  ccEmails?: string[]
   clientFirstName: string | null
   clientName: string
   stage: 1 | 2
@@ -324,8 +326,10 @@ export async function sendReviewChaseEmail({
     ? 'Reminder - Your Poddster Edit/s'
     : 'Final Reminder - Your Poddster Edit/s'
 
+  const cc = ccEmails.filter(Boolean).join(',')
+
   try {
-    await sendViaGas(to.join(','), subject, html)
+    await sendViaGas(to.join(','), subject, html, cc || undefined)
   } catch (e) {
     console.error('[email] review chase error:', e)
   }

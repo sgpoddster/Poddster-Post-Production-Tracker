@@ -37,13 +37,13 @@ async function run(req: NextRequest) {
 
   let query = supabase
     .from('projects')
-    .select('id, client_name, type, highlight_number, internal_id, filming_date, filming_time, order_id, current_version, review_chase_stage, versions(*)')
+    .select('id, client_name, type, highlight_number, internal_id, filming_date, filming_time, order_id, current_version, review_chase_stage, assigned_editor, versions(*)')
     .eq('status', 'in_client_review')
   if (onlyClient) query = query.eq('client_name', onlyClient)
   const { data: projects } = await query
 
   // Determine which projects are due for stage 1 (≥7d) or stage 2 (≥14d)
-  type Due = { stage: 1 | 2; project: { id: string; client_name: string | null; type: 'episode' | 'highlight'; highlight_number: number | null; internal_id: string; filming_date: string | null; filming_time: string | null; order_id: string | null; current_version: number } }
+  type Due = { stage: 1 | 2; project: { id: string; client_name: string | null; type: 'episode' | 'highlight'; highlight_number: number | null; internal_id: string; filming_date: string | null; filming_time: string | null; order_id: string | null; current_version: number; assigned_editor: string | null } }
   const due: Due[] = []
 
   for (const p of projects ?? []) {
@@ -85,10 +85,17 @@ async function run(req: NextRequest) {
     const toEmails = testTo ? [testTo] : clientEmails
     const portalUrl = client?.portal_token ? `${appUrl}/client/${client.portal_token}` : null
 
+    // CC the producer(s) on this group's projects (live only — never to real
+    // producers during a test/preview run).
+    const ccEmails = mode === 'live'
+      ? Array.from(new Set(rows.map((r: Due) => r.project.assigned_editor).filter((e): e is string => !!e)))
+      : []
+
     // Only send in live or test mode (never in dry-run)
     if (mode !== 'dry-run' && toEmails.length > 0) {
       await sendReviewChaseEmail({
         toEmails,
+        ccEmails,
         clientFirstName: client?.first_name ?? null,
         clientName,
         stage,

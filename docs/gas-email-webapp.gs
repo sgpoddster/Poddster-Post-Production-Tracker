@@ -29,12 +29,15 @@ function doPost(e) {
       return json_({ error: 'missing to/subject' });
     }
 
-    GmailApp.sendEmail(body.to, body.subject, body.text || '', {
+    var options = {
       htmlBody: body.html || body.text || '',
       name:     body.fromName || 'Poddster Post Production',
       // Optional: reply-to so editors can reply to the team
       replyTo:  body.replyTo || 'sgproduction@poddster.com',
-    });
+    };
+    if (body.cc) options.cc = body.cc;   // comma-separated CC list (e.g. producer)
+
+    GmailApp.sendEmail(body.to, body.subject, body.text || '', options);
 
     return json_({ ok: true });
   } catch (err) {

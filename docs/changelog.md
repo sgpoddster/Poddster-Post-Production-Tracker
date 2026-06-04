@@ -4,6 +4,16 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Dashboard client filter + collapsible sections
+
+### Added
+- **Client filter** dropdown on the dashboard (`?client=`), listing clients
+  present in the current view; composes with the existing producer filter + search.
+- **Collapsible sections** — Draft / In Progress / Client Review / Completed each
+  have a chevron toggle; collapsed state is remembered per section via localStorage.
+
+---
+
 ## 2026-06 — Client review-chase emails
 
 ### Added

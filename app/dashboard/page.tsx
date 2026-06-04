@@ -10,6 +10,8 @@ import StartRevisionButton from './StartRevisionButton'
 import NewProjectButton from './NewProjectButton'
 import { SearchBar } from './SearchBar'
 import { ProducerFilter } from './ProducerFilter'
+import { ClientFilter } from '../queue/ClientFilter'
+import { CollapsibleSection } from './CollapsibleSection'
 import PendingTriggerList from './PendingTriggerList'
 import MarkDoneButton from '../queue/MarkDoneButton'
 import CompleteButton from '@/components/CompleteButton'
@@ -19,7 +21,7 @@ import OnHoldButton from '@/components/OnHoldButton'
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams?: { q?: string; editors?: string }
+  searchParams?: { q?: string; editors?: string; client?: string }
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -86,9 +88,18 @@ export default async function DashboardPage({
     if (!editorFilters.length) return true
     return editorFilters.includes(p.assigned_editor ?? '')
   }
+  const clientFilter = searchParams?.client ?? null
+  const matchesClient = (p: Project) => !clientFilter || p.client_name === clientFilter
 
   const allProjects = projects ?? []
-  const filter = (p: Project) => matchesSearch(p) && matchesEditor(p)
+
+  // Clients present across the dashboard (respecting search + producer filter), for the dropdown
+  const clientPool = [...allProjects, ...(completedProjects ?? [])].filter(p => matchesSearch(p) && matchesEditor(p))
+  const clientsInDashboard = Array.from(
+    new Set(clientPool.map(p => p.client_name).filter((n): n is string => !!n))
+  ).sort((a, b) => a.localeCompare(b))
+
+  const filter = (p: Project) => matchesSearch(p) && matchesEditor(p) && matchesClient(p)
   const pending    = allProjects.filter(p => p.status === 'pending_trigger').filter(filter)
   const inProgress = allProjects.filter(p => ['active', 'in_revision'].includes(p.status)).filter(filter)
   const inReview   = allProjects.filter(p => p.status === 'in_client_review').filter(filter)
@@ -106,11 +117,12 @@ export default async function DashboardPage({
           </h1>
           <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
         </div>
-        {/* Row 2: search + producer filter */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
+        {/* Row 2: search + filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex-1 min-w-[140px]">
             <SearchBar defaultValue={searchParams?.q} />
           </div>
+          <ClientFilter clients={clientsInDashboard} selected={clientFilter} />
           {isAdmin && editors.length > 0 && (
             <ProducerFilter editors={editors} selected={editorFilters} />
           )}
@@ -121,12 +133,7 @@ export default async function DashboardPage({
         <p className="text-sm text-white/30 text-center py-8">No projects match &ldquo;{q}&rdquo;</p>
       )}
 
-      <section>
-        <div className="flex items-center gap-2.5 mb-4">
-          <span className="w-2 h-2 rounded-full bg-amber-500" />
-          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest">Draft</h2>
-          <span className="text-xs text-white/25">{pending.length}</span>
-        </div>
+      <CollapsibleSection dot="bg-amber-500" title="Draft" count={pending.length} storageKey="draft" noContainer empty="">
         <PendingTriggerList
           isAdmin={isAdmin}
           emptyText={q ? 'No matches in this section.' : 'No drafts yet.'}
@@ -143,61 +150,32 @@ export default async function DashboardPage({
             editorName: formatAssignee(p.assigned_editor, p.editor, editorNames),
           }))}
         />
-      </section>
+      </CollapsibleSection>
 
-      <Section
-        dot="bg-blue-500"
-        title="In Progress"
-        count={inProgress.length}
-        empty={q ? `No matches in this section.` : 'Nothing currently in progress.'}
+      <CollapsibleSection
+        dot="bg-blue-500" title="In Progress" count={inProgress.length} storageKey="in-progress"
+        empty={q ? 'No matches in this section.' : 'Nothing currently in progress.'}
       >
         {inProgress.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
           editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
-      </Section>
+      </CollapsibleSection>
 
-      <Section
-        dot="bg-purple-500"
-        title="Client Review"
-        count={inReview.length}
-        empty={q ? `No matches in this section.` : 'Nothing awaiting client review.'}
+      <CollapsibleSection
+        dot="bg-purple-500" title="Client Review" count={inReview.length} storageKey="client-review"
+        empty={q ? 'No matches in this section.' : 'Nothing awaiting client review.'}
       >
         {inReview.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
           editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
-      </Section>
+      </CollapsibleSection>
 
-      <Section
-        dot="bg-green-500"
-        title="Completed"
-        count={completed.length}
-        empty={q ? `No matches in this section.` : 'No completions in the last 30 days.'}
+      <CollapsibleSection
+        dot="bg-green-500" title="Completed" count={completed.length} storageKey="completed"
+        empty={q ? 'No matches in this section.' : 'No completions in the last 30 days.'}
       >
         {completed.map(p => <CompletedRow key={p.id} project={p}
           editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
-      </Section>
+      </CollapsibleSection>
     </main>
-  )
-}
-
-function Section({
-  dot, title, count, empty, children
-}: {
-  dot: string; title: string; count: number; empty: string; children: React.ReactNode
-}) {
-  return (
-    <section>
-      <div className="flex items-center gap-2.5 mb-4">
-        <span className={`w-2 h-2 rounded-full ${dot}`} />
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest">{title}</h2>
-        <span className="text-xs text-white/25">{count}</span>
-      </div>
-      {count === 0 ? (
-        <p className="text-sm text-white/25 pl-4">{empty}</p>
-      ) : (
-        <div className="rounded-lg border border-white/[0.06] bg-brand-surface overflow-hidden divide-y divide-white/[0.06]">
-          {children}
-        </div>
-      )}
-    </section>
   )
 }
 

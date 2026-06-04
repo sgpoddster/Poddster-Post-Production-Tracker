@@ -182,8 +182,7 @@ function QueueRow({ project, isAdmin, editorName }: {
             holdDate={project.hold_date}
           />
         )}
-        {/* Fixed-width button area so timer column never shifts */}
-        <div className="flex items-center gap-2 justify-end w-[140px]">
+        <div className="flex items-center gap-2 justify-end">
           {project.drive_link && (
             <a href={project.drive_link} target="_blank" rel="noreferrer"
               className="text-xs text-white/30 hover:text-white/60 transition-colors"

@@ -66,7 +66,7 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
       <button
         onClick={() => setMenuOpen(o => !o)}
         disabled={loading}
-        className={`px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40 border ${
+        className={`px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40 border whitespace-nowrap ${
           onHold
             ? 'bg-amber-400 hover:bg-amber-300 border-amber-400 text-black font-bold'
             : 'bg-transparent hover:bg-white/10 border-white/15 text-white/40 hover:text-white/70'

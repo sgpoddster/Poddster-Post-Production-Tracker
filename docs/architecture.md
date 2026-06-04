@@ -128,6 +128,7 @@ Lookup table for the client quick-fill dropdown and the client portal.
 | `first_name` / `last_name` | text | Contact name |
 | `email`, `email_2`, `email_3` | text | Up to 3 contact emails (portal + completion mail) |
 | `portal_token` | uuid | Per-client key for the public `/client/[token]` portal |
+| `exclude_from_reminders` | boolean | If true, the review-chase cron skips this client |
 
 ### `user_profiles`
 

@@ -77,9 +77,12 @@ async function run(req: NextRequest) {
     // Client contact + portal token
     const { data: client } = await supabase
       .from('clients')
-      .select('first_name, email, email_2, email_3, portal_token')
+      .select('first_name, email, email_2, email_3, portal_token, exclude_from_reminders')
       .eq('name', clientName)
       .single()
+
+    // Client opted out of reminder emails — skip entirely (no send, no stage change)
+    if (client?.exclude_from_reminders) continue
 
     const clientEmails = [client?.email, client?.email_2, client?.email_3].filter((e): e is string => !!e)
     const toEmails = testTo ? [testTo] : clientEmails

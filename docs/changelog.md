@@ -4,6 +4,16 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Exclude clients from reminder emails
+
+### Added
+- **`exclude_from_reminders`** flag on clients. Admin → Clients add/edit forms
+  have an "Exclude from reminder emails" checkbox; flagged clients show a
+  "No reminders" badge. The review-chase cron skips them entirely (no send,
+  no stage change). Existing clients can be flagged in bulk via SQL.
+
+---
+
 ## 2026-06 — Email polish, CC producer, and UI tweaks
 
 ### Added

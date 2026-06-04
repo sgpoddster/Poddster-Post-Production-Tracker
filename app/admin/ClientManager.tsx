@@ -13,6 +13,7 @@ interface Client {
   email_2: string | null
   email_3: string | null
   portal_token: string | null
+  exclude_from_reminders: boolean
 }
 
 function CopyPortalLink({ token }: { token: string }) {
@@ -29,7 +30,7 @@ function CopyPortalLink({ token }: { token: string }) {
   )
 }
 
-const empty = { name: '', code: '', first_name: '', last_name: '', email: '', email_2: '', email_3: '' }
+const empty = { name: '', code: '', first_name: '', last_name: '', email: '', email_2: '', email_3: '', exclude_from_reminders: false }
 
 function ClientEmails({ client }: { client: Client }) {
   const emails = [client.email, client.email_2, client.email_3].filter(Boolean)
@@ -56,6 +57,7 @@ function EditRow({ client, onSave, onCancel }: {
     email:      client.email      ?? '',
     email_2:    client.email_2    ?? '',
     email_3:    client.email_3    ?? '',
+    exclude_from_reminders: client.exclude_from_reminders ?? false,
   })
   const [loading, setLoading] = useState(false)
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -113,6 +115,13 @@ function EditRow({ client, onSave, onCancel }: {
             className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
         ))}
       </div>
+      {/* Reminder opt-out */}
+      <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
+        <input type="checkbox" checked={form.exclude_from_reminders}
+          onChange={e => setForm(f => ({ ...f, exclude_from_reminders: e.target.checked }))}
+          className="w-4 h-4 rounded accent-brand-red" />
+        <span className="text-xs text-white/60">Exclude from reminder emails</span>
+      </label>
       <div className="flex items-center gap-2 pt-1">
         <button onClick={save} disabled={loading || !form.name.trim()}
           className="px-4 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-xs font-medium rounded transition-colors">
@@ -251,6 +260,13 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                 className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
             ))}
           </div>
+          {/* Reminder opt-out */}
+          <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
+            <input type="checkbox" checked={newForm.exclude_from_reminders}
+              onChange={e => setNewForm(f => ({ ...f, exclude_from_reminders: e.target.checked }))}
+              className="w-4 h-4 rounded accent-brand-red" />
+            <span className="text-xs text-white/60">Exclude from reminder emails</span>
+          </label>
           <div className="flex items-center gap-2 pt-1">
             <button type="submit" disabled={loading || !newForm.name.trim()}
               className="px-4 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-xs font-medium rounded transition-colors">
@@ -294,6 +310,9 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                         <span className="text-xs text-white/30">
                           {[c.first_name, c.last_name].filter(Boolean).join(' ')}
                         </span>
+                      )}
+                      {c.exclude_from_reminders && (
+                        <span className="text-[10px] text-amber-400/70 bg-amber-400/10 px-1.5 py-0.5 rounded">No reminders</span>
                       )}
                     </div>
                     <div className="mt-0.5">

@@ -203,8 +203,8 @@ Weekends are skipped. No public holidays yet (planned).
 |---|---|---|
 | `/` | All | Redirects to `/dashboard` |
 | `/login` | Public | Google OAuth sign-in |
-| `/dashboard` | All | Four sections: Awaiting Trigger, In Progress, Client Review, Completed (last 30 days). Search box; admin producer multi-select filter; overdue flagging. Admin sees all; producer sees own. |
-| `/queue` | All | Flat urgency-sorted list of active/in_revision work. Filters: producer (admin), due window (Today/+1/+2/All working days), client. Admin sees all; editor sees own. |
+| `/dashboard` | All | Four **collapsible** sections: Draft, In Progress, Client Review, Completed (last 30 days). Search box + multi-select **client** filter + admin **producer** filter; overdue flagging; batch-trigger checkboxes on Draft. Admin sees all; producer sees own. |
+| `/queue` | All | Flat urgency-sorted list of active/in_revision work. Filters (one row): due window (Today/+1/+2/All working days), multi-select client, admin producer. Admin sees all; editor sees own. |
 | `/projects/[id]` | All | Full project detail: meta, version timeline, action buttons. Admin gets Edit (incl. version selector), Cancel, Due Date editor, Copy client link. |
 | `/admin` | Admin only | Tabs: **Team** (role management) and **Clients** (search, add at top, emails ×3, names, portal link). |
 | `/client/[token]` | Public | Login-free client portal — all of a client's projects grouped by session, statuses + version timelines. Served via service-role read; whitelisted in middleware. |
@@ -249,7 +249,7 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 
 | Method | Route | What it does |
 |---|---|---|
-| `GET/POST` | `/api/cron/review-chase` | Daily: emails clients sitting in Client Review for 7 days (reminder) / 14 days (final notice). Reads only our tables (days since current version `done_date`). One email per client per stage, sent once via `review_chase_stage`. Auth: `?key=<INGEST_API_KEY>`. Fired by a GAS daily time-trigger. |
+| `GET/POST` | `/api/cron/review-chase` | Daily: emails clients sitting in Client Review for 7 days (reminder) / 14 days (final notice). Reads only our tables (days since current version `done_date`). One email per client per stage, sent once via `review_chase_stage`, **CC'ing the assigned producer(s)**. Auth: `?key=<INGEST_API_KEY>`. Safe by default (dry-run); `REVIEW_CHASE_LIVE=true` to send, `?testTo=`/`?onlyClient=`/`?days=` for previewing. Fired by a GAS daily time-trigger. |
 
 ### Ingest (GAS)
 

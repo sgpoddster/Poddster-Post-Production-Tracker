@@ -4,6 +4,31 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Email polish, CC producer, and UI tweaks
+
+### Added
+- **CC the producer** on client review-chase emails so they see any client
+  reply (live mode only; the GAS relay + `sendViaGas` gained a `cc` field).
+- **Poddster logo image** in all email headers (replaces the "PODDSTER" text).
+- Review-chase **copy + subjects** finalised: "Reminder on your edit/s" /
+  "Final reminder", filename-style line items (`Episode - DDBA4E1 5pm 8th June
+  2026 - V1 · Booking <order_id>`), Needs-Review CTA, 7-day approve/archive/delete
+  warning. Subjects: "Reminder - Your Poddster Edit/s" / "Final Reminder - …".
+- Review-chase **test knobs**: `onlyClient=<name>` and `days=<n>` for previewing.
+
+### Changed
+- **Drive Link is now mandatory** when creating a new project.
+- **Client filter is multi-select with checkboxes** (matches the producer menu),
+  on both dashboard and queue (`?client=name1,name2`).
+- **Queue filters** (client + producer) aligned together on one row; due-window
+  toggle on the left.
+- Queue **Hold button** no longer wraps — same height as Done (matches dashboard).
+
+> GAS relay note: the `sgproduction@` email web app must be re-deployed with the
+> updated `docs/gas-email-webapp.gs` (adds `cc` support) for producer CC to work.
+
+---
+
 ## 2026-06 — Dashboard client filter + collapsible sections
 
 ### Added

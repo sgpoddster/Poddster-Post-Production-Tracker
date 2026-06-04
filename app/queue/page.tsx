@@ -66,9 +66,12 @@ export default async function QueuePage({
     return d != null && d <= dueTargetStr   // due on/before target (overdue included)
   }
 
-  // Client filter via ?client=<name>
-  const clientFilter = searchParams?.client ?? null
-  const matchesClient = (p: Project) => !clientFilter || p.client_name === clientFilter
+  // Client filter via ?client=name1,name2
+  const clientFilters = searchParams?.client
+    ? searchParams.client.split(',').filter(Boolean)
+    : []
+  const matchesClient = (p: Project) =>
+    clientFilters.length === 0 || clientFilters.includes(p.client_name ?? '')
 
   // Sort: most overdue / soonest due first, no-due-date at the bottom
   function daysRemaining(p: Project): number {
@@ -121,7 +124,7 @@ export default async function QueuePage({
         {/* Due-window toggle + client filter */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <DueFilter selected={dueParam} />
-          <ClientFilter clients={clientsInQueue} selected={clientFilter} />
+          <ClientFilter clients={clientsInQueue} selected={clientFilters} />
         </div>
       </div>
 

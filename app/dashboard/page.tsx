@@ -88,8 +88,11 @@ export default async function DashboardPage({
     if (!editorFilters.length) return true
     return editorFilters.includes(p.assigned_editor ?? '')
   }
-  const clientFilter = searchParams?.client ?? null
-  const matchesClient = (p: Project) => !clientFilter || p.client_name === clientFilter
+  const clientFilters = searchParams?.client
+    ? searchParams.client.split(',').filter(Boolean)
+    : []
+  const matchesClient = (p: Project) =>
+    clientFilters.length === 0 || clientFilters.includes(p.client_name ?? '')
 
   const allProjects = projects ?? []
 
@@ -122,7 +125,7 @@ export default async function DashboardPage({
           <div className="flex-1 min-w-[140px]">
             <SearchBar defaultValue={searchParams?.q} />
           </div>
-          <ClientFilter clients={clientsInDashboard} selected={clientFilter} />
+          <ClientFilter clients={clientsInDashboard} selected={clientFilters} />
           {isAdmin && editors.length > 0 && (
             <ProducerFilter editors={editors} selected={editorFilters} />
           )}

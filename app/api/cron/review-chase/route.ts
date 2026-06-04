@@ -37,13 +37,13 @@ async function run(req: NextRequest) {
 
   let query = supabase
     .from('projects')
-    .select('id, client_name, type, highlight_number, filming_date, current_version, review_chase_stage, versions(*)')
+    .select('id, client_name, type, highlight_number, internal_id, filming_date, filming_time, order_id, current_version, review_chase_stage, versions(*)')
     .eq('status', 'in_client_review')
   if (onlyClient) query = query.eq('client_name', onlyClient)
   const { data: projects } = await query
 
   // Determine which projects are due for stage 1 (≥7d) or stage 2 (≥14d)
-  type Due = { stage: 1 | 2; project: { id: string; client_name: string | null; type: 'episode' | 'highlight'; highlight_number: number | null; filming_date: string | null } }
+  type Due = { stage: 1 | 2; project: { id: string; client_name: string | null; type: 'episode' | 'highlight'; highlight_number: number | null; internal_id: string; filming_date: string | null; filming_time: string | null; order_id: string | null; current_version: number } }
   const due: Due[] = []
 
   for (const p of projects ?? []) {
@@ -95,7 +95,11 @@ async function run(req: NextRequest) {
         items: rows.map((r: Due) => ({
           type: r.project.type,
           highlightNumber: r.project.highlight_number,
+          internalId: r.project.internal_id,
           filmingDate: r.project.filming_date,
+          filmingTime: r.project.filming_time,
+          version: r.project.current_version,
+          orderId: r.project.order_id,
         })),
         portalUrl,
       })

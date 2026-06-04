@@ -1,4 +1,4 @@
-import { formatFullDate } from './utils'
+import { formatFullDate, buildOutputFilename } from './utils'
 
 // Email is sent via a Google Apps Script web app running in the
 // sgproduction@poddster.com mailbox (GmailApp.sendEmail). No DNS/Resend needed.
@@ -249,7 +249,15 @@ export async function sendReviewChaseEmail({
   clientFirstName: string | null
   clientName: string
   stage: 1 | 2
-  items: { type: 'episode' | 'highlight'; highlightNumber?: number | null; filmingDate: string | null }[]
+  items: {
+    type: 'episode' | 'highlight'
+    highlightNumber?: number | null
+    internalId: string
+    filmingDate: string | null
+    filmingTime: string | null
+    version: number
+    orderId: string | null
+  }[]
   portalUrl: string | null
 }) {
   const to = toEmails.filter(Boolean)
@@ -260,19 +268,23 @@ export async function sendReviewChaseEmail({
 
   const greeting = clientFirstName ? `Hi ${clientFirstName},` : 'Hi,'
 
+  // Each row: "Episode - DDBA4E1 5pm 8th June 2026 - V1" + muted Booking ID
   const rows = items
     .map(i => {
-      const label = i.type === 'episode' ? 'Episode' : `Highlight #${i.highlightNumber ?? ''}`
-      const date = i.filmingDate ? formatFullDate(i.filmingDate) : ''
-      return `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;color:rgba(255,255,255,0.85);">${label}${date ? `<span style="color:rgba(255,255,255,0.35);"> · recorded ${date}</span>` : ''}</td></tr>`
+      const label = i.type === 'episode' ? 'Episode' : `Highlight ${i.highlightNumber ?? ''}`.trim()
+      const filename = buildOutputFilename(i.internalId, i.filmingDate, i.filmingTime, i.version)
+      const booking = i.orderId
+        ? `<span style="color:rgba(255,255,255,0.35);"> · Booking ${i.orderId}</span>`
+        : ''
+      return `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;color:rgba(255,255,255,0.85);">${label} - ${filename}${booking}</td></tr>`
     })
     .join('')
 
   const intro = stage === 1
-    ? `Your ${items.length > 1 ? 'edits are' : 'edit is'} ready and waiting for your review — we haven't heard back yet. Whenever you get a moment, please take a look and let us know if it's good to go or if you'd like any changes.`
-    : `We're still waiting to hear back on the ${items.length > 1 ? 'edits' : 'edit'} below. If we don't hear from you, we'll move this into our 30-day archive — just reply or review whenever you're ready and we'll pick it straight back up.`
+    ? `We haven't heard back for 7 days so, when you get a moment, please take a look and let us know if it's good to go or if you'd like any changes (remember to click the 'Needs Review' status button).`
+    : `We're still waiting to hear back on the edit/s below. If we don't hear from you within 7 days we'll assume the edit/s are approved, are downloaded, and we'll move them into our 30-day archive — after this period lapses they will be permanently deleted. To review, please add your comments and remember to click on the 'Needs Review' status button.`
 
-  const heading = stage === 1 ? 'Ready for your review' : 'Final reminder'
+  const heading = stage === 1 ? 'Reminder on your edit/s' : 'Final reminder'
   const accent = stage === 1 ? '#3b82f6' : '#f59e0b'
 
   const html = `<!DOCTYPE html>

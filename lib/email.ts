@@ -318,8 +318,8 @@ export async function sendReviewChaseEmail({
 </body></html>`
 
   const subject = stage === 1
-    ? `Your edit${items.length > 1 ? 's are' : ' is'} ready for review – ${clientName}`
-    : `Final reminder: your edit${items.length > 1 ? 's are' : ' is'} waiting – ${clientName}`
+    ? 'Reminder - Your Poddster Edit/s'
+    : 'Final Reminder - Your Poddster Edit/s'
 
   try {
     await sendViaGas(to.join(','), subject, html)

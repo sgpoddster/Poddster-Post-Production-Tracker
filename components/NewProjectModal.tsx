@@ -96,6 +96,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     if (!form.seats)           { setError('Please enter the number of seats'); return }
     if (!form.shoot_duration)  { setError('Please select the shoot duration'); return }
     if (form.episode_count + form.highlight_count === 0) { setError('Please add at least one episode or highlight'); return }
+    if (!form.drive_link.trim()) { setError('Please add a Drive link'); return }
     if (!form.assigned_editor) { setError('Please assign a producer'); return }
     setLoading(true)
     setError(null)
@@ -238,7 +239,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
 
           {/* Drive link */}
           <div>
-            <Label>Drive Link</Label>
+            <Label>Drive Link *</Label>
             <Input value={form.drive_link} onChange={v => set('drive_link', v)} placeholder="https://drive.google.com/…" />
           </div>
 

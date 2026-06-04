@@ -116,15 +116,17 @@ export default async function QueuePage({
                 : 'Your active projects — most urgent first'}
             </p>
           </div>
-          {isAdmin && editors.length > 0 && (
-            <ProducerFilter editors={editors} selected={editorFilters} />
-          )}
         </div>
 
-        {/* Due-window toggle + client filter */}
+        {/* Due-window toggle (left) + client & producer filters (right) */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <DueFilter selected={dueParam} />
-          <ClientFilter clients={clientsInQueue} selected={clientFilters} />
+          <div className="flex items-center gap-2">
+            <ClientFilter clients={clientsInQueue} selected={clientFilters} />
+            {isAdmin && editors.length > 0 && (
+              <ProducerFilter editors={editors} selected={editorFilters} />
+            )}
+          </div>
         </div>
       </div>
 

@@ -4,6 +4,16 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Copy folder name + output number selector
+
+### Added
+- **Copy folder name** button on the project detail page (next to Copy filename):
+  Job ID + time + date, no E/H suffix or version — e.g. `F713C 11am 5th November
+  2025`. `buildFolderName` helper.
+- **Add Output**: pick the episode/highlight number (1–10) with a live ID preview.
+
+---
+
 ## 2026-06 — Public holidays (closed days) in deadline calc
 
 ### Added

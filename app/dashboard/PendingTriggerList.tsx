@@ -120,7 +120,7 @@ export default function PendingTriggerList({
               </button>
 
               <Link href={`/projects/${item.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{item.internal_id}</code>
+                <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{item.internal_id}</code>
                 <div className="min-w-0">
                   <span className="text-sm font-medium text-white group-hover:text-white/90 truncate block">
                     {item.client_name || '—'}

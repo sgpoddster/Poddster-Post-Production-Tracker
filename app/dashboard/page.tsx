@@ -112,7 +112,7 @@ export default async function DashboardPage({
   const totalShown = pending.length + inProgress.length + inReview.length + completed.length
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10">
       <div className="flex flex-col gap-3">
         {/* Row 1: title + new project button */}
         <div className="flex items-center justify-between gap-3">
@@ -228,7 +228,7 @@ function DashGroupHeader({ group, editorNames, withCountdown }: {
     // Same 4-column structure as InProgressRow: [code w-20] [client flex-1] [countdown] [actions w-52]
     // The JobGroup chevron acts as the spacer — no extra spacer needed here.
     <div className="flex items-center gap-4 w-full">
-      <code className="hidden sm:block text-xs text-white/25 shrink-0 w-20 font-mono">{first.job_id}</code>
+      <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{first.job_id}</code>
       <div className="min-w-0 flex-1">
         <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
         <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -262,7 +262,7 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
     <div className="flex items-center px-3 sm:px-5 py-3 sm:py-3.5 gap-3 sm:gap-4 hover:bg-white/[0.02] transition-colors group opacity-60 hover:opacity-80">
       <span className="hidden sm:block w-3 shrink-0" />
       <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
+        <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
@@ -299,7 +299,7 @@ function InProgressRow({ project, isAdmin, editorName }: {
     <div className={`flex items-center px-3 sm:px-5 py-3.5 sm:py-4 gap-3 sm:gap-4 hover:bg-white/[0.03] transition-colors group ${overdue ? 'border-l-2 border-l-red-500/70' : ''}`}>
       <span className="hidden sm:block w-3 shrink-0" />
       <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
+        <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">

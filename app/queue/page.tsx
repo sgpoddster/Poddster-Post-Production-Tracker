@@ -104,7 +104,7 @@ export default async function QueuePage({
 
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -166,7 +166,7 @@ function QueueGroupHeader({ group, editorNames }: {
     // Same 4-column structure as QueueRow: [code w-20] [client flex-1] [countdown] [actions w-36]
     // The JobGroup chevron acts as the spacer, so no extra spacer needed here.
     <div className="flex items-center gap-4 w-full">
-      <code className="hidden sm:block text-xs text-white/25 shrink-0 w-20 font-mono">{first.job_id}</code>
+      <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{first.job_id}</code>
       <div className="min-w-0 flex-1">
         <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
         <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -201,7 +201,7 @@ function QueueRow({ project, isAdmin, editorName }: {
     <div className="flex items-center px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-white/[0.03] transition-colors group gap-3 sm:gap-4">
       <span className="hidden sm:block w-3 shrink-0" />
       <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
+        <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">

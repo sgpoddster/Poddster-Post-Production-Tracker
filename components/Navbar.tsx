@@ -21,7 +21,7 @@ export async function Navbar() {
 
   return (
     <nav className="bg-brand-surface border-b border-brand-surface2 sticky top-0 z-10">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
         {/* Main row */}
         <div className="h-14 flex items-center justify-between gap-4">

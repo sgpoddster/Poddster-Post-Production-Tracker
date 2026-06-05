@@ -4,6 +4,17 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-05 — Wider layout + legible IDs
+
+### Changed
+- **`max-w-7xl` (1280px)** across queue, dashboard, and navbar (was `max-w-5xl` / 1024px).
+  Gives meaningfully more real estate on 14"+ MBPs at HiDPI resolutions.
+- **ID column legibility** — all `<code>` ID cells (internal IDs and job IDs in queue,
+  dashboard, and draft list) bumped from `text-xs text-white/20` to `text-sm text-white/45`:
+  one step larger, more than doubled the brightness.
+
+---
+
 ## 2026-06-05 — Dashboard alignment + expanded group shading
 
 ### Fixed

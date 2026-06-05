@@ -4,6 +4,18 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Collapse same-Job-ID rows in lists
+
+### Added
+- In the **queue** and the **dashboard** In Progress / Client Review / Completed
+  sections, deliverables sharing a Job ID (episode + H1/H2/H3) now **collapse to
+  one summary row** ("Episode + 3 Highlights", shared client/deadline). Collapsed
+  by default; click to expand the individual rows and act on each.
+  `groupByJob` + `summarizeDeliverables` helpers, shared `JobGroup` component.
+  (Draft section keeps its batch-select UI unchanged.)
+
+---
+
 ## 2026-06 — Copy folder name + output number selector
 
 ### Added

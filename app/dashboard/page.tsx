@@ -2,9 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project } from '@/lib/types'
-import { formatDate, formatAssignee } from '@/lib/utils'
+import { formatDate, formatAssignee, groupByJob, summarizeDeliverables } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
+import { JobGroup } from '@/components/JobGroup'
 import { getUserProfile } from '@/lib/auth'
 import StartRevisionButton from './StartRevisionButton'
 import NewProjectButton from './NewProjectButton'
@@ -159,24 +160,54 @@ export default async function DashboardPage({
         dot="bg-blue-500" title="In Progress" count={inProgress.length} storageKey="in-progress"
         empty={q ? 'No matches in this section.' : 'Nothing currently in progress.'}
       >
-        {inProgress.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
-          editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
+        {groupByJob(inProgress).map(group =>
+          group.length === 1 ? (
+            <InProgressRow key={group[0].id} project={group[0]} isAdmin={isAdmin}
+              editorName={formatAssignee(group[0].assigned_editor, group[0].editor, editorNames)} />
+          ) : (
+            <JobGroup key={group[0].job_id} count={group.length}
+              header={<DashGroupHeader group={group} editorNames={editorNames} withCountdown />}>
+              {group.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
+                editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
+            </JobGroup>
+          )
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection
         dot="bg-purple-500" title="Client Review" count={inReview.length} storageKey="client-review"
         empty={q ? 'No matches in this section.' : 'Nothing awaiting client review.'}
       >
-        {inReview.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
-          editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
+        {groupByJob(inReview).map(group =>
+          group.length === 1 ? (
+            <InProgressRow key={group[0].id} project={group[0]} isAdmin={isAdmin}
+              editorName={formatAssignee(group[0].assigned_editor, group[0].editor, editorNames)} />
+          ) : (
+            <JobGroup key={group[0].job_id} count={group.length}
+              header={<DashGroupHeader group={group} editorNames={editorNames} />}>
+              {group.map(p => <InProgressRow key={p.id} project={p} isAdmin={isAdmin}
+                editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
+            </JobGroup>
+          )
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection
         dot="bg-green-500" title="Completed" count={completed.length} storageKey="completed"
         empty={q ? 'No matches in this section.' : 'No completions in the last 30 days.'}
       >
-        {completed.map(p => <CompletedRow key={p.id} project={p}
-          editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
+        {groupByJob(completed).map(group =>
+          group.length === 1 ? (
+            <CompletedRow key={group[0].id} project={group[0]}
+              editorName={formatAssignee(group[0].assigned_editor, group[0].editor, editorNames)} />
+          ) : (
+            <JobGroup key={group[0].job_id} count={group.length}
+              header={<DashGroupHeader group={group} editorNames={editorNames} />}>
+              {group.map(p => <CompletedRow key={p.id} project={p}
+                editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />)}
+            </JobGroup>
+          )
+        )}
       </CollapsibleSection>
     </main>
   )
@@ -186,6 +217,34 @@ function isProjectOverdue(dueDate: string | null | undefined, status: string, on
   if (!dueDate || onHold) return false
   if (!['active', 'in_revision'].includes(status)) return false
   return new Date(dueDate + 'T23:59:59') < new Date()
+}
+
+function DashGroupHeader({ group, editorNames, withCountdown }: {
+  group: Project[]; editorNames: Record<string, string>; withCountdown?: boolean
+}) {
+  const first = group[0]
+  const currentVer = (first.versions ?? []).find(v => v.version_number === first.current_version)
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+        <code className="hidden sm:block text-xs text-white/25 shrink-0 w-20 font-mono">{first.job_id}</code>
+        <div className="min-w-0">
+          <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
+          <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
+            <span>{summarizeDeliverables(group)}</span>
+            {first.filming_date && <><span className="text-white/15">·</span>{formatDate(first.filming_date)}</>}
+            <span className="text-white/15">·</span>
+            <span className="font-medium text-white/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
+          </div>
+        </div>
+      </div>
+      {withCountdown && currentVer?.due_date && (
+        <div className="hidden sm:block">
+          <CountdownTimer dueDate={currentVer.due_date} onHold={first.on_hold} holdDate={first.hold_date} />
+        </div>
+      )}
+    </div>
+  )
 }
 
 function CompletedRow({ project, editorName }: { project: Project; editorName: string }) {

@@ -2,9 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project, Version } from '@/lib/types'
-import { formatDate, formatAssignee, addWorkDays } from '@/lib/utils'
+import { formatDate, formatAssignee, addWorkDays, groupByJob, summarizeDeliverables } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
+import { JobGroup } from '@/components/JobGroup'
 import { getUserProfile } from '@/lib/auth'
 import MarkDoneButton from './MarkDoneButton'
 import OnHoldButton from '@/components/OnHoldButton'
@@ -136,13 +137,49 @@ export default async function QueuePage({
         </div>
       ) : (
         <div className="rounded-lg border border-white/[0.06] bg-brand-surface overflow-hidden divide-y divide-white/[0.06]">
-          {sorted.map(p => (
-            <QueueRow key={p.id} project={p} isAdmin={isAdmin}
-              editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />
-          ))}
+          {groupByJob(sorted).map(group =>
+            group.length === 1 ? (
+              <QueueRow key={group[0].id} project={group[0]} isAdmin={isAdmin}
+                editorName={formatAssignee(group[0].assigned_editor, group[0].editor, editorNames)} />
+            ) : (
+              <JobGroup key={group[0].job_id} count={group.length}
+                header={<QueueGroupHeader group={group} editorNames={editorNames} />}>
+                {group.map(p => (
+                  <QueueRow key={p.id} project={p} isAdmin={isAdmin}
+                    editorName={formatAssignee(p.assigned_editor, p.editor, editorNames)} />
+                ))}
+              </JobGroup>
+            )
+          )}
         </div>
       )}
     </main>
+  )
+}
+
+function QueueGroupHeader({ group, editorNames }: {
+  group: Project[]; editorNames: Record<string, string>
+}) {
+  const first = group[0]
+  const currentVer = (first.versions ?? []).find(v => v.version_number === first.current_version)
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-4 min-w-0">
+        <code className="hidden sm:block text-xs text-white/25 shrink-0 w-20 font-mono">{first.job_id}</code>
+        <div className="min-w-0">
+          <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
+          <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
+            <span>{summarizeDeliverables(group)}</span>
+            {first.filming_date && <><span className="text-white/15">·</span>Filmed {formatDate(first.filming_date)}</>}
+            <span className="text-white/15">·</span>
+            <span className="font-medium text-white/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
+          </div>
+        </div>
+      </div>
+      {currentVer?.due_date && (
+        <CountdownTimer dueDate={currentVer.due_date} onHold={first.on_hold} holdDate={first.hold_date} />
+      )}
+    </div>
   )
 }
 

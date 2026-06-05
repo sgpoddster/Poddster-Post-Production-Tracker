@@ -118,3 +118,24 @@ export function formatAssignee(
 export function workDaysForVersion(versionNumber: number): number {
   return versionNumber === 1 ? 5 : 3
 }
+
+// Group a list by job_id, preserving the order in which each job first appears.
+export function groupByJob<T extends { job_id: string }>(items: T[]): T[][] {
+  const map = new Map<string, T[]>()
+  const order: string[] = []
+  for (const it of items) {
+    if (!map.has(it.job_id)) { map.set(it.job_id, []); order.push(it.job_id) }
+    map.get(it.job_id)!.push(it)
+  }
+  return order.map(j => map.get(j)!)
+}
+
+// "Episode + 3 Highlights" style summary for a job's deliverables.
+export function summarizeDeliverables(items: { type: 'episode' | 'highlight' }[]): string {
+  const ep = items.filter(i => i.type === 'episode').length
+  const hl = items.filter(i => i.type === 'highlight').length
+  const parts: string[] = []
+  if (ep) parts.push(`${ep} Episode${ep > 1 ? 's' : ''}`)
+  if (hl) parts.push(`${hl} Highlight${hl > 1 ? 's' : ''}`)
+  return parts.join(' + ') || '—'
+}

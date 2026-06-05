@@ -4,6 +4,18 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-05 — Client Review: delivered + due dates
+
+### Added
+- **Client Review rows now show "Delivered" and "Due was" dates** in the countdown
+  column (which was previously empty for in-review items). Uses the same column
+  position as the countdown pill on in-progress rows so the layout stays consistent.
+  - **Delivered** = `done_date` of the current version (when the editor sent it to the client)
+  - **Due was** = `due_date` (the original editor deadline — useful for seeing if it shipped on time)
+  Both shown as compact two-line labels using `formatDateShort` (e.g. "Mon 5 Jun").
+
+---
+
 ## 2026-06-05 — Wider layout + legible IDs
 
 ### Changed

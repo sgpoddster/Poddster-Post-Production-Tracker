@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project } from '@/lib/types'
-import { formatDate, formatAssignee, groupByJob, summarizeDeliverables } from '@/lib/utils'
+import { formatDate, formatDateShort, formatAssignee, groupByJob, summarizeDeliverables } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { JobGroup } from '@/components/JobGroup'
@@ -328,6 +328,22 @@ function InProgressRow({ project, isAdmin, editorName }: {
             onHold={project.on_hold}
             holdDate={project.hold_date}
           />
+        )}
+        {project.status === 'in_client_review' && (
+          <div className="flex items-center gap-6">
+            {currentVer?.done_date && (
+              <div>
+                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Delivered</p>
+                <p className="text-xs font-medium text-white/60">{formatDateShort(currentVer.done_date)}</p>
+              </div>
+            )}
+            {currentVer?.due_date && (
+              <div>
+                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Due was</p>
+                <p className="text-xs font-medium text-white/60">{formatDateShort(currentVer.due_date)}</p>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

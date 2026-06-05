@@ -225,29 +225,27 @@ function DashGroupHeader({ group, editorNames, withCountdown }: {
   const first = group[0]
   const currentVer = (first.versions ?? []).find(v => v.version_number === first.current_version)
   return (
-    // Mirror InProgressRow layout: w-20 code col + flex-1 content + right-side timer
-    <div className="flex items-center justify-between gap-3 sm:gap-4 w-full">
-      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-xs text-white/25 shrink-0 w-20 font-mono">{first.job_id}</code>
-        <div className="min-w-0">
-          <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
-          <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
-            <span>{summarizeDeliverables(group)}</span>
-            {first.filming_date && <><span className="text-white/15">·</span>{formatDate(first.filming_date)}</>}
-            <span className="text-white/15">·</span>
-            <span className="font-medium text-white/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
-          </div>
+    // Same 4-column structure as InProgressRow: [code w-20] [client flex-1] [countdown] [actions w-52]
+    // The JobGroup chevron acts as the spacer — no extra spacer needed here.
+    <div className="flex items-center gap-4 w-full">
+      <code className="hidden sm:block text-xs text-white/25 shrink-0 w-20 font-mono">{first.job_id}</code>
+      <div className="min-w-0 flex-1">
+        <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
+        <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
+          <span>{summarizeDeliverables(group)}</span>
+          {first.filming_date && <><span className="text-white/15">·</span>{formatDate(first.filming_date)}</>}
+          <span className="text-white/15">·</span>
+          <span className="font-medium text-white/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
         </div>
       </div>
-      {withCountdown && currentVer?.due_date && (
-        <div className="hidden sm:flex items-center gap-2 shrink-0">
+      <div className="hidden sm:flex shrink-0">
+        {withCountdown && currentVer?.due_date && (
           <CountdownTimer dueDate={currentVer.due_date} onHold={first.on_hold} holdDate={first.hold_date} />
-          <span className="text-[10px] text-white/35 bg-white/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap">{group.length} items</span>
-        </div>
-      )}
-      {!withCountdown && (
-        <span className="hidden sm:block text-[10px] text-white/35 bg-white/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">{group.length} items</span>
-      )}
+        )}
+      </div>
+      <div className="flex items-center justify-end shrink-0 w-52">
+        <span className="text-[10px] text-white/35 bg-white/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap">{group.length} items</span>
+      </div>
     </div>
   )
 }
@@ -261,8 +259,9 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
     ? 'Episode' : `Highlight #${project.highlight_number}`
 
   return (
-    <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-3.5 hover:bg-white/[0.02] transition-colors group opacity-60 hover:opacity-80">
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+    <div className="flex items-center px-3 sm:px-5 py-3 sm:py-3.5 gap-3 sm:gap-4 hover:bg-white/[0.02] transition-colors group opacity-60 hover:opacity-80">
+      <span className="hidden sm:block w-3 shrink-0" />
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
         <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
@@ -279,7 +278,7 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
           </div>
         </div>
       </Link>
-      <div className="flex items-center gap-3 shrink-0 ml-3 sm:ml-4">
+      <div className="flex items-center justify-end shrink-0 w-52">
         <UndoButton projectId={project.id} />
       </div>
     </div>
@@ -295,8 +294,11 @@ function InProgressRow({ project, isAdmin, editorName }: {
   const overdue = isProjectOverdue(currentVer?.due_date, project.status, project.on_hold)
 
   return (
-    <div className={`flex items-center justify-between px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-white/[0.03] transition-colors group ${overdue ? 'border-l-2 border-l-red-500/70' : ''}`}>
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+    // 4-column structure: [spacer w-3] [client flex-1] [countdown] [actions w-52]
+    // Spacer matches the JobGroup chevron so client names stay in the same column.
+    <div className={`flex items-center px-3 sm:px-5 py-3.5 sm:py-4 gap-3 sm:gap-4 hover:bg-white/[0.03] transition-colors group ${overdue ? 'border-l-2 border-l-red-500/70' : ''}`}>
+      <span className="hidden sm:block w-3 shrink-0" />
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
         <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -318,33 +320,33 @@ function InProgressRow({ project, isAdmin, editorName }: {
           </div>
         </div>
       </Link>
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-3 sm:ml-4">
+
+      <div className="hidden sm:flex shrink-0">
         {currentVer?.due_date && project.status !== 'in_client_review' && (
-          <div className="hidden sm:block">
-            <CountdownTimer
-              dueDate={currentVer.due_date}
-              onHold={project.on_hold}
-              holdDate={project.hold_date}
-            />
-          </div>
+          <CountdownTimer
+            dueDate={currentVer.due_date}
+            onHold={project.on_hold}
+            holdDate={project.hold_date}
+          />
         )}
-        <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
-          {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
-            <OnHoldButton projectId={project.id} onHold={project.on_hold} holdReason={project.hold_reason} />
-          )}
-          {(project.status === 'active' || project.status === 'in_revision') && !project.on_hold && (
-            <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />
-          )}
-          {project.status === 'in_client_review' && (
-            <>
-              <CompleteButton projectId={project.id} />
-              {isAdmin && (
-                <StartRevisionButton projectId={project.id} currentVersion={project.current_version} />
-              )}
-              <UndoButton projectId={project.id} />
-            </>
-          )}
-        </div>
+      </div>
+
+      <div className="flex items-center gap-1.5 sm:gap-2 justify-end shrink-0 w-52">
+        {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
+          <OnHoldButton projectId={project.id} onHold={project.on_hold} holdReason={project.hold_reason} />
+        )}
+        {(project.status === 'active' || project.status === 'in_revision') && !project.on_hold && (
+          <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />
+        )}
+        {project.status === 'in_client_review' && (
+          <>
+            <CompleteButton projectId={project.id} />
+            {isAdmin && (
+              <StartRevisionButton projectId={project.id} currentVersion={project.current_version} />
+            )}
+            <UndoButton projectId={project.id} />
+          </>
+        )}
       </div>
     </div>
   )

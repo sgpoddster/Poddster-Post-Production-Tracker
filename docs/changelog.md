@@ -4,6 +4,25 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-05 — Dashboard alignment + expanded group shading
+
+### Fixed
+- **Client name and countdown aligned on the dashboard** (In Progress, Client Review,
+  Completed sections) using the same 4-column approach as the queue fix:
+  - `InProgressRow`: `w-3` spacer + `[client flex-1]` + `[countdown shrink-0]` + `[actions w-52]`.
+    The `w-52` actions column (wider than queue's `w-36`) accommodates the wider Client Review
+    button set (Complete + Start Revision + Undo for admin).
+  - `CompletedRow`: same spacer + `w-52` Undo column.
+  - `DashGroupHeader`: matches with `[code w-20]` + `[client flex-1]` + `[countdown shrink-0]`
+    + `[items badge w-52]`.
+
+### Added
+- **Expanded JobGroup child rows now have a subtle lighter background** (`bg-white/[0.035]`)
+  so it's visually obvious which rows belong to the expanded group (e.g. all FB11E deliverables
+  share the same tinted band).
+
+---
+
 ## 2026-06-05 — Queue row alignment fix
 
 ### Fixed

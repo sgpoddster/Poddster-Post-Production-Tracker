@@ -32,7 +32,7 @@ export function JobGroup({
       </button>
 
       {open && (
-        <div className="border-t border-white/[0.06] divide-y divide-white/[0.04]">
+        <div className="border-t border-white/[0.06] divide-y divide-white/[0.04] bg-white/[0.035]">
           {children}
         </div>
       )}

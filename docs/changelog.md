@@ -4,6 +4,23 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-05 — Queue row alignment fix
+
+### Fixed
+- **Client name and countdown pill now perfectly aligned across all row types.**
+  Single rows (e.g. Revision rows) had no chevron, so the client name and "Xd left"
+  pill were offset from collapsed group rows (which have a `w-3` chevron + gap before
+  their content). Fixed by:
+  - Adding an invisible `w-3` spacer to single `QueueRow`s so the content grid matches
+    the `JobGroup` button structure exactly.
+  - Splitting the right side into two separate fixed columns — a `shrink-0` countdown
+    column and a `w-36 justify-end` actions column — instead of a single variable-width
+    bucket. This ensures the "Xd left" pill lands at the same x position regardless of
+    whether Hold + Done buttons or just an items badge follows it.
+  - Matching `QueueRow` padding to `JobGroup` (`px-3 sm:px-5`, `py-3.5 sm:py-4`).
+
+---
+
 ## 2026-06 — Collapse same-Job-ID rows in lists
 
 ### Added

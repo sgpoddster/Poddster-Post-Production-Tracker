@@ -14,6 +14,7 @@ import EditProjectModal from './EditProjectModal'
 import CancelButton from './CancelButton'
 import DueDateEditor from './DueDateEditor'
 import CopyFilenameButton from './CopyFilenameButton'
+import CopyFolderButton from './CopyFolderButton'
 import CopyPortalLinkButton from './CopyPortalLinkButton'
 import { getUserProfile } from '@/lib/auth'
 
@@ -158,14 +159,21 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest">
             Version History
           </h2>
-          {versions.length > 0 && (
-            <CopyFilenameButton
-              internalId={project.internal_id}
+          <div className="flex items-center gap-2">
+            <CopyFolderButton
+              jobId={project.job_id}
               filmingDate={project.filming_date}
               filmingTime={project.filming_time}
-              versionNumber={project.current_version}
             />
-          )}
+            {versions.length > 0 && (
+              <CopyFilenameButton
+                internalId={project.internal_id}
+                filmingDate={project.filming_date}
+                filmingTime={project.filming_time}
+                versionNumber={project.current_version}
+              />
+            )}
+          </div>
         </div>
         {versions.length === 0 ? (
           <p className="text-sm text-white/25">No versions yet.</p>

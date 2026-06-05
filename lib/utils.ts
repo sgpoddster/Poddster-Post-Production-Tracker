@@ -39,6 +39,19 @@ export function buildOutputFilename(
   return `${internalId}${dateTime ? ' ' + dateTime : ''} - V${versionNumber}`
 }
 
+// Folder name for a shoot's outputs: Job ID + time + date (no E/H suffix, no version).
+// e.g. "F713C 11am 5th November 2025"
+export function buildFolderName(
+  jobId: string,
+  filmingDate: string | null,
+  filmingTime: string | null,
+): string {
+  const datePart = formatShortOrdinalDate(filmingDate)
+  const timePart = formatFilmingTimeShort(filmingTime)
+  const dateTime = [timePart, datePart].filter(Boolean).join(' ')
+  return `${jobId}${dateTime ? ' ' + dateTime : ''}`
+}
+
 // Format a YYYY-MM-DD date string to "Tuesday 7th May 2026"
 export function formatFullDate(dateStr: string | null): string {
   if (!dateStr) return '—'

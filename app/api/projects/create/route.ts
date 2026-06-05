@@ -36,13 +36,17 @@ export async function POST(request: Request) {
     highlight_count = 0,
     starting_version = 1,
     drive_link,
+    job_id,
   } = body
 
   if (!client_name) {
     return NextResponse.json({ error: 'client_name is required' }, { status: 400 })
   }
 
-  const jobId = generateJobId()
+  // Use a supplied Job ID (5 hex chars, A–F prefix) for existing/in-progress
+  // projects, otherwise generate one. internal_ids are built off it as usual.
+  const providedJobId = typeof job_id === 'string' ? job_id.trim().toUpperCase() : ''
+  const jobId = /^[A-F][A-F0-9]{4}$/.test(providedJobId) ? providedJobId : generateJobId()
   const rows = []
 
   // Episode rows: {jobId}E1, {jobId}E2, …

@@ -34,6 +34,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     seats: '' as string,
     order_id: '',
     drive_link: '',
+    job_id: '',
     assigned_editor: '',
     editor: '',
     notes: '',
@@ -97,6 +98,9 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     if (!form.shoot_duration)  { setError('Please select the shoot duration'); return }
     if (form.episode_count + form.highlight_count === 0) { setError('Please add at least one episode or highlight'); return }
     if (!form.drive_link.trim()) { setError('Please add a Drive link'); return }
+    if (form.job_id.trim() && !/^[A-Fa-f][A-Fa-f0-9]{4}$/.test(form.job_id.trim())) {
+      setError('Job ID must be 5 hex characters starting A–F (e.g. A3F2B), or leave blank to auto-generate'); return
+    }
     if (!form.assigned_editor) { setError('Please assign a producer'); return }
     setLoading(true)
     setError(null)
@@ -114,6 +118,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
         setup:             form.setup || null,
         seats:             form.seats ? parseInt(form.seats, 10) : null,
         drive_link:        form.drive_link || null,
+        job_id:            form.job_id.trim() ? form.job_id.trim().toUpperCase() : null,
         assigned_editor:   form.assigned_editor || null,
         editor:            form.editor || form.assigned_editor || null,
         notes:             form.notes || null,
@@ -241,6 +246,13 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
           <div>
             <Label>Drive Link *</Label>
             <Input value={form.drive_link} onChange={v => set('drive_link', v)} placeholder="https://drive.google.com/…" />
+          </div>
+
+          {/* Job ID (optional — for existing/in-progress projects) */}
+          <div>
+            <Label>Job ID</Label>
+            <Input value={form.job_id} onChange={v => set('job_id', v.toUpperCase())} placeholder="Leave blank to auto-generate (e.g. A3F2B)" />
+            <p className="text-[10px] text-white/25 mt-1">5 hex characters. Episode/highlight IDs are built from this (A3F2BE, A3F2BH1…).</p>
           </div>
 
           {/* Episodes & Highlights */}

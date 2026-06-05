@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
+import { getHolidayDates } from '@/lib/holidays'
 import { sendAssignmentEmail } from '@/lib/email'
 
 export async function POST(
@@ -61,7 +62,8 @@ export async function POST(
   }
 
   // Insert the active starting version with due date
-  const dueDate    = addWorkDays(submittedDate, workDaysForVersion(startingVersion))
+  const holidays   = await getHolidayDates()
+  const dueDate    = addWorkDays(submittedDate, workDaysForVersion(startingVersion), holidays)
   const dueDateStr = dueDate.toISOString().split('T')[0]
 
   const { error: versionError } = await supabase

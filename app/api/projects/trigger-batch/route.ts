@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
+import { getHolidayDates } from '@/lib/holidays'
 import { sendBatchAssignmentEmail } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
 
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
+  const holidays = await getHolidayDates()
   let representativeDue = todayStr
 
   for (const project of projects) {
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
       await supabase.from('versions').insert(placeholders)
     }
 
-    const dueStr = addWorkDays(today, workDaysForVersion(startingVersion)).toISOString().split('T')[0]
+    const dueStr = addWorkDays(today, workDaysForVersion(startingVersion), holidays).toISOString().split('T')[0]
     representativeDue = dueStr
     await supabase.from('versions').insert({
       project_id:     project.id,

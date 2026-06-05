@@ -68,13 +68,16 @@ export function formatDateShort(dateStr: string | null): string {
 }
 
 // Add N working days to a date (skips weekends — no public holidays for now)
-export function addWorkDays(date: Date, days: number): Date {
+// Add N working days, skipping weekends and any supplied public-holiday dates
+// (a Set of 'YYYY-MM-DD' strings).
+export function addWorkDays(date: Date, days: number, holidays?: Set<string>): Date {
   const result = new Date(date)
   let added = 0
   while (added < days) {
     result.setDate(result.getDate() + 1)
     const dow = result.getDay()
-    if (dow !== 0 && dow !== 6) added++
+    const iso = result.toISOString().split('T')[0]
+    if (dow !== 0 && dow !== 6 && !holidays?.has(iso)) added++
   }
   return result
 }

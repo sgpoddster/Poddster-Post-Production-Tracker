@@ -4,6 +4,19 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Public holidays (closed days) in deadline calc
+
+### Added
+- **`holidays` table** + **Admin → Closed Days** tab to add/remove the dates the
+  studio is closed (grouped by year, optional name).
+- Working-day deadline calculations now **skip closed days** as well as weekends
+  (`addWorkDays` takes an optional holiday set). Applied across trigger, batch
+  trigger, revision, version edit, and the Frame.io Needs-Review revision.
+- `lib/holidays.ts` `getHolidayDates()` (service-role read); `/api/admin/holidays`
+  GET/POST/DELETE (admin-gated).
+
+---
+
 ## 2026-06 — Manual Job ID on new project
 
 ### Added

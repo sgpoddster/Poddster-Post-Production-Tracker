@@ -1,8 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getUserProfile } from '@/lib/auth'
 import RoleToggle from './RoleToggle'
 import ClientManager from './ClientManager'
+import HolidayManager from './HolidayManager'
 
 export default async function AdminPage({
   searchParams,
@@ -16,11 +17,15 @@ export default async function AdminPage({
   const profile = await getUserProfile()
   if (profile?.role !== 'admin') redirect('/dashboard')
 
-  const tab = searchParams?.tab === 'clients' ? 'clients' : 'team'
+  const tab = ['clients', 'holidays'].includes(searchParams?.tab ?? '')
+    ? (searchParams!.tab as 'clients' | 'holidays')
+    : 'team'
 
-  const [{ data: users }, { data: clients }] = await Promise.all([
+  const svc = createServiceClient()
+  const [{ data: users }, { data: clients }, { data: holidays }] = await Promise.all([
     supabase.from('user_profiles').select('*').order('display_name'),
     supabase.from('clients').select('*, portal_token').order('name'),
+    svc.from('holidays').select('*').order('date'),
   ])
 
   return (
@@ -41,6 +46,10 @@ export default async function AdminPage({
         <TabLink href="/admin?tab=clients" active={tab === 'clients'}>
           Clients
           <span className="ml-1.5 text-white/25 text-xs">{(clients ?? []).length}</span>
+        </TabLink>
+        <TabLink href="/admin?tab=holidays" active={tab === 'holidays'}>
+          Closed Days
+          <span className="ml-1.5 text-white/25 text-xs">{(holidays ?? []).length}</span>
         </TabLink>
       </div>
 
@@ -68,6 +77,13 @@ export default async function AdminPage({
       {tab === 'clients' && (
         <section className="space-y-4">
           <ClientManager initialClients={clients ?? []} />
+        </section>
+      )}
+
+      {/* Closed days (public holidays) tab */}
+      {tab === 'holidays' && (
+        <section className="space-y-4">
+          <HolidayManager initial={holidays ?? []} />
         </section>
       )}
 

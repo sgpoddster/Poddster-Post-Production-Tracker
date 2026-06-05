@@ -186,7 +186,8 @@ Extends Supabase Auth users with app-specific data.
 | V1 (First Cut) | 5 working days from submitted_date |
 | V2+ (Revisions) | 3 working days from submitted_date |
 
-Weekends are skipped. No public holidays yet (planned).
+Weekends **and studio closed days** (the `holidays` table, managed in Admin →
+Closed Days) are skipped. `addWorkDays` takes an optional holiday set.
 
 **Admin backdating**: When triggering, admin can set `submittedDate` in the past — the deadline is calculated from that date, not today. Useful for catching up missed triggers.
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUserProfile } from '@/lib/auth'
 import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
+import { getHolidayDates } from '@/lib/holidays'
 
 export async function PATCH(
   req: NextRequest,
@@ -56,7 +57,8 @@ export async function PATCH(
       if (existing.status === 'active' || existing.status === 'in_revision') {
         // V1 = First Cut (active, 5 working days); V2+ = Revision (in_revision, 3 working days)
         updates.status = newV === 1 ? 'active' : 'in_revision'
-        const dueStr = addWorkDays(new Date(), workDaysForVersion(newV))
+        const holidays = await getHolidayDates()
+        const dueStr = addWorkDays(new Date(), workDaysForVersion(newV), holidays)
           .toISOString().split('T')[0]
 
         const { data: rows } = await supabase

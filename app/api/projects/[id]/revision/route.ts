@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
+import { getHolidayDates } from '@/lib/holidays'
 
 export async function POST(
   _req: NextRequest,
@@ -24,7 +25,8 @@ export async function POST(
   const nextVersion = project.current_version + 1
 
   // Create next version row with due date
-  const dueDate = addWorkDays(new Date(), workDaysForVersion(nextVersion))
+  const holidays = await getHolidayDates()
+  const dueDate = addWorkDays(new Date(), workDaysForVersion(nextVersion), holidays)
   const dueDateStr = dueDate.toISOString().split('T')[0]
 
   const { error: versionError } = await supabase

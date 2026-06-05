@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
+import { getHolidayDates } from '@/lib/holidays'
 
 // Frame.io v4 webhook.
 // Authentication: Adobe IMS OAuth — exchange refresh token for access token, then call v4 API.
@@ -202,7 +203,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: `not in client review (is '${project.status}')` })
     }
     const nextVersion = project.current_version + 1
-    const dueDate = addWorkDays(new Date(), workDaysForVersion(nextVersion))
+    const holidays = await getHolidayDates()
+    const dueDate = addWorkDays(new Date(), workDaysForVersion(nextVersion), holidays)
     const dueDateStr = dueDate.toISOString().split('T')[0]
 
     await supabase.from('versions').insert({

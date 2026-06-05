@@ -4,6 +4,16 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06 — Manual Job ID on new project
+
+### Added
+- Optional **Job ID** field on the New Project form. Enter an existing 5-hex
+  code (A–F prefix) for in-progress projects, or leave blank to auto-generate.
+  Internal IDs (E / H suffixes) are built off it as normal. Validated client +
+  server side.
+
+---
+
 ## 2026-06 — Exclude clients from reminder emails
 
 ### Added

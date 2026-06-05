@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project } from '@/lib/types'
-import { formatDate, formatDateShort, formatAssignee, groupByJob, summarizeDeliverables } from '@/lib/utils'
+import { formatDate, formatDateShort, formatTimeSGT, formatAssignee, groupByJob, summarizeDeliverables } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { JobGroup } from '@/components/JobGroup'
@@ -243,7 +243,7 @@ function DashGroupHeader({ group, editorNames, withCountdown }: {
           <CountdownTimer dueDate={currentVer.due_date} onHold={first.on_hold} holdDate={first.hold_date} />
         )}
       </div>
-      <div className="flex items-center justify-end shrink-0 w-52">
+      <div className="flex items-center justify-end shrink-0 w-64">
         <span className="text-[10px] text-white/35 bg-white/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap">{group.length} items</span>
       </div>
     </div>
@@ -278,7 +278,7 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
           </div>
         </div>
       </Link>
-      <div className="flex items-center justify-end shrink-0 w-52">
+      <div className="flex items-center justify-end shrink-0 w-64">
         <UndoButton projectId={project.id} />
       </div>
     </div>
@@ -334,12 +334,17 @@ function InProgressRow({ project, isAdmin, editorName }: {
             {currentVer?.done_date && (
               <div>
                 <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Delivered</p>
-                <p className="text-xs font-medium text-white/60">{formatDateShort(currentVer.done_date)}</p>
+                <p className="text-xs font-medium text-white/60">
+                  {formatDateShort(currentVer.done_date)}
+                  {currentVer.updated_at && (
+                    <span className="text-white/40 ml-1">{formatTimeSGT(currentVer.updated_at)}</span>
+                  )}
+                </p>
               </div>
             )}
             {currentVer?.due_date && (
               <div>
-                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Due was</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Due</p>
                 <p className="text-xs font-medium text-white/60">{formatDateShort(currentVer.due_date)}</p>
               </div>
             )}
@@ -347,7 +352,7 @@ function InProgressRow({ project, isAdmin, editorName }: {
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 sm:gap-2 justify-end shrink-0 w-52">
+      <div className="flex items-center gap-1.5 sm:gap-2 justify-end shrink-0 w-64">
         {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
           <OnHoldButton projectId={project.id} onHold={project.on_hold} holdReason={project.hold_reason} />
         )}

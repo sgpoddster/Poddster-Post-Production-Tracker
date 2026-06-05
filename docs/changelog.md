@@ -4,6 +4,22 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-05 — Client Review: delivery time + overlap fix
+
+### Fixed
+- **Button overflow on Client Review rows** — Complete + Start Revision + Undo totals ~250px,
+  overflowing the previous `w-52` (208px) actions column. Bumped to `w-64` (256px) across
+  all dashboard row types (InProgressRow, CompletedRow, DashGroupHeader items badge) for
+  consistent alignment.
+
+### Changed
+- **"Due was" → "Due"** label on Client Review date block.
+- **Delivered now shows time in Singapore time** — uses `version.updated_at` (the timestamp
+  of when the Done button was clicked) formatted as e.g. "Thu 4 Jun 2:30pm". A new
+  `formatTimeSGT` utility wraps `toLocaleTimeString` with `timeZone: 'Asia/Singapore'`.
+
+---
+
 ## 2026-06-05 — Client Review: delivered + due dates
 
 ### Added

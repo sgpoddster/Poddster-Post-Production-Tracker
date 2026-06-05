@@ -80,6 +80,17 @@ export function formatDateShort(dateStr: string | null): string {
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
+// Format an ISO timestamp to a short time in Singapore time, e.g. "2:30pm"
+export function formatTimeSGT(isoString: string | null): string {
+  if (!isoString) return ''
+  return new Date(isoString).toLocaleTimeString('en-SG', {
+    timeZone: 'Asia/Singapore',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).replace(' ', '')  // "2:30 pm" → "2:30pm"
+}
+
 // Add N working days to a date (skips weekends — no public holidays for now)
 // Add N working days, skipping weekends and any supplied public-holiday dates
 // (a Set of 'YYYY-MM-DD' strings).

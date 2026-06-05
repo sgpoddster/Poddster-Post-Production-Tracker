@@ -163,24 +163,25 @@ function QueueGroupHeader({ group, editorNames }: {
   const first = group[0]
   const currentVer = (first.versions ?? []).find(v => v.version_number === first.current_version)
   return (
-    // Mirror QueueRow: w-20 code col (offset for chevron) + flex-1 content + right-side timer
-    <div className="flex items-center justify-between gap-3 sm:gap-4 w-full">
-      <div className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-xs text-white/25 shrink-0 w-20 font-mono">{first.job_id}</code>
-        <div className="min-w-0">
-          <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
-          <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
-            <span>{summarizeDeliverables(group)}</span>
-            {first.filming_date && <><span className="text-white/15">·</span>Filmed {formatDate(first.filming_date)}</>}
-            <span className="text-white/15">·</span>
-            <span className="font-medium text-white/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
-          </div>
+    // Same 4-column structure as QueueRow: [code w-20] [client flex-1] [countdown] [actions w-36]
+    // The JobGroup chevron acts as the spacer, so no extra spacer needed here.
+    <div className="flex items-center gap-4 w-full">
+      <code className="hidden sm:block text-xs text-white/25 shrink-0 w-20 font-mono">{first.job_id}</code>
+      <div className="min-w-0 flex-1">
+        <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
+        <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
+          <span>{summarizeDeliverables(group)}</span>
+          {first.filming_date && <><span className="text-white/15">·</span>Filmed {formatDate(first.filming_date)}</>}
+          <span className="text-white/15">·</span>
+          <span className="font-medium text-white/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
         </div>
       </div>
-      <div className="hidden sm:flex items-center gap-3 shrink-0 ml-4">
+      <div className="hidden sm:flex shrink-0">
         {currentVer?.due_date && (
           <CountdownTimer dueDate={currentVer.due_date} onHold={first.on_hold} holdDate={first.hold_date} />
         )}
+      </div>
+      <div className="flex items-center justify-end shrink-0 w-36">
         <span className="text-[10px] text-white/35 bg-white/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap">{group.length} items</span>
       </div>
     </div>
@@ -195,9 +196,12 @@ function QueueRow({ project, isAdmin, editorName }: {
   )
 
   return (
-    <div className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors group">
+    // 4-column structure: [spacer w-3] [client flex-1] [countdown] [actions w-36]
+    // Spacer matches the JobGroup chevron so client names stay in the same column.
+    <div className="flex items-center px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-white/[0.03] transition-colors group gap-3 sm:gap-4">
+      <span className="hidden sm:block w-3 shrink-0" />
       <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
+        <code className="hidden sm:block text-xs text-white/20 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
@@ -217,7 +221,7 @@ function QueueRow({ project, isAdmin, editorName }: {
         </div>
       </Link>
 
-      <div className="flex items-center gap-3 shrink-0 ml-4">
+      <div className="hidden sm:flex shrink-0">
         {currentVer?.due_date && (
           <CountdownTimer
             dueDate={currentVer.due_date}
@@ -225,19 +229,20 @@ function QueueRow({ project, isAdmin, editorName }: {
             holdDate={project.hold_date}
           />
         )}
-        <div className="flex items-center gap-2 justify-end">
-          {project.drive_link && (
-            <a href={project.drive_link} target="_blank" rel="noreferrer"
-              className="text-xs text-white/30 hover:text-white/60 transition-colors"
-            >Drive ↗</a>
-          )}
-          {isAdmin && (
-            <OnHoldButton projectId={project.id} onHold={project.on_hold} />
-          )}
-          {!project.on_hold && (
-            <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />
-          )}
-        </div>
+      </div>
+
+      <div className="flex items-center gap-2 justify-end shrink-0 w-36">
+        {project.drive_link && (
+          <a href={project.drive_link} target="_blank" rel="noreferrer"
+            className="text-xs text-white/30 hover:text-white/60 transition-colors"
+          >Drive ↗</a>
+        )}
+        {isAdmin && (
+          <OnHoldButton projectId={project.id} onHold={project.on_hold} />
+        )}
+        {!project.on_hold && (
+          <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />
+        )}
       </div>
     </div>
   )

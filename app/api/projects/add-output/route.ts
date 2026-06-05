@@ -6,10 +6,11 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { job_id, type } = await request.json()
+  const { job_id, type, number } = await request.json()
   if (!job_id || !['episode', 'highlight'].includes(type)) {
     return NextResponse.json({ error: 'job_id and type are required' }, { status: 400 })
   }
+  const chosenNum = Number.isInteger(number) && number >= 1 && number <= 10 ? number : null
 
   // Fetch all existing rows for this job
   const { data: siblings, error: fetchError } = await supabase
@@ -25,9 +26,9 @@ export async function POST(request: Request) {
   // Use the first sibling as the template for shared fields
   const template = siblings[0]
 
-  // Count existing rows of the requested type to determine next sequence number
+  // Use the chosen number, or auto-sequence from existing rows of this type
   const existingOfType = siblings.filter(p => p.type === type)
-  const nextNum = existingOfType.length + 1
+  const nextNum = chosenNum ?? existingOfType.length + 1
   const internal_id = type === 'episode'
     ? `${job_id}E${nextNum}`
     : `${job_id}H${nextNum}`

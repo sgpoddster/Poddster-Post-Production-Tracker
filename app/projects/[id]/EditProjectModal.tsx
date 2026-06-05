@@ -122,7 +122,7 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
                 >
                   <option value="" disabled>Select to fill name…</option>
                   {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
               </div>

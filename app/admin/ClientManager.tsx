@@ -66,10 +66,12 @@ function EditRow({ client, onSave, onCancel }: {
   async function save() {
     if (!form.name.trim()) return
     setLoading(true)
+    // Code lives in the name parentheses, e.g. "Adam Fayed (4AF)" → 4AF
+    const code = form.name.match(/\(([^)]+)\)/)?.[1]?.trim() ?? ''
     const res = await fetch('/api/admin/clients', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: client.id, ...form }),
+      body: JSON.stringify({ id: client.id, ...form, code }),
     })
     if (res.ok) {
       const { client: updated } = await res.json()
@@ -80,18 +82,11 @@ function EditRow({ client, onSave, onCancel }: {
 
   return (
     <div className="px-5 py-4 space-y-3 bg-white/[0.02]">
-      {/* Row 1: Name + Code */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <label className="text-[10px] text-white/30 uppercase tracking-wider">Client name *</label>
-          <input value={form.name} onChange={set('name')} placeholder="Display name"
-            className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-[10px] text-white/30 uppercase tracking-wider">Code</label>
-          <input value={form.code} onChange={set('code')} placeholder="e.g. ABC"
-            className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
-        </div>
+      {/* Client name (code lives in the parentheses) */}
+      <div className="space-y-1">
+        <label className="text-[10px] text-white/30 uppercase tracking-wider">Client name *</label>
+        <input value={form.name} onChange={set('name')} placeholder="e.g. Adam Fayed (4AF)"
+          className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/25" />
       </div>
       {/* Row 2: First + Last name */}
       <div className="grid grid-cols-2 gap-2">
@@ -305,7 +300,6 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-white">{c.name}</span>
-                      {c.code && <span className="text-xs text-white/35 font-mono">{c.code}</span>}
                       {(c.first_name || c.last_name) && (
                         <span className="text-xs text-white/30">
                           {[c.first_name, c.last_name].filter(Boolean).join(' ')}

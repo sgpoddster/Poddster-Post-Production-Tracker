@@ -180,7 +180,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
               <option value="">— Select client —</option>
               {clients.map(c => (
                 <option key={c.id} value={c.id}>
-                  {c.name}{c.code ? ` (${c.code})` : ''}
+                  {c.name}
                 </option>
               ))}
             </select>

@@ -142,7 +142,7 @@ export default async function QueuePage({
               <QueueRow key={group[0].id} project={group[0]} isAdmin={isAdmin}
                 editorName={formatAssignee(group[0].assigned_editor, group[0].editor, editorNames)} />
             ) : (
-              <JobGroup key={group[0].job_id} count={group.length}
+              <JobGroup key={group[0].job_id}
                 header={<QueueGroupHeader group={group} editorNames={editorNames} />}>
                 {group.map(p => (
                   <QueueRow key={p.id} project={p} isAdmin={isAdmin}
@@ -163,8 +163,9 @@ function QueueGroupHeader({ group, editorNames }: {
   const first = group[0]
   const currentVer = (first.versions ?? []).find(v => v.version_number === first.current_version)
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-4 min-w-0">
+    // Mirror QueueRow: w-20 code col (offset for chevron) + flex-1 content + right-side timer
+    <div className="flex items-center justify-between gap-3 sm:gap-4 w-full">
+      <div className="flex items-center gap-4 min-w-0 flex-1">
         <code className="hidden sm:block text-xs text-white/25 shrink-0 w-20 font-mono">{first.job_id}</code>
         <div className="min-w-0">
           <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
@@ -176,9 +177,12 @@ function QueueGroupHeader({ group, editorNames }: {
           </div>
         </div>
       </div>
-      {currentVer?.due_date && (
-        <CountdownTimer dueDate={currentVer.due_date} onHold={first.on_hold} holdDate={first.hold_date} />
-      )}
+      <div className="hidden sm:flex items-center gap-3 shrink-0 ml-4">
+        {currentVer?.due_date && (
+          <CountdownTimer dueDate={currentVer.due_date} onHold={first.on_hold} holdDate={first.hold_date} />
+        )}
+        <span className="text-[10px] text-white/35 bg-white/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap">{group.length} items</span>
+      </div>
     </div>
   )
 }

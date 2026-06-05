@@ -330,22 +330,22 @@ function InProgressRow({ project, isAdmin, editorName }: {
           />
         )}
         {project.status === 'in_client_review' && (
-          <div className="flex items-center gap-6">
+          <div className="flex items-start gap-6">
             {currentVer?.done_date && (
-              <div>
-                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Delivered</p>
-                <p className="text-xs font-medium text-white/60">
+              <div className="w-40">
+                <p className="text-[11px] text-white/30 uppercase tracking-wider mb-0.5">Delivered</p>
+                <p className="text-sm font-medium text-white/65">
                   {formatDateShort(currentVer.done_date)}
                   {currentVer.updated_at && (
-                    <span className="text-white/40 ml-1">{formatTimeSGT(currentVer.updated_at)}</span>
+                    <span className="text-white/40 ml-1.5">{formatTimeSGT(currentVer.updated_at)}</span>
                   )}
                 </p>
               </div>
             )}
             {currentVer?.due_date && (
-              <div>
-                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Due</p>
-                <p className="text-xs font-medium text-white/60">{formatDateShort(currentVer.due_date)}</p>
+              <div className="w-24">
+                <p className="text-[11px] text-white/30 uppercase tracking-wider mb-0.5">Due</p>
+                <p className="text-sm font-medium text-white/65">{formatDateShort(currentVer.due_date)}</p>
               </div>
             )}
           </div>

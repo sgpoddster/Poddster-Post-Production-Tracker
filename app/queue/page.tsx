@@ -232,11 +232,6 @@ function QueueRow({ project, isAdmin, editorName }: {
       </div>
 
       <div className="flex items-center gap-2 justify-end shrink-0 w-36">
-        {project.drive_link && (
-          <a href={project.drive_link} target="_blank" rel="noreferrer"
-            className="text-xs text-white/30 hover:text-white/60 transition-colors"
-          >Drive ↗</a>
-        )}
         {isAdmin && (
           <OnHoldButton projectId={project.id} onHold={project.on_hold} />
         )}

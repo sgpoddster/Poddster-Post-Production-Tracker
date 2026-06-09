@@ -69,7 +69,7 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40 border whitespace-nowrap ${
           onHold
             ? 'bg-amber-400 hover:bg-amber-300 border-amber-400 text-black font-bold'
-            : 'bg-transparent hover:bg-white/10 border-white/15 text-white/40 hover:text-white/70'
+            : 'bg-white/[0.07] hover:bg-white/[0.13] border-white/25 text-white/60 hover:text-white/85'
         }`}
       >
         {loading ? '…' : onHold ? '⏸ On Hold ▾' : '⏸ Hold ▾'}

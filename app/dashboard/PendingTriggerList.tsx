@@ -135,10 +135,6 @@ export default function PendingTriggerList({
               </Link>
 
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                {item.drive_link && (
-                  <a href={item.drive_link} target="_blank" rel="noreferrer"
-                    className="hidden sm:block text-xs text-white/30 hover:text-white/60 transition-colors">Drive ↗</a>
-                )}
                 <TriggerButton projectId={item.id} isAdmin={isAdmin} />
               </div>
             </div>

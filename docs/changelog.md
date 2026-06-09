@@ -4,6 +4,20 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-09 — Remove Drive links from lists + button polish
+
+### Changed
+- **Drive ↗ link removed** from queue rows and dashboard draft rows — it's accessible
+  on the project detail page so duplicating it on every list row is noise.
+- **OnHoldButton (inactive state)** — brighter: `bg-white/7 border-white/25 text-white/60`
+  (was nearly invisible at `border-white/15 text-white/40`).
+- **UndoButton** — same brighter neutral style (`bg-white/7 border-white/25 text-white/60`)
+  plus `whitespace-nowrap` so it stays single-line height.
+- **MarkDoneButton** — added `whitespace-nowrap` so "✓ Done" never wraps, keeping it
+  the same height as the Hold button beside it.
+
+---
+
 ## 2026-06-05 — Client Review: delivery time + overlap fix
 
 ### Fixed

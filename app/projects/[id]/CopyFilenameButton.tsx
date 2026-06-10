@@ -31,7 +31,7 @@ export default function CopyFilenameButton({ internalId, filmingDate, filmingTim
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-medium transition-all ${
           copied
             ? 'bg-green-500/15 border-green-500/30 text-green-400'
-            : 'bg-transparent hover:bg-white/10 border-white/15 text-white/50 hover:text-white/80'
+            : 'bg-transparent hover:bg-th/10 border-th/15 text-th/50 hover:text-th/80'
         }`}
       >
         {copied ? (
@@ -50,10 +50,10 @@ export default function CopyFilenameButton({ internalId, filmingDate, filmingTim
       {/* Tooltip showing the filename */}
       {showTooltip && !copied && (
         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 pointer-events-none">
-          <div className="bg-[#111] border border-white/15 rounded-lg px-3 py-2 text-xs text-white/80 font-mono whitespace-nowrap shadow-xl">
+          <div className="bg-[var(--bg-tooltip)] border border-th/15 rounded-lg px-3 py-2 text-xs text-th/80 font-mono whitespace-nowrap shadow-xl">
             {filename}
           </div>
-          <div className="w-2 h-2 bg-[#111] border-r border-b border-white/15 rotate-45 mx-auto -mt-1" />
+          <div className="w-2 h-2 bg-[var(--bg-tooltip)] border-r border-b border-th/15 rotate-45 mx-auto -mt-1" />
         </div>
       )}
     </div>

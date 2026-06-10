@@ -93,7 +93,7 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="px-3 py-1.5 bg-transparent hover:bg-white/10 border border-white/15 text-white/50 hover:text-white/80 text-xs font-medium rounded transition-colors"
+        className="px-3 py-1.5 bg-transparent hover:bg-th/10 border border-th/15 text-th/50 hover:text-th/80 text-xs font-medium rounded transition-colors"
       >
         ✎ Edit
       </button>
@@ -104,21 +104,21 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
           <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
 
           {/* Panel */}
-          <div className="relative w-full max-w-lg bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div className="px-6 py-5 border-b border-white/[0.07]">
-              <h2 className="text-base font-semibold text-white">Edit Project</h2>
-              <p className="text-xs text-white/35 mt-0.5">{project.internal_id}</p>
+          <div className="relative w-full max-w-lg bg-[var(--bg-float)] border border-th/10 rounded-xl shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div className="px-6 py-5 border-b border-th/[0.07]">
+              <h2 className="text-base font-semibold text-th">Edit Project</h2>
+              <p className="text-xs text-th/35 mt-0.5">{project.internal_id}</p>
             </div>
 
             <div className="px-6 py-5 space-y-4">
 
               {/* Client lookup */}
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">Client (quick-fill)</label>
+                <label className="block text-xs text-th/40 mb-1.5">Client (quick-fill)</label>
                 <select
                   onChange={handleClientSelect}
                   defaultValue=""
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                  className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                 >
                   <option value="" disabled>Select to fill name…</option>
                   {clients.map(c => (
@@ -129,20 +129,20 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-xs text-white/40 mb-1.5">Client Name</label>
+                  <label className="block text-xs text-th/40 mb-1.5">Client Name</label>
                   <input
                     value={form.client_name}
                     onChange={field('client_name')}
                     placeholder="e.g. Benjamin Loh (QW2)"
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-white/25"
+                    className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 placeholder-th/25 focus:outline-none focus:border-th/25"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Version</label>
+                  <label className="block text-xs text-th/40 mb-1.5">Version</label>
                   <select
                     value={form.current_version}
                     onChange={field('current_version')}
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                    className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                   >
                     {Array.from({ length: 10 }, (_, i) => i + 1).map(v => (
                       <option key={v} value={v}>{v === 1 ? 'V1 · First Cut' : `V${v} · Revision`}</option>
@@ -153,31 +153,31 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Filming Date</label>
+                  <label className="block text-xs text-th/40 mb-1.5">Filming Date</label>
                   <input
                     type="date"
                     value={form.filming_date}
                     onChange={field('filming_date')}
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                    className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Filming Time</label>
+                  <label className="block text-xs text-th/40 mb-1.5">Filming Time</label>
                   <input
                     value={form.filming_time}
                     onChange={field('filming_time')}
                     placeholder="e.g. 10:00 - 11:00"
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                    className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">Shoot Duration (hours)</label>
+                <label className="block text-xs text-th/40 mb-1.5">Shoot Duration (hours)</label>
                 <select
                   value={form.shoot_duration}
                   onChange={field('shoot_duration')}
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                  className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                 >
                   <option value="">— Select —</option>
                   {[1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8].map(h => (
@@ -186,42 +186,42 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">Room / Setup</label>
+                <label className="block text-xs text-th/40 mb-1.5">Room / Setup</label>
                 <input
                   value={form.setup}
                   onChange={field('setup')}
                   placeholder="e.g. Nova, Nest, River"
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                  className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                 />
               </div>
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">No. of Seats</label>
+                <label className="block text-xs text-th/40 mb-1.5">No. of Seats</label>
                 <input
                   type="number"
                   value={form.seats}
                   onChange={field('seats')}
                   placeholder="e.g. 4"
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                  className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                 />
               </div>
 
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">Drive Link</label>
+                <label className="block text-xs text-th/40 mb-1.5">Drive Link</label>
                 <input
                   value={form.drive_link}
                   onChange={field('drive_link')}
                   placeholder="https://drive.google.com/…"
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                  className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Producer</label>
+                  <label className="block text-xs text-th/40 mb-1.5">Producer</label>
                   <select
                     value={form.assigned_editor}
                     onChange={field('assigned_editor')}
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                    className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                   >
                     <option value="">— unassigned —</option>
                     {editors.map(e => (
@@ -232,11 +232,11 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Editor</label>
+                  <label className="block text-xs text-th/40 mb-1.5">Editor</label>
                   <select
                     value={form.editor}
                     onChange={field('editor')}
-                    className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25"
+                    className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
                   >
                     <option value="">— Same as producer —</option>
                     {editors.map(e => (
@@ -249,12 +249,12 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs text-white/40 mb-1.5">Notes</label>
+                <label className="block text-xs text-th/40 mb-1.5">Notes</label>
                 <textarea
                   value={form.notes}
                   onChange={field('notes')}
                   rows={3}
-                  className="w-full bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-white/25 resize-none"
+                  className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25 resize-none"
                 />
               </div>
 
@@ -265,17 +265,17 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-white/[0.07] flex items-center justify-end gap-3">
+            <div className="px-6 py-4 border-t border-th/[0.07] flex items-center justify-end gap-3">
               <button
                 onClick={() => setOpen(false)}
-                className="px-4 py-2 text-xs text-white/40 hover:text-white/70 transition-colors"
+                className="px-4 py-2 text-xs text-th/40 hover:text-th/70 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={save}
                 disabled={saving}
-                className="px-4 py-2 bg-brand-red hover:bg-brand-red/90 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors"
+                className="px-4 py-2 bg-brand-red hover:bg-brand-red/90 disabled:opacity-40 text-th text-xs font-semibold rounded-lg transition-colors"
               >
                 {saving ? 'Saving…' : 'Save Changes'}
               </button>

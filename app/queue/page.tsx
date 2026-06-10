@@ -108,10 +108,10 @@ export default async function QueuePage({
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">
+            <h1 className="text-2xl font-bold text-th tracking-tight">
               {isAdmin ? 'All Queues' : 'My Queue'}
             </h1>
-            <p className="text-sm text-white/40 mt-1">
+            <p className="text-sm text-th/40 mt-1">
               {isAdmin
                 ? 'All active work across all editors, sorted by urgency'
                 : 'Your active projects — most urgent first'}
@@ -133,10 +133,10 @@ export default async function QueuePage({
 
       {sorted.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-white/25 text-sm">No active projects right now.</p>
+          <p className="text-th/25 text-sm">No active projects right now.</p>
         </div>
       ) : (
-        <div className="rounded-lg border border-white/[0.06] bg-brand-surface overflow-hidden divide-y divide-white/[0.06]">
+        <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden divide-y divide-th/[0.06]">
           {groupByJob(sorted).map(group =>
             group.length === 1 ? (
               <QueueRow key={group[0].id} project={group[0]} isAdmin={isAdmin}
@@ -166,14 +166,14 @@ function QueueGroupHeader({ group, editorNames }: {
     // Same 4-column structure as QueueRow: [code w-20] [client flex-1] [countdown] [actions w-36]
     // The JobGroup chevron acts as the spacer, so no extra spacer needed here.
     <div className="flex items-center gap-4 w-full">
-      <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{first.job_id}</code>
+      <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{first.job_id}</code>
       <div className="min-w-0 flex-1">
-        <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
-        <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
+        <span className="text-sm font-medium text-th truncate block">{first.client_name || '—'}</span>
+        <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
           <span>{summarizeDeliverables(group)}</span>
-          {first.filming_date && <><span className="text-white/15">·</span>Filmed {formatDate(first.filming_date)}</>}
-          <span className="text-white/15">·</span>
-          <span className="font-medium text-white/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
+          {first.filming_date && <><span className="text-th/15">·</span>Filmed {formatDate(first.filming_date)}</>}
+          <span className="text-th/15">·</span>
+          <span className="font-medium text-th/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
         </div>
       </div>
       <div className="hidden sm:flex shrink-0">
@@ -182,7 +182,7 @@ function QueueGroupHeader({ group, editorNames }: {
         )}
       </div>
       <div className="flex items-center justify-end shrink-0 w-36">
-        <span className="text-[10px] text-white/35 bg-white/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap">{group.length} items</span>
+        <span className="text-[10px] text-th/35 bg-th/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap">{group.length} items</span>
       </div>
     </div>
   )
@@ -198,25 +198,25 @@ function QueueRow({ project, isAdmin, editorName }: {
   return (
     // 4-column structure: [spacer w-3] [client flex-1] [countdown] [actions w-36]
     // Spacer matches the JobGroup chevron so client names stay in the same column.
-    <div className="flex items-center px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-white/[0.03] transition-colors group gap-3 sm:gap-4">
+    <div className="flex items-center px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-th/[0.03] transition-colors group gap-3 sm:gap-4">
       <span className="hidden sm:block w-3 shrink-0" />
       <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
+        <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
+            <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">
               {project.client_name || '—'}
             </span>
             <StatusBadge status={project.status} />
-            <span className="text-xs text-white/30">V{project.current_version}</span>
+            <span className="text-xs text-th/30">V{project.current_version}</span>
           </div>
-          <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5">
+          <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5">
             {project.type === 'episode' ? 'Episode' : `Highlight #${project.highlight_number}`}
             {project.filming_date && (
-              <><span className="text-white/15">·</span>Filmed {formatDate(project.filming_date)}</>
+              <><span className="text-th/15">·</span>Filmed {formatDate(project.filming_date)}</>
             )}
-            <span className="text-white/15">·</span>
-            <span className="font-medium text-white/60">{editorName}</span>
+            <span className="text-th/15">·</span>
+            <span className="font-medium text-th/60">{editorName}</span>
           </div>
         </div>
       </Link>

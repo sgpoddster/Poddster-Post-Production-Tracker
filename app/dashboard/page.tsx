@@ -116,7 +116,7 @@ export default async function DashboardPage({
       <div className="flex flex-col gap-3">
         {/* Row 1: title + new project button */}
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-th tracking-tight">
             {isAdmin ? 'Dashboard' : 'My Dashboard'}
           </h1>
           <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
@@ -134,7 +134,7 @@ export default async function DashboardPage({
       </div>
 
       {q && totalShown === 0 && (
-        <p className="text-sm text-white/30 text-center py-8">No projects match &ldquo;{q}&rdquo;</p>
+        <p className="text-sm text-th/30 text-center py-8">No projects match &ldquo;{q}&rdquo;</p>
       )}
 
       <CollapsibleSection dot="bg-amber-500" title="Draft" count={pending.length} storageKey="draft" noContainer empty="">
@@ -228,14 +228,14 @@ function DashGroupHeader({ group, editorNames, withCountdown }: {
     // Same 4-column structure as InProgressRow: [code w-20] [client flex-1] [countdown] [actions w-52]
     // The JobGroup chevron acts as the spacer — no extra spacer needed here.
     <div className="flex items-center gap-4 w-full">
-      <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{first.job_id}</code>
+      <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{first.job_id}</code>
       <div className="min-w-0 flex-1">
-        <span className="text-sm font-medium text-white truncate block">{first.client_name || '—'}</span>
-        <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
+        <span className="text-sm font-medium text-th truncate block">{first.client_name || '—'}</span>
+        <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
           <span>{summarizeDeliverables(group)}</span>
-          {first.filming_date && <><span className="text-white/15">·</span>{formatDate(first.filming_date)}</>}
-          <span className="text-white/15">·</span>
-          <span className="font-medium text-white/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
+          {first.filming_date && <><span className="text-th/15">·</span>{formatDate(first.filming_date)}</>}
+          <span className="text-th/15">·</span>
+          <span className="font-medium text-th/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
         </div>
       </div>
       <div className="hidden sm:flex shrink-0">
@@ -244,7 +244,7 @@ function DashGroupHeader({ group, editorNames, withCountdown }: {
         )}
       </div>
       <div className="flex items-center justify-end shrink-0 w-64">
-        <span className="text-[10px] text-white/35 bg-white/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap">{group.length} items</span>
+        <span className="text-[10px] text-th/35 bg-th/[0.06] px-2 py-0.5 rounded-full whitespace-nowrap">{group.length} items</span>
       </div>
     </div>
   )
@@ -259,22 +259,22 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
     ? 'Episode' : `Highlight #${project.highlight_number}`
 
   return (
-    <div className="flex items-center px-3 sm:px-5 py-3 sm:py-3.5 gap-3 sm:gap-4 hover:bg-white/[0.02] transition-colors group opacity-60 hover:opacity-80">
+    <div className="flex items-center px-3 sm:px-5 py-3 sm:py-3.5 gap-3 sm:gap-4 hover:bg-th/[0.02] transition-colors group opacity-60 hover:opacity-80">
       <span className="hidden sm:block w-3 shrink-0" />
       <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
+        <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
+            <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">
               {project.client_name || '—'}
             </span>
-            <span className="text-xs text-white/30">V{project.current_version}</span>
+            <span className="text-xs text-th/30">V{project.current_version}</span>
           </div>
-          <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5">
+          <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5">
             <span>{typeLabel}</span>
-            {completedVer?.done_date && <><span className="text-white/15">·</span>Done {formatDate(completedVer.done_date)}</>}
-            <span className="text-white/15">·</span>
-            <span className="font-medium text-white/60">{editorName}</span>
+            {completedVer?.done_date && <><span className="text-th/15">·</span>Done {formatDate(completedVer.done_date)}</>}
+            <span className="text-th/15">·</span>
+            <span className="font-medium text-th/60">{editorName}</span>
           </div>
         </div>
       </Link>
@@ -296,27 +296,27 @@ function InProgressRow({ project, isAdmin, editorName }: {
   return (
     // 4-column structure: [spacer w-3] [client flex-1] [countdown] [actions w-52]
     // Spacer matches the JobGroup chevron so client names stay in the same column.
-    <div className={`flex items-center px-3 sm:px-5 py-3.5 sm:py-4 gap-3 sm:gap-4 hover:bg-white/[0.03] transition-colors group ${overdue ? 'border-l-2 border-l-red-500/70' : ''}`}>
+    <div className={`flex items-center px-3 sm:px-5 py-3.5 sm:py-4 gap-3 sm:gap-4 hover:bg-th/[0.03] transition-colors group ${overdue ? 'border-l-2 border-l-red-500/70' : ''}`}>
       <span className="hidden sm:block w-3 shrink-0" />
       <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
+        <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-white group-hover:text-white/90 truncate">
+            <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">
               {project.client_name || '—'}
             </span>
             {project.status !== 'in_client_review' && (
               <StatusBadge status={project.status} />
             )}
-            <span className="text-xs text-white/30">V{project.current_version}</span>
+            <span className="text-xs text-th/30">V{project.current_version}</span>
             {overdue && (
               <span className="text-xs font-semibold text-red-400">overdue</span>
             )}
           </div>
-          <div className="text-xs text-white/35 mt-0.5">
+          <div className="text-xs text-th/35 mt-0.5">
             {project.type === 'episode' ? 'Episode' : `Highlight #${project.highlight_number}`}
-            <span className="text-white/15 mx-1.5">·</span>
-            <span className="font-medium text-white/60">{editorName}</span>
+            <span className="text-th/15 mx-1.5">·</span>
+            <span className="font-medium text-th/60">{editorName}</span>
           </div>
         </div>
       </Link>
@@ -333,19 +333,19 @@ function InProgressRow({ project, isAdmin, editorName }: {
           <div className="flex items-start gap-6">
             {currentVer?.done_date && (
               <div className="w-40">
-                <p className="text-[11px] text-white/30 uppercase tracking-wider mb-0.5">Delivered</p>
-                <p className="text-sm font-medium text-white/65">
+                <p className="text-[11px] text-th/30 uppercase tracking-wider mb-0.5">Delivered</p>
+                <p className="text-sm font-medium text-th/65">
                   {formatDateShort(currentVer.done_date)}
                   {currentVer.updated_at && (
-                    <span className="text-white/40 ml-1.5">{formatTimeSGT(currentVer.updated_at)}</span>
+                    <span className="text-th/40 ml-1.5">{formatTimeSGT(currentVer.updated_at)}</span>
                   )}
                 </p>
               </div>
             )}
             {currentVer?.due_date && (
               <div className="w-24">
-                <p className="text-[11px] text-white/30 uppercase tracking-wider mb-0.5">Due</p>
-                <p className="text-sm font-medium text-white/65">{formatDateShort(currentVer.due_date)}</p>
+                <p className="text-[11px] text-th/30 uppercase tracking-wider mb-0.5">Due</p>
+                <p className="text-sm font-medium text-th/65">{formatDateShort(currentVer.due_date)}</p>
               </div>
             )}
           </div>

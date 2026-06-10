@@ -15,7 +15,7 @@ export default function CopyPortalLinkButton({ portalToken }: { portalToken: str
   return (
     <button
       onClick={copy}
-      className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/10 text-white/60 hover:text-white text-xs font-medium transition-colors"
+      className="px-3 py-1.5 rounded-lg bg-th/[0.06] hover:bg-th/10 text-th/60 hover:text-th text-xs font-medium transition-colors"
     >
       {copied ? '✓ Copied' : 'Copy client link'}
     </button>

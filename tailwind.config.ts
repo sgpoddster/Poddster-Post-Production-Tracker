@@ -15,12 +15,17 @@ const config: Config = {
         brand: {
           red:       '#ff003c',
           'red-dim': '#cc0030',
-          black:     '#0a0a0b',
-          surface:   '#1e1e1f',
-          'surface2':'#313132',
-          dim:       '#535365',
+          // These four use CSS variables so they flip with the theme
+          black:     'var(--page-bg)',
+          surface:   'var(--surface)',
+          'surface2':'var(--surface2)',
+          dim:       'var(--color-dim)',
           white:     '#ffffff',
         },
+        // Theme-aware neutral — switches between white (dark mode) and
+        // near-black (light mode). Supports Tailwind's opacity modifier
+        // syntax, e.g. text-th/60, border-th/25, bg-th/[0.04].
+        th: 'rgb(var(--th-rgb) / <alpha-value>)',
       },
     },
   },

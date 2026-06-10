@@ -64,7 +64,7 @@ export default function PendingTriggerList({
   }
 
   if (items.length === 0) {
-    return <p className="text-sm text-white/25 pl-4">{emptyText}</p>
+    return <p className="text-sm text-th/25 pl-4">{emptyText}</p>
   }
 
   return (
@@ -72,24 +72,24 @@ export default function PendingTriggerList({
       {/* Batch action bar */}
       {selected.size > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-brand-red/30 bg-brand-red/10 px-4 py-2.5">
-          <span className="text-xs text-white/70">
-            <strong className="text-white">{selected.size}</strong> selected
-            {selectedJobId && <span className="text-white/40 font-mono ml-2">Job {selectedJobId}</span>}
+          <span className="text-xs text-th/70">
+            <strong className="text-th">{selected.size}</strong> selected
+            {selectedJobId && <span className="text-th/40 font-mono ml-2">Job {selectedJobId}</span>}
           </span>
           <div className="flex items-center gap-2">
             <button onClick={clear}
-              className="px-3 py-1.5 text-xs text-white/50 hover:text-white/80 transition-colors">
+              className="px-3 py-1.5 text-xs text-th/50 hover:text-th/80 transition-colors">
               Clear
             </button>
             <button onClick={triggerSelected} disabled={submitting}
-              className="px-4 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors">
+              className="px-4 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-th text-xs font-semibold rounded-lg transition-colors">
               {submitting ? 'Triggering…' : `▶ Trigger all selected (${selected.size})`}
             </button>
           </div>
         </div>
       )}
 
-      <div className="rounded-lg border border-white/[0.06] bg-brand-surface overflow-hidden divide-y divide-white/[0.06]">
+      <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden divide-y divide-th/[0.06]">
         {items.map(item => {
           const checked = selected.has(item.id)
           // Lock selection to a single Job ID
@@ -99,7 +99,7 @@ export default function PendingTriggerList({
           return (
             <div key={item.id}
               className={`flex items-center gap-3 px-3 sm:px-5 py-3.5 sm:py-4 transition-colors group ${
-                checked ? 'bg-brand-red/[0.06]' : 'hover:bg-white/[0.03]'
+                checked ? 'bg-brand-red/[0.06]' : 'hover:bg-th/[0.03]'
               }`}>
               {/* Checkbox */}
               <button
@@ -108,28 +108,28 @@ export default function PendingTriggerList({
                 title={disabled ? 'Different Job ID — clear selection to pick this one' : 'Select'}
                 className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border transition-colors ${
                   checked ? 'bg-brand-red border-brand-red'
-                  : disabled ? 'border-white/10 opacity-30 cursor-not-allowed'
-                  : 'border-white/25 hover:border-white/50'
+                  : disabled ? 'border-th/10 opacity-30 cursor-not-allowed'
+                  : 'border-th/25 hover:border-th/50'
                 }`}
               >
                 {checked && (
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <svg className="w-3 h-3 text-th" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 )}
               </button>
 
               <Link href={`/projects/${item.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                <code className="hidden sm:block text-sm text-white/45 shrink-0 w-20 font-mono">{item.internal_id}</code>
+                <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{item.internal_id}</code>
                 <div className="min-w-0">
-                  <span className="text-sm font-medium text-white group-hover:text-white/90 truncate block">
+                  <span className="text-sm font-medium text-th group-hover:text-th/90 truncate block">
                     {item.client_name || '—'}
                   </span>
-                  <div className="text-xs text-white/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
                     <span>{typeLabel}</span>
-                    {item.filming_date && <><span className="text-white/15">·</span>{formatDate(item.filming_date)}{item.filming_time ? ` · ${item.filming_time}` : ''}</>}
-                    <span className="text-white/15">·</span>
-                    <span className="font-medium text-white/60">{item.editorName}</span>
+                    {item.filming_date && <><span className="text-th/15">·</span>{formatDate(item.filming_date)}{item.filming_time ? ` · ${item.filming_time}` : ''}</>}
+                    <span className="text-th/15">·</span>
+                    <span className="font-medium text-th/60">{item.editorName}</span>
                   </div>
                 </div>
               </Link>

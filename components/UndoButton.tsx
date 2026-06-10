@@ -18,7 +18,7 @@ export default function UndoButton({ projectId }: { projectId: string }) {
     <button
       onClick={undo}
       disabled={loading}
-      className="px-3 py-1.5 bg-white/[0.07] hover:bg-white/[0.13] border border-white/25 disabled:opacity-40 text-white/60 hover:text-white/85 text-xs font-medium rounded transition-colors whitespace-nowrap"
+      className="px-3 py-1.5 bg-th/[0.07] hover:bg-th/[0.13] border border-th/25 disabled:opacity-40 text-th/60 hover:text-th/85 text-xs font-medium rounded transition-colors whitespace-nowrap"
     >
       {loading ? '…' : '↩ Undo'}
     </button>

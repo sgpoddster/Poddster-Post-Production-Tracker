@@ -41,7 +41,7 @@ export default function DueDateEditor({ projectId, versionId, dueDate }: Props) 
           type="date"
           value={value}
           onChange={e => setValue(e.target.value)}
-          className="bg-white/[0.07] border border-white/20 rounded px-2 py-0.5 text-xs text-white/80 focus:outline-none focus:border-white/40"
+          className="bg-th/[0.07] border border-th/20 rounded px-2 py-0.5 text-xs text-th/80 focus:outline-none focus:border-th/40"
         />
         <button
           onClick={save}
@@ -50,7 +50,7 @@ export default function DueDateEditor({ projectId, versionId, dueDate }: Props) 
         >
           {saving ? '…' : '✓'}
         </button>
-        <button onClick={cancel} className="text-xs text-white/30 hover:text-white/60 transition-colors">
+        <button onClick={cancel} className="text-xs text-th/30 hover:text-th/60 transition-colors">
           ✕
         </button>
       </span>
@@ -63,7 +63,7 @@ export default function DueDateEditor({ projectId, versionId, dueDate }: Props) 
       onClick={() => setEditing(true)}
     >
       <span>{dueDate ? `Due ${formatDate(dueDate)}` : 'No due date'}</span>
-      <span className="text-white/20 group-hover:text-white/50 transition-colors text-xs">✎</span>
+      <span className="text-th/20 group-hover:text-th/50 transition-colors text-xs">✎</span>
     </span>
   )
 }

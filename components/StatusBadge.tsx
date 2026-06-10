@@ -1,7 +1,7 @@
 import { ProjectStatus } from '@/lib/types'
 
 const config: Record<ProjectStatus, { label: string; className: string }> = {
-  pending_trigger:  { label: 'Draft',           className: 'bg-white/10 text-white/50' },
+  pending_trigger:  { label: 'Draft',           className: 'bg-th/10 text-th/50' },
   active:           { label: 'First Cut',         className: 'bg-blue-500/20 text-blue-300' },
   in_client_review: { label: 'Client Review',    className: 'bg-purple-500/20 text-purple-300' },
   in_revision:      { label: 'Revision',         className: 'bg-amber-500/20 text-amber-300' },

@@ -22,7 +22,7 @@ export default function NewProjectButton({ clients, editors, currentUserEmail }:
     <>
       <button
         onClick={() => setOpen(true)}
-        className="px-4 py-2 bg-brand-red hover:bg-brand-red-dim text-white text-sm font-medium rounded transition-colors shrink-0"
+        className="px-4 py-2 bg-brand-red hover:bg-brand-red-dim text-th text-sm font-medium rounded transition-colors shrink-0"
       >
         + New Project
       </button>

@@ -27,7 +27,7 @@ export function DueFilter({ selected }: { selected: string }) {
   const current = selected || 'all'
 
   return (
-    <div className={`inline-flex rounded-lg border border-white/10 bg-white/[0.04] p-0.5 ${isPending ? 'opacity-50' : ''}`}>
+    <div className={`inline-flex rounded-lg border border-th/10 bg-th/[0.04] p-0.5 ${isPending ? 'opacity-50' : ''}`}>
       {OPTIONS.map(opt => {
         const active = current === opt.value
         return (
@@ -35,7 +35,7 @@ export function DueFilter({ selected }: { selected: string }) {
             key={opt.value}
             onClick={() => set(opt.value)}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              active ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white/70'
+              active ? 'bg-th/15 text-th' : 'text-th/45 hover:text-th/70'
             }`}
           >
             {opt.label}

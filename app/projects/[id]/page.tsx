@@ -60,7 +60,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
       {/* Back */}
-      <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors">
+      <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-th/30 hover:text-th/60 transition-colors">
         ← Dashboard
       </Link>
 
@@ -68,14 +68,14 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <code className="text-xs text-white/25 font-mono">{project.internal_id}</code>
+            <code className="text-xs text-th/25 font-mono">{project.internal_id}</code>
             <StatusBadge status={project.status} />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
+          <h1 className="text-2xl font-bold text-th tracking-tight">
             {project.client_name || 'Unnamed Project'}
           </h1>
           {project.client_code && (
-            <span className="text-sm text-white/40 mt-0.5 block">{project.client_code}</span>
+            <span className="text-sm text-th/40 mt-0.5 block">{project.client_code}</span>
           )}
         </div>
 
@@ -114,7 +114,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       </div>
 
       {/* Meta grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/[0.06] rounded-lg overflow-hidden">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-th/[0.06] rounded-lg overflow-hidden">
         <MetaCell label="Type">
           {project.type === 'episode'
             ? 'Episode'
@@ -156,7 +156,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       {/* Version timeline */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest">
+          <h2 className="text-xs font-semibold text-th/50 uppercase tracking-widest">
             Version History
           </h2>
           <div className="flex items-center gap-2">
@@ -176,7 +176,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           </div>
         </div>
         {versions.length === 0 ? (
-          <p className="text-sm text-white/25">No versions yet.</p>
+          <p className="text-sm text-th/25">No versions yet.</p>
         ) : (
           <div className="space-y-2">
             {versions.map((v: {
@@ -198,8 +198,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       {/* Notes */}
       {project.notes && (
         <section>
-          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest mb-2">Notes</h2>
-          <p className="text-sm text-white/60 bg-brand-surface rounded-lg px-4 py-3 border border-white/[0.06]">
+          <h2 className="text-xs font-semibold text-th/50 uppercase tracking-widest mb-2">Notes</h2>
+          <p className="text-sm text-th/60 bg-brand-surface rounded-lg px-4 py-3 border border-th/[0.06]">
             {project.notes}
           </p>
         </section>
@@ -214,8 +214,8 @@ function MetaCell({ label, children, wide }: {
 }) {
   return (
     <div className={`bg-brand-surface px-4 py-3 ${wide ? 'col-span-2 sm:col-span-3' : ''}`}>
-      <div className="text-xs text-white/30 mb-0.5">{label}</div>
-      <div className="text-sm text-white/80">{children}</div>
+      <div className="text-xs text-th/30 mb-0.5">{label}</div>
+      <div className="text-sm text-th/80">{children}</div>
     </div>
   )
 }
@@ -234,17 +234,17 @@ function VersionRow({ version, isCurrent, projectId, isAdmin }: {
   return (
     <div className={`flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors
       ${isCurrent
-        ? 'bg-brand-surface border-white/10'
-        : 'bg-transparent border-white/[0.04]'}`}
+        ? 'bg-brand-surface border-th/10'
+        : 'bg-transparent border-th/[0.04]'}`}
     >
       {/* Version dot */}
       <div className={`w-2 h-2 rounded-full shrink-0 ${
-        isComplete ? 'bg-green-400' : isCurrent ? 'bg-brand-red' : 'bg-white/15'
+        isComplete ? 'bg-green-400' : isCurrent ? 'bg-brand-red' : 'bg-th/15'
       }`} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-white">
+          <span className="text-sm font-medium text-th">
             {version.label || versionLabel(version.version_number)}
           </span>
           {isCurrent && !isComplete && (
@@ -254,7 +254,7 @@ function VersionRow({ version, isCurrent, projectId, isAdmin }: {
             <span className="text-xs text-green-400/70">Delivered</span>
           )}
         </div>
-        <div className="text-xs text-white/30 mt-0.5 flex items-center gap-3 flex-wrap">
+        <div className="text-xs text-th/30 mt-0.5 flex items-center gap-3 flex-wrap">
           {version.submitted_date && (
             <span>Submitted {formatDate(version.submitted_date)}</span>
           )}

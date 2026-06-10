@@ -4,6 +4,31 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-10 — Per-user light / dark theme toggle
+
+### Added
+- **Theme toggle button** (☀️/🌙) in the navbar, visible to all users. Preference is stored
+  in `localStorage` so each user's choice is independent — Ben can use light while Martin
+  stays dark. Choice persists across sessions and page reloads.
+- **Flash-free**: a tiny inline `<script>` in `<head>` applies the saved theme class before
+  hydration, so there's no dark→light flash on load.
+
+### Changed
+- **CSS variable colour system** — brand surface colours (`brand-black`, `brand-surface`,
+  `brand-surface2`, `brand-dim`) now resolve from CSS custom properties, switching between
+  dark and light values when the `.light` class is on `<html>`.
+- **`th` Tailwind colour** added — maps to `rgb(var(--th-rgb) / <alpha-value>)`. In dark mode
+  `--th-rgb` is white; in light mode it's slate-900. All previous `text-white/XX`,
+  `border-white/XX`, `bg-white/XX`, `divide-white/XX` classes replaced with `text-th/XX` etc.
+  via a single codebase-wide sweep (~600 class instances across ~40 files).
+- Hardcoded dark hex backgrounds (`#111`, `#1a1a2e`, `#1a1a1a`) replaced with
+  `var(--bg-tooltip)` / `var(--bg-float)` CSS variables that invert in light mode.
+- Post Production logo uses `.logo-mono` CSS class (white in dark, black in light) instead of
+  hardcoded `brightness-0 invert`.
+- Scrollbar colours use CSS variables, switching to a light grey track/thumb in light mode.
+
+---
+
 ## 2026-06-09 — Remove Drive links from lists + button polish
 
 ### Changed

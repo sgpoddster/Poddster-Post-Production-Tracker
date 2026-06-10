@@ -35,9 +35,9 @@ export default function RoleToggle({
           className={`px-3 py-1 rounded text-xs font-medium transition-colors capitalize
             ${role === r
               ? r === 'admin'
-                ? 'bg-brand-red text-white'
-                : 'bg-white/10 text-white'
-              : 'text-white/30 hover:text-white/60'
+                ? 'bg-brand-red text-th'
+                : 'bg-th/10 text-th'
+              : 'text-th/30 hover:text-th/60'
             }
             ${isSelf ? 'opacity-40 cursor-not-allowed' : ''}
           `}

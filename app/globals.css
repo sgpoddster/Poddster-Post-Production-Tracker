@@ -2,15 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Theme variables ─────────────────────────────────────────────────── */
+
+:root {
+  /* Dark theme (default — no class needed) */
+  --page-bg:   #0a0a0b;
+  --surface:   #1e1e1f;
+  --surface2:  #313132;
+  --color-dim: #535365;
+  --th-rgb:    255 255 255;   /* white: used by text-th/XX, border-th/XX, bg-th/XX */
+
+  /* Floating UI (dropdowns, tooltips) */
+  --bg-float:   #1a1a2e;
+  --bg-tooltip: #111111;
+
+  /* Scrollbar */
+  --sb-track: #1e1e1f;
+  --sb-thumb: #535365;
+}
+
+:root.light {
+  /* Light theme — added by ThemeProvider when user picks light mode */
+  --page-bg:   #f1f5f9;
+  --surface:   #ffffff;
+  --surface2:  #e2e8f0;
+  --color-dim: #94a3b8;
+  --th-rgb:    15 23 42;      /* slate-900: flips all text/border/bg-th classes */
+
+  --bg-float:   #ffffff;
+  --bg-tooltip: #f8fafc;
+
+  --sb-track: #e2e8f0;
+  --sb-thumb: #94a3b8;
+}
+
+/* ─── Base ────────────────────────────────────────────────────────────── */
+
 body {
-  background-color: #0a0a0b;
-  color: #ffffff;
+  background-color: var(--page-bg);
+  color: rgb(var(--th-rgb));
   font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar */
+/* ─── Theme-aware utilities ───────────────────────────────────────────── */
+
+/* Monochrome logo: white in dark mode, black in light mode */
+.logo-mono { filter: brightness(0) invert(1); }
+:root.light .logo-mono { filter: brightness(0); }
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────── */
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #1e1e1f; }
-::-webkit-scrollbar-thumb { background: #535365; border-radius: 3px; }
+::-webkit-scrollbar-track { background: var(--sb-track); }
+::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #ff003c; }

@@ -150,22 +150,22 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
       <div className="absolute inset-0 z-10 bg-black/50 rounded-xl" onClick={onClose} />
 
       {/* Picker panel */}
-      <div className="absolute inset-x-0 top-0 z-20 bg-brand-surface border border-white/10 rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="absolute inset-x-0 top-0 z-20 bg-brand-surface border border-th/10 rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-th/[0.06] shrink-0">
           <div>
-            <h3 className="text-sm font-semibold text-white">Pick from Calendar</h3>
-            <p className="text-xs text-white/35 mt-0.5">Select a booking to pre-fill the form</p>
+            <h3 className="text-sm font-semibold text-th">Pick from Calendar</h3>
+            <p className="text-xs text-th/35 mt-0.5">Select a booking to pre-fill the form</p>
           </div>
-          <button onClick={onClose} className="text-white/30 hover:text-white/60 text-lg leading-none">✕</button>
+          <button onClick={onClose} className="text-th/30 hover:text-th/60 text-lg leading-none">✕</button>
         </div>
 
         {/* Controls */}
-        <div className="px-5 py-3 border-b border-white/[0.06] shrink-0 space-y-3">
+        <div className="px-5 py-3 border-b border-th/[0.06] shrink-0 space-y-3">
           {/* Range buttons */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-white/30 mr-1">Show past:</span>
+            <span className="text-xs text-th/30 mr-1">Show past:</span>
             {RANGE_OPTIONS.map((opt, i) => (
               <button
                 key={opt.label}
@@ -173,7 +173,7 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
                 className={`px-2.5 py-1 text-xs rounded transition-colors ${
                   i === rangeIdx
                     ? 'bg-brand-red/20 border border-brand-red/40 text-brand-red'
-                    : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
+                    : 'bg-th/5 border border-th/10 text-th/40 hover:text-th/70 hover:bg-th/10'
                 }`}
               >
                 {opt.label}
@@ -188,18 +188,18 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
               placeholder="Search by client name…"
-              className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-1.5 pr-7 text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-brand-red/50"
+              className="w-full bg-brand-surface2 border border-th/10 rounded px-3 py-1.5 pr-7 text-sm text-th/80 placeholder-th/25 focus:outline-none focus:border-brand-red/50"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-sm leading-none"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-th/30 hover:text-th/60 text-sm leading-none"
               >✕</button>
             )}
           </div>
           {search.trim() && !loading && (
-            <p className="text-xs text-white/30">
+            <p className="text-xs text-th/30">
               {filtered.length} match{filtered.length !== 1 ? 'es' : ''} for &ldquo;{search.trim()}&rdquo;
             </p>
           )}
@@ -208,7 +208,7 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
         {/* Event list */}
         <div className="overflow-y-auto flex-1">
           {loading && (
-            <div className="py-12 text-center text-sm text-white/30 animate-pulse">
+            <div className="py-12 text-center text-sm text-th/30 animate-pulse">
               Loading calendar…
             </div>
           )}
@@ -218,7 +218,7 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
             </div>
           )}
           {!loading && !error && filtered.length === 0 && (
-            <div className="py-12 text-center text-sm text-white/25">
+            <div className="py-12 text-center text-sm text-th/25">
               No bookings found in this range.
             </div>
           )}
@@ -249,24 +249,24 @@ function EventRow({ event, onSelect }: { event: DisplayEvent; onSelect: () => vo
   const p = event.parsed
 
   return (
-    <div className="border-b border-white/[0.04] last:border-0">
-      <div className="flex items-start gap-2 px-5 py-3.5 hover:bg-white/[0.04] transition-colors group">
+    <div className="border-b border-th/[0.04] last:border-0">
+      <div className="flex items-start gap-2 px-5 py-3.5 hover:bg-th/[0.04] transition-colors group">
         <button onClick={onSelect} className="flex-1 text-left min-w-0">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-sm font-medium text-white/80 group-hover:text-white truncate">
+              <div className="text-sm font-medium text-th/80 group-hover:text-th truncate">
                 {event.summary}
               </div>
-              <div className="text-xs text-white/35 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <div className="text-xs text-th/35 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span>{dateStr}{timeStr ? ` · ${timeStr}` : ''}</span>
                 {p.duration && <span>· {p.duration}h</span>}
                 {p.setup
                   ? <span className="text-green-400/60">· {p.setup}</span>
-                  : <span className="text-white/15">· no setup</span>
+                  : <span className="text-th/15">· no setup</span>
                 }
                 {p.seats != null
                   ? <span className="text-green-400/60">· {p.seats} seats</span>
-                  : <span className="text-white/15">· no seats</span>
+                  : <span className="text-th/15">· no seats</span>
                 }
                 {(p.episodeCount > 0 || p.highlightCount > 0) && (
                   <span>
@@ -274,7 +274,7 @@ function EventRow({ event, onSelect }: { event: DisplayEvent; onSelect: () => vo
                     {p.highlightCount > 0 ? ` ${p.highlightCount}hl` : ''}
                   </span>
                 )}
-                {p.orderId && <span className="text-white/20">· {p.orderId}</span>}
+                {p.orderId && <span className="text-th/20">· {p.orderId}</span>}
               </div>
             </div>
             <span className="text-xs text-brand-red opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pt-0.5">
@@ -286,23 +286,23 @@ function EventRow({ event, onSelect }: { event: DisplayEvent; onSelect: () => vo
         <button
           onClick={e => { e.stopPropagation(); setShowDebug(v => !v) }}
           title="Show raw description"
-          className="shrink-0 mt-0.5 text-white/15 hover:text-white/40 transition-colors text-xs px-1"
+          className="shrink-0 mt-0.5 text-th/15 hover:text-th/40 transition-colors text-xs px-1"
         >
           {showDebug ? '▲' : '▼'}
         </button>
       </div>
       {showDebug && (
-        <div className="mx-5 mb-3 rounded bg-white/[0.03] border border-white/[0.06] px-3 py-2">
-          <div className="text-xs text-white/25 mb-1 font-mono">raw description:</div>
-          <pre className="text-xs text-white/50 font-mono whitespace-pre-wrap break-all leading-relaxed">
+        <div className="mx-5 mb-3 rounded bg-th/[0.03] border border-th/[0.06] px-3 py-2">
+          <div className="text-xs text-th/25 mb-1 font-mono">raw description:</div>
+          <pre className="text-xs text-th/50 font-mono whitespace-pre-wrap break-all leading-relaxed">
             {event.description
               ? JSON.stringify(event.description).slice(1, -1)  // show escape chars as-is
               : '(no description)'}
           </pre>
-          <div className="mt-2 pt-2 border-t border-white/[0.05] text-xs text-white/25 font-mono">
-            parsed → setup: <span className="text-white/50">{p.setup ?? 'null'}</span>
-            {' · '}seats: <span className="text-white/50">{p.seats ?? 'null'}</span>
-            {' · '}orderId: <span className="text-white/50">{p.orderId ?? 'null'}</span>
+          <div className="mt-2 pt-2 border-t border-th/[0.05] text-xs text-th/25 font-mono">
+            parsed → setup: <span className="text-th/50">{p.setup ?? 'null'}</span>
+            {' · '}seats: <span className="text-th/50">{p.seats ?? 'null'}</span>
+            {' · '}orderId: <span className="text-th/50">{p.orderId ?? 'null'}</span>
           </div>
         </div>
       )}

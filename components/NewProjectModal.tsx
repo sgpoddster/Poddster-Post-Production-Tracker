@@ -143,7 +143,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-brand-surface border border-white/10 rounded-xl w-full max-w-lg shadow-2xl">
+      <div className="relative bg-brand-surface border border-th/10 rounded-xl w-full max-w-lg shadow-2xl">
 
         {/* Calendar picker overlay (sits inside the card) */}
         {showCalPicker && (
@@ -153,17 +153,17 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
           />
         )}
 
-        <div className="border-b border-white/[0.06] px-6 py-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">New Project</h2>
+        <div className="border-b border-th/[0.06] px-6 py-4 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-th">New Project</h2>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setShowCalPicker(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 hover:text-white/80 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded bg-th/5 hover:bg-th/10 border border-th/10 text-th/50 hover:text-th/80 transition-colors"
             >
               📅 Import from Calendar
             </button>
-            <button onClick={onClose} className="text-white/30 hover:text-white/60 transition-colors text-lg leading-none">✕</button>
+            <button onClick={onClose} className="text-th/30 hover:text-th/60 transition-colors text-lg leading-none">✕</button>
           </div>
         </div>
 
@@ -175,7 +175,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
             <select
               value={form.client_id}
               onChange={e => set('client_id', e.target.value)}
-              className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+              className="w-full bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-brand-red/50"
             >
               <option value="">— Select client —</option>
               {clients.map(c => (
@@ -198,7 +198,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
                 <select
                   value={form.filming_hour}
                   onChange={e => set('filming_hour', e.target.value)}
-                  className="flex-1 bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+                  className="flex-1 bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-brand-red/50"
                 >
                   <option value="">Hour</option>
                   {Array.from({ length: 15 }, (_, i) => i + 7).map(h => (
@@ -210,7 +210,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
                 <select
                   value={form.filming_mins}
                   onChange={e => set('filming_mins', e.target.value)}
-                  className="w-20 bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+                  className="w-20 bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-brand-red/50"
                 >
                   <option value="00">:00</option>
                   <option value="30">:30</option>
@@ -230,7 +230,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
               <select
                 value={form.shoot_duration}
                 onChange={e => set('shoot_duration', e.target.value)}
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+                className="w-full bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-brand-red/50"
               >
                 <option value="">— Select —</option>
                 {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12].map(h => (
@@ -252,7 +252,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
           <div>
             <Label>Job ID</Label>
             <Input value={form.job_id} onChange={v => set('job_id', v.toUpperCase())} placeholder="Leave blank to auto-generate (e.g. A3F2B)" />
-            <p className="text-[10px] text-white/25 mt-1">5 hex characters. Episode/highlight IDs are built from this (A3F2BE, A3F2BH1…).</p>
+            <p className="text-[10px] text-th/25 mt-1">5 hex characters. Episode/highlight IDs are built from this (A3F2BE, A3F2BH1…).</p>
           </div>
 
           {/* Episodes & Highlights */}
@@ -260,16 +260,16 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
             <Label>Deliverables</Label>
             <div className="grid grid-cols-2 gap-4 mt-1">
               <div>
-                <p className="text-xs text-white/40 mb-2">Episodes</p>
+                <p className="text-xs text-th/40 mb-2">Episodes</p>
                 <Counter value={form.episode_count} min={0} onChange={v => set('episode_count', v)} />
               </div>
               <div>
-                <p className="text-xs text-white/40 mb-2">Highlights</p>
+                <p className="text-xs text-th/40 mb-2">Highlights</p>
                 <Counter value={form.highlight_count} min={0} onChange={v => set('highlight_count', v)} />
               </div>
             </div>
             {totalRows > 0 && (
-              <p className="text-xs text-white/30 mt-2.5">
+              <p className="text-xs text-th/30 mt-2.5">
                 → {totalRows} row{totalRows !== 1 ? 's' : ''} will be created
                 {selectedClient && ` for ${selectedClient.name}`}
               </p>
@@ -283,14 +283,14 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
               <select
                 value={form.starting_version}
                 onChange={e => set('starting_version', parseInt(e.target.value))}
-                className="w-32 bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+                className="w-32 bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-brand-red/50"
               >
                 {Array.from({ length: 10 }, (_, i) => i + 1).map(v => (
                   <option key={v} value={v}>V{v}</option>
                 ))}
               </select>
               {form.starting_version > 1 && (
-                <p className="text-xs text-white/30">
+                <p className="text-xs text-th/30">
                   V1–V{form.starting_version - 1} will be created as empty placeholders
                 </p>
               )}
@@ -304,7 +304,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
               <select
                 value={form.assigned_editor}
                 onChange={e => setProducer(e.target.value)}
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+                className="w-full bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-brand-red/50"
               >
                 <option value="">— Unassigned —</option>
                 {editors.map(ed => (
@@ -319,7 +319,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
               <select
                 value={form.editor}
                 onChange={e => setEditor(e.target.value)}
-                className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-brand-red/50"
+                className="w-full bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-brand-red/50"
               >
                 <option value="">— Same as producer —</option>
                 {editors.map(ed => (
@@ -339,7 +339,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
               onChange={e => set('notes', e.target.value)}
               rows={2}
               placeholder="Any notes for the producer…"
-              className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-brand-red/50 resize-none"
+              className="w-full bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 placeholder-th/25 focus:outline-none focus:border-brand-red/50 resize-none"
             />
           </div>
 
@@ -349,10 +349,10 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
 
           <div className="flex justify-end gap-3 pt-1">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-white/40 hover:text-white/70 transition-colors"
+              className="px-4 py-2 text-sm text-th/40 hover:text-th/70 transition-colors"
             >Cancel</button>
             <button type="submit" disabled={loading}
-              className="px-5 py-2 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-sm font-medium rounded transition-colors"
+              className="px-5 py-2 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-th text-sm font-medium rounded transition-colors"
             >
               {loading ? 'Creating…' : 'Create Project'}
             </button>
@@ -364,7 +364,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <label className="block text-xs text-white/40 mb-1.5">{children}</label>
+  return <label className="block text-xs text-th/40 mb-1.5">{children}</label>
 }
 
 function Input({ value, onChange, placeholder, type = 'text' }: {
@@ -376,7 +376,7 @@ function Input({ value, onChange, placeholder, type = 'text' }: {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-brand-surface2 border border-white/10 rounded px-3 py-2 text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-brand-red/50"
+      className="w-full bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 placeholder-th/25 focus:outline-none focus:border-brand-red/50"
     />
   )
 }
@@ -388,12 +388,12 @@ function Counter({ value, min = 0, onChange }: {
     <div className="flex items-center gap-2">
       <button type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
-        className="w-8 h-8 rounded bg-brand-surface2 text-white/60 hover:text-white transition-colors flex items-center justify-center text-lg leading-none"
+        className="w-8 h-8 rounded bg-brand-surface2 text-th/60 hover:text-th transition-colors flex items-center justify-center text-lg leading-none"
       >−</button>
-      <span className="w-8 text-center text-sm font-medium text-white">{value}</span>
+      <span className="w-8 text-center text-sm font-medium text-th">{value}</span>
       <button type="button"
         onClick={() => onChange(value + 1)}
-        className="w-8 h-8 rounded bg-brand-surface2 text-white/60 hover:text-white transition-colors flex items-center justify-center text-lg leading-none"
+        className="w-8 h-8 rounded bg-brand-surface2 text-th/60 hover:text-th transition-colors flex items-center justify-center text-lg leading-none"
       >+</button>
     </div>
   )

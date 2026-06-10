@@ -60,8 +60,8 @@ export function ProducerFilter({ editors, selected }: { editors: Editor[]; selec
         onClick={() => setOpen(o => !o)}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
           selected.length > 0
-            ? 'bg-white/10 border-white/20 text-white'
-            : 'bg-white/[0.04] border-white/10 text-white/50 hover:text-white/70 hover:border-white/15'
+            ? 'bg-th/10 border-th/20 text-th'
+            : 'bg-th/[0.04] border-th/10 text-th/50 hover:text-th/70 hover:border-th/15'
         } ${isPending ? 'opacity-50' : ''}`}
       >
         <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -74,11 +74,11 @@ export function ProducerFilter({ editors, selected }: { editors: Editor[]; selec
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1.5 z-50 min-w-[200px] rounded-lg border border-white/10 bg-[#1a1a2e] shadow-xl overflow-hidden">
+        <div className="absolute left-0 top-full mt-1.5 z-50 min-w-[200px] rounded-lg border border-th/10 bg-[var(--bg-float)] shadow-xl overflow-hidden">
           {selected.length > 0 && (
             <button
               onClick={clearAll}
-              className="w-full text-left px-3 py-2 text-xs text-white/40 hover:text-white/60 hover:bg-white/[0.04] border-b border-white/[0.06] transition-colors"
+              className="w-full text-left px-3 py-2 text-xs text-th/40 hover:text-th/60 hover:bg-th/[0.04] border-b border-th/[0.06] transition-colors"
             >
               Clear selection
             </button>
@@ -90,10 +90,10 @@ export function ProducerFilter({ editors, selected }: { editors: Editor[]; selec
               <button
                 key={e.email}
                 onClick={() => toggle(e.email)}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-white/[0.06] transition-colors text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-th/[0.06] transition-colors text-left"
               >
                 <span className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 transition-colors ${
-                  checked ? 'bg-white/90 border-white/90' : 'border-white/20'
+                  checked ? 'bg-th/90 border-th/90' : 'border-th/20'
                 }`}>
                   {checked && (
                     <svg className="w-2.5 h-2.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -101,7 +101,7 @@ export function ProducerFilter({ editors, selected }: { editors: Editor[]; selec
                     </svg>
                   )}
                 </span>
-                <span className={checked ? 'text-white' : 'text-white/60'}>{name}</span>
+                <span className={checked ? 'text-th' : 'text-th/60'}>{name}</span>
               </button>
             )
           })}

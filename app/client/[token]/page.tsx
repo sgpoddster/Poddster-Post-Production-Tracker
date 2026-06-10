@@ -3,17 +3,17 @@ import { notFound } from 'next/navigation'
 import { formatDate, versionLabel } from '@/lib/utils'
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending_trigger:  { label: 'Awaiting Files',       color: 'text-white/40'    },
+  pending_trigger:  { label: 'Awaiting Files',       color: 'text-th/40'    },
   active:           { label: 'In Production',         color: 'text-blue-400'   },
   in_revision:      { label: 'Revision in Progress',  color: 'text-yellow-400' },
   in_client_review: { label: 'Ready for Your Review', color: 'text-green-400'  },
   complete:         { label: 'Complete',              color: 'text-green-400'  },
-  cancelled:        { label: 'Cancelled',             color: 'text-white/20'   },
+  cancelled:        { label: 'Cancelled',             color: 'text-th/20'   },
 }
 
 function getStatus(project: { status: string; on_hold: boolean }) {
   if (project.on_hold) return { label: 'On Hold', color: 'text-orange-400' }
-  return STATUS_LABELS[project.status] ?? { label: project.status, color: 'text-white/40' }
+  return STATUS_LABELS[project.status] ?? { label: project.status, color: 'text-th/40' }
 }
 
 export default async function ClientPortalPage({ params }: { params: { token: string } }) {
@@ -54,46 +54,46 @@ export default async function ClientPortalPage({ params }: { params: { token: st
 
         {/* Branding */}
         <div>
-          <span className="text-lg font-bold text-white tracking-widest">PODDSTER</span>
-          <span className="text-sm text-white/30 ml-2">Post Production</span>
+          <span className="text-lg font-bold text-th tracking-widest">PODDSTER</span>
+          <span className="text-sm text-th/30 ml-2">Post Production</span>
         </div>
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-white">{greeting}</h1>
-          <p className="text-sm text-white/40 mt-1">
+          <h1 className="text-2xl font-bold text-th">{greeting}</h1>
+          <p className="text-sm text-th/40 mt-1">
             Here's the status of your post-production projects.
           </p>
         </div>
 
         {/* Project groups */}
         {groups.size === 0 ? (
-          <p className="text-sm text-white/30">No projects yet.</p>
+          <p className="text-sm text-th/30">No projects yet.</p>
         ) : (
           <div className="space-y-6">
             {Array.from(groups.entries()).map(([jobId, jobProjects]) => {
               const first = jobProjects[0]
               return (
-                <div key={jobId} className="bg-brand-surface border border-white/[0.08] rounded-xl overflow-hidden">
+                <div key={jobId} className="bg-brand-surface border border-th/[0.08] rounded-xl overflow-hidden">
                   {/* Session header */}
-                  <div className="px-5 py-4 border-b border-white/[0.06]">
+                  <div className="px-5 py-4 border-b border-th/[0.06]">
                     <div className="flex items-center justify-between">
                       <div>
                         {first.filming_date ? (
-                          <p className="text-sm font-semibold text-white">
+                          <p className="text-sm font-semibold text-th">
                             {formatDate(first.filming_date)}
-                            {first.filming_time ? <span className="text-white/40 font-normal"> · {first.filming_time}</span> : ''}
+                            {first.filming_time ? <span className="text-th/40 font-normal"> · {first.filming_time}</span> : ''}
                           </p>
                         ) : (
-                          <p className="text-sm font-semibold text-white">Session</p>
+                          <p className="text-sm font-semibold text-th">Session</p>
                         )}
                       </div>
-                      <span className="text-xs text-white/25 font-mono">{first.job_id}</span>
+                      <span className="text-xs text-th/25 font-mono">{first.job_id}</span>
                     </div>
                   </div>
 
                   {/* Projects in this session */}
-                  <div className="divide-y divide-white/[0.04]">
+                  <div className="divide-y divide-th/[0.04]">
                     {jobProjects.map(project => {
                       const status = getStatus(project)
                       const typeLabel = project.type === 'episode'
@@ -112,7 +112,7 @@ export default async function ClientPortalPage({ params }: { params: { token: st
                         <div key={project.id} className="px-5 py-4 space-y-3">
                           {/* Project row */}
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-white/70">{typeLabel}</span>
+                            <span className="text-sm text-th/70">{typeLabel}</span>
                             <span className={`text-xs font-medium ${status.color}`}>
                               {status.label}
                             </span>
@@ -120,7 +120,7 @@ export default async function ClientPortalPage({ params }: { params: { token: st
 
                           {/* Current version due date */}
                           {currentVer && !currentVer.done_date && currentVer.due_date && (
-                            <p className="text-xs text-white/30">
+                            <p className="text-xs text-th/30">
                               V{currentVer.version_number} due {formatDate(currentVer.due_date)}
                             </p>
                           )}
@@ -140,9 +140,9 @@ export default async function ClientPortalPage({ params }: { params: { token: st
                                 return (
                                   <div key={v.id} className="flex items-center gap-2.5">
                                     <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                      isDone ? 'bg-green-400' : isCurrent ? 'bg-brand-red' : 'bg-white/15'
+                                      isDone ? 'bg-green-400' : isCurrent ? 'bg-brand-red' : 'bg-th/15'
                                     }`} />
-                                    <span className="text-xs text-white/50">
+                                    <span className="text-xs text-th/50">
                                       {v.label || versionLabel(v.version_number)}
                                     </span>
                                     {isDone && (
@@ -151,7 +151,7 @@ export default async function ClientPortalPage({ params }: { params: { token: st
                                       </span>
                                     )}
                                     {!isDone && isCurrent && v.due_date && (
-                                      <span className="text-xs text-white/25 ml-auto">
+                                      <span className="text-xs text-th/25 ml-auto">
                                         Due {formatDate(v.due_date)}
                                       </span>
                                     )}
@@ -171,9 +171,9 @@ export default async function ClientPortalPage({ params }: { params: { token: st
         )}
 
         {/* Footer */}
-        <p className="text-xs text-white/20 pt-2">
+        <p className="text-xs text-th/20 pt-2">
           Questions? Contact us at{' '}
-          <a href="mailto:singapore@poddster.com" className="text-white/30 hover:text-white/50 transition-colors">
+          <a href="mailto:singapore@poddster.com" className="text-th/30 hover:text-th/50 transition-colors">
             singapore@poddster.com
           </a>
         </p>

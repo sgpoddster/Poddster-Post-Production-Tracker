@@ -41,12 +41,12 @@ export function CollapsibleSection({
         className="flex items-center gap-2.5 mb-4 w-full text-left group"
       >
         <span className={`w-2 h-2 rounded-full ${dot}`} />
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-widest group-hover:text-white/70 transition-colors">
+        <h2 className="text-xs font-semibold text-th/50 uppercase tracking-widest group-hover:text-th/70 transition-colors">
           {title}
         </h2>
-        <span className="text-xs text-white/25">{count}</span>
+        <span className="text-xs text-th/25">{count}</span>
         <svg
-          className={`ml-auto w-3.5 h-3.5 text-white/30 group-hover:text-white/50 transition-transform ${open ? '' : '-rotate-90'}`}
+          className={`ml-auto w-3.5 h-3.5 text-th/30 group-hover:text-th/50 transition-transform ${open ? '' : '-rotate-90'}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -57,9 +57,9 @@ export function CollapsibleSection({
         noContainer ? (
           children
         ) : count === 0 ? (
-          <p className="text-sm text-white/25 pl-4">{empty}</p>
+          <p className="text-sm text-th/25 pl-4">{empty}</p>
         ) : (
-          <div className="rounded-lg border border-white/[0.06] bg-brand-surface overflow-hidden divide-y divide-white/[0.06]">
+          <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden divide-y divide-th/[0.06]">
             {children}
           </div>
         )

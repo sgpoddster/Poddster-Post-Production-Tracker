@@ -42,7 +42,7 @@ export function CountdownTimer({ dueDate, onHold, holdDate }: Props) {
     classes = 'text-orange-200 bg-orange-600/40 border-orange-500/50'
   } else if (diffDays < 0) {
     text = `${Math.abs(diffDays) + 1}d overdue`
-    classes = 'text-white bg-brand-red border-brand-red'
+    classes = 'text-th bg-brand-red border-brand-red'
   } else if (diffDays <= 2) {
     text = diffDays === 0 ? 'Due today' : `${diffDays}d left`
     classes = 'text-black bg-amber-400 border-amber-400'
@@ -56,7 +56,7 @@ export function CountdownTimer({ dueDate, onHold, holdDate }: Props) {
       <div className={`w-24 text-center text-xs font-bold px-2.5 py-1 rounded border ${classes}`}>
         {text}
       </div>
-      <span className="hidden lg:block w-44 text-xs text-white/35">{formatFullDate(dueDate)}</span>
+      <span className="hidden lg:block w-44 text-xs text-th/35">{formatFullDate(dueDate)}</span>
     </div>
   )
 }

@@ -21,13 +21,13 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="mb-12 flex items-center justify-center gap-4">
           <img src="/logo.png" alt="Poddster" className="h-14 w-auto" />
-          <span className="text-white/20 text-3xl font-light">|</span>
+          <span className="text-th/20 text-3xl font-light">|</span>
           <img src="/logo-post2.png" alt="Post Production" className="h-14 w-auto" />
         </div>
 
         <button
           onClick={signInWithGoogle}
-          className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-brand-surface hover:bg-brand-surface2 border border-white/10 rounded-lg text-sm font-medium text-white transition-all active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-brand-surface hover:bg-brand-surface2 border border-th/10 rounded-lg text-sm font-medium text-th transition-all active:scale-[0.98]"
         >
           <svg width="18" height="18" viewBox="0 0 18 18">
             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z"/>
@@ -38,7 +38,7 @@ export default function LoginPage() {
           Sign in with Google
         </button>
 
-        <p className="text-xs text-white/20 mt-8">Internal use only · Poddster team</p>
+        <p className="text-xs text-th/20 mt-8">Internal use only · Poddster team</p>
       </div>
     </div>
   )

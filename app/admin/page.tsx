@@ -33,41 +33,41 @@ export default async function AdminPage({
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Admin</h1>
-        <p className="text-sm text-white/40 mt-1">Manage team and clients</p>
+        <h1 className="text-2xl font-bold text-th tracking-tight">Admin</h1>
+        <p className="text-sm text-th/40 mt-1">Manage team and clients</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-white/[0.06]">
+      <div className="flex items-center gap-1 border-b border-th/[0.06]">
         <TabLink href="/admin" active={tab === 'team'}>
           Team
-          <span className="ml-1.5 text-white/25 text-xs">{(users ?? []).length}</span>
+          <span className="ml-1.5 text-th/25 text-xs">{(users ?? []).length}</span>
         </TabLink>
         <TabLink href="/admin?tab=clients" active={tab === 'clients'}>
           Clients
-          <span className="ml-1.5 text-white/25 text-xs">{(clients ?? []).length}</span>
+          <span className="ml-1.5 text-th/25 text-xs">{(clients ?? []).length}</span>
         </TabLink>
         <TabLink href="/admin?tab=holidays" active={tab === 'holidays'}>
           Closed Days
-          <span className="ml-1.5 text-white/25 text-xs">{(holidays ?? []).length}</span>
+          <span className="ml-1.5 text-th/25 text-xs">{(holidays ?? []).length}</span>
         </TabLink>
       </div>
 
       {/* Team tab */}
       {tab === 'team' && (
         <section className="space-y-4">
-          <div className="rounded-lg border border-white/[0.06] bg-brand-surface overflow-hidden divide-y divide-white/[0.06]">
+          <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden divide-y divide-th/[0.06]">
             {(users ?? []).map(u => (
               <div key={u.id} className="flex items-center justify-between px-5 py-4">
                 <div>
-                  <p className="text-sm font-medium text-white">{u.display_name || u.email}</p>
-                  {u.display_name && <p className="text-xs text-white/35 mt-0.5">{u.email}</p>}
+                  <p className="text-sm font-medium text-th">{u.display_name || u.email}</p>
+                  {u.display_name && <p className="text-xs text-th/35 mt-0.5">{u.email}</p>}
                 </div>
                 <RoleToggle userId={u.id} currentRole={u.role} isSelf={u.id === user.id} />
               </div>
             ))}
             {(users ?? []).length === 0 && (
-              <p className="px-5 py-4 text-sm text-white/25">No users found.</p>
+              <p className="px-5 py-4 text-sm text-th/25">No users found.</p>
             )}
           </div>
         </section>
@@ -105,8 +105,8 @@ function TabLink({
       href={href}
       className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
         active
-          ? 'border-brand-red text-white'
-          : 'border-transparent text-white/40 hover:text-white/70'
+          ? 'border-brand-red text-th'
+          : 'border-transparent text-th/40 hover:text-th/70'
       }`}
     >
       {children}

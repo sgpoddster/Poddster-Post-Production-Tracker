@@ -39,10 +39,10 @@ export function CountdownTimer({ dueDate, onHold, holdDate }: Props) {
     text = diffDays < 0
       ? `${Math.abs(diffDays) + 1}d overdue`
       : diffDays === 0 ? 'Due today' : `${diffDays}d left`
-    classes = 'text-orange-200 bg-orange-600/40 border-orange-500/50'
+    classes = 'text-black bg-orange-600/40 border-orange-500/50'
   } else if (diffDays < 0) {
     text = `${Math.abs(diffDays) + 1}d overdue`
-    classes = 'text-th bg-brand-red border-brand-red'
+    classes = 'text-white bg-brand-red border-brand-red'
   } else if (diffDays <= 2) {
     text = diffDays === 0 ? 'Due today' : `${diffDays}d left`
     classes = 'text-black bg-amber-400 border-amber-400'

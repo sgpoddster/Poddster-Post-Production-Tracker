@@ -36,7 +36,7 @@ export default function TriggerButton({ projectId, isAdmin }: Props) {
       <button
         onClick={() => trigger()}
         disabled={loading}
-        className="px-3 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-th text-xs font-medium rounded transition-colors"
+        className="px-3 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-xs font-medium rounded transition-colors"
       >
         {loading ? 'Starting…' : '▶ Trigger'}
       </button>
@@ -49,7 +49,7 @@ export default function TriggerButton({ projectId, isAdmin }: Props) {
       <button
         onClick={() => setShowDatePicker(true)}
         disabled={loading}
-        className="px-3 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-th text-xs font-medium rounded transition-colors"
+        className="px-3 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-xs font-medium rounded transition-colors"
       >
         {loading ? 'Starting…' : '▶ Trigger'}
       </button>
@@ -71,7 +71,7 @@ export default function TriggerButton({ projectId, isAdmin }: Props) {
       <button
         onClick={() => trigger(submittedDate)}
         disabled={loading}
-        className="px-2.5 py-1 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-th text-xs font-medium rounded transition-colors"
+        className="px-2.5 py-1 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-xs font-medium rounded transition-colors"
       >
         {loading ? '…' : '▶ Go'}
       </button>

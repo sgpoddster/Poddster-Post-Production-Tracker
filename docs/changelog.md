@@ -4,6 +4,16 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-11 — Fix button text colours for light mode legibility
+
+### Fixed
+- **Trigger button** — text changed from `text-th` to `text-white` so it's always readable on the red background in both light and dark mode.
+- **Overdue countdown pill** — text changed to `text-white` (was `text-th`, which rendered dark on red in light mode).
+- **On-hold countdown pill** — text changed to `text-black` (was `text-orange-200`, which was too light in some themes).
+- **Batch trigger action bar** — text changed to `text-white` for consistency.
+
+---
+
 ## 2026-06-10 — Per-user light / dark theme toggle
 
 ### Added

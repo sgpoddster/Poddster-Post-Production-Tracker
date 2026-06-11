@@ -82,7 +82,7 @@ export default function PendingTriggerList({
               Clear
             </button>
             <button onClick={triggerSelected} disabled={submitting}
-              className="px-4 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-th text-xs font-semibold rounded-lg transition-colors">
+              className="px-4 py-1.5 bg-brand-red hover:bg-brand-red-dim disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors">
               {submitting ? 'Triggering…' : `▶ Trigger all selected (${selected.size})`}
             </button>
           </div>

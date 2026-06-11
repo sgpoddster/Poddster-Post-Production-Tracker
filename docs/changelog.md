@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-11 — Admin due date override in Edit Project modal
+
+### Added
+- **Due Date Override** field in the Edit Project modal (admin only). Shows the current due date for the active version with a date picker to set any past or future date. Includes a Reset link to revert to the original date. Saves directly to the version row in the DB.
+
+---
+
 ## 2026-06-11 — Fix button text colours for light mode legibility
 
 ### Fixed

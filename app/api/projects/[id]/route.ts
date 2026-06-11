@@ -88,15 +88,32 @@ export async function PATCH(
     }
   }
 
-  if (Object.keys(updates).length === 0) {
+  // ── Due date override (admin only) ─────────────────────────────────────────
+  if ('due_date_override' in body && body.due_date_override) {
+    const { data: proj } = await supabase
+      .from('projects')
+      .select('current_version')
+      .eq('id', params.id)
+      .single()
+    if (proj) {
+      await supabase.from('versions')
+        .update({ due_date: body.due_date_override })
+        .eq('project_id', params.id)
+        .eq('version_number', proj.current_version)
+    }
+  }
+
+  if (Object.keys(updates).length === 0 && !('due_date_override' in body)) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
   }
 
-  const { error } = await supabase
-    .from('projects')
-    .update(updates)
-    .eq('id', params.id)
+  if (Object.keys(updates).length > 0) {
+    const { error } = await supabase
+      .from('projects')
+      .update(updates)
+      .eq('id', params.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

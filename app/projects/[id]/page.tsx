@@ -85,7 +85,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
             <CopyPortalLinkButton portalToken={portalToken} />
           )}
           {isAdmin && (
-            <EditProjectModal project={project} editors={editors} clients={clients} />
+            <EditProjectModal project={project} editors={editors} clients={clients} isAdmin={isAdmin} />
           )}
           <AddOutputButton jobId={project.job_id} />
           {project.status === 'pending_trigger' && (

@@ -19,13 +19,18 @@ interface Props {
   project: Project
   editors: Editor[]
   clients: Client[]
+  isAdmin?: boolean
 }
 
-export default function EditProjectModal({ project, editors, clients }: Props) {
+export default function EditProjectModal({ project, editors, clients, isAdmin }: Props) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
+  const currentVerDueDate = (project.versions ?? []).find(
+    v => v.version_number === project.current_version
+  )?.due_date ?? null
 
   type FormState = {
     client_name: string
@@ -36,6 +41,7 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
     editor: string
     current_version: string
     notes: string
+    due_date_override: string
   }
 
   const [form, setForm] = useState<FormState>({
@@ -50,6 +56,7 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
     editor: project.editor ?? '',
     current_version: String(project.current_version ?? 1),
     notes: project.notes ?? '',
+    due_date_override: currentVerDueDate ?? '',
   })
 
   function field(key: keyof FormState) {
@@ -73,6 +80,7 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
       ...form,
       seats: form.seats ? parseInt(form.seats, 10) : null,
       current_version: parseInt(form.current_version, 10) || 1,
+      due_date_override: form.due_date_override || null,
     }
     const res = await fetch(`/api/projects/${project.id}`, {
       method: 'PATCH',
@@ -257,6 +265,33 @@ export default function EditProjectModal({ project, editors, clients }: Props) {
                   className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25 resize-none"
                 />
               </div>
+
+              {isAdmin && (
+                <div className="border-t border-th/[0.06] pt-4">
+                  <label className="block text-xs text-th/40 mb-1.5">
+                    Due Date Override
+                    <span className="ml-2 text-amber-400/60 font-normal">Admin only</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={form.due_date_override}
+                    onChange={field('due_date_override')}
+                    className="w-full bg-th/[0.05] border border-th/10 rounded-lg px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-th/25"
+                  />
+                  {currentVerDueDate && form.due_date_override !== currentVerDueDate && (
+                    <p className="text-[11px] text-th/35 mt-1.5">
+                      Was: {currentVerDueDate}
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, due_date_override: currentVerDueDate }))}
+                        className="ml-2 text-th/50 hover:text-th/80 underline transition-colors"
+                      >
+                        Reset
+                      </button>
+                    </p>
+                  )}
+                </div>
+              )}
 
               {error && (
                 <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">

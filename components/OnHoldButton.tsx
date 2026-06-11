@@ -27,15 +27,20 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
 
   async function putOnHold() {
     setLoading(true)
-    await fetch(`/api/projects/${projectId}/hold`, {
+    const res = await fetch(`/api/projects/${projectId}/hold`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason: reason.trim() || null }),
     })
+    setLoading(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(`Failed to put on hold: ${data.error ?? res.status}`)
+      return
+    }
     setShowReasonModal(false)
     setReason('')
     router.refresh()
-    setLoading(false)
   }
 
   async function resume() {

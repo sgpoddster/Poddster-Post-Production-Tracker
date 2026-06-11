@@ -17,10 +17,19 @@ export async function POST(
     reason = body?.reason ?? null
   } catch { /* no body */ }
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from('projects')
     .update({ on_hold: true, hold_date: today, hold_reason: reason })
     .eq('id', params.id)
+
+  // Fallback: hold_reason column may not exist in older DB instances
+  if (error) {
+    const fallback = await supabase
+      .from('projects')
+      .update({ on_hold: true, hold_date: today })
+      .eq('id', params.id)
+    error = fallback.error
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })

@@ -4,6 +4,21 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-11 — Frame.io upload link + timestamp in version history
+
+### Added
+- **Frame.io link** — when the `file.ready` webhook fires, the player URL is extracted from the Frame.io file object and stored on the version row. Shown as a "View in Frame.io" link in the version history on the project detail page.
+- **Upload timestamp** — the Frame.io file's `created_at` timestamp is saved and displayed in the version history (formatted in Singapore time).
+
+### DB migration required
+Run the following in Supabase SQL Editor:
+```sql
+ALTER TABLE versions ADD COLUMN IF NOT EXISTS frameio_link text;
+ALTER TABLE versions ADD COLUMN IF NOT EXISTS frameio_uploaded_at timestamptz;
+```
+
+---
+
 ## 2026-06-11 — Admin due date override in Edit Project modal
 
 ### Added

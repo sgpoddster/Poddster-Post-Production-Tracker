@@ -53,6 +53,8 @@ export interface Version {
   due_date: string | null           // 'YYYY-MM-DD'
   done_date: string | null          // 'YYYY-MM-DD'
   notes: string | null
+  frameio_link: string | null       // Frame.io player/review URL (set by webhook)
+  frameio_uploaded_at: string | null // ISO timestamp from Frame.io (when file was uploaded)
   created_at: string
   updated_at: string
 }

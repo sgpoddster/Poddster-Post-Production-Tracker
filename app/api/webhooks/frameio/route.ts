@@ -159,6 +159,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: `status is '${project.status}'` })
     }
 
+    // Extract Frame.io player link and upload timestamp from the file object
+    const frameioLink = file ? getAny(file, [
+      '_links.player.href',
+      'links.player.href',
+      'player_url',
+      'review_url',
+      'review_link',
+    ]) : ''
+    const frameioUploadedAt = file ? getAny(file, [
+      'created_at',
+      'inserted_at',
+      'timestamps.created_at',
+      'uploaded_at',
+    ]) : ''
+
     const { data: version } = await supabase
       .from('versions')
       .select('id')
@@ -167,7 +182,11 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (version) {
-      await supabase.from('versions').update({ done_date: today }).eq('id', version.id)
+      await supabase.from('versions').update({
+        done_date: today,
+        ...(frameioLink        && { frameio_link:        frameioLink }),
+        ...(frameioUploadedAt  && { frameio_uploaded_at: frameioUploadedAt }),
+      }).eq('id', version.id)
     }
     await supabase.from('projects').update({
       status: 'in_client_review',
@@ -175,7 +194,7 @@ export async function POST(req: NextRequest) {
       review_chase_stage: 0,
     }).eq('id', project.id)
 
-    console.log(`[frameio] ✓ "${internalId}" → in_client_review (V${project.current_version})`)
+    console.log(`[frameio] ✓ "${internalId}" → in_client_review (V${project.current_version}) link=${frameioLink || 'none'}`)
     return NextResponse.json({ success: true, action: 'in_client_review', internalId })
   }
 

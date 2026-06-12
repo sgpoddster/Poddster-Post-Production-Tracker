@@ -50,6 +50,8 @@ create table if not exists versions (
   submitted_date   date,                   -- when editor submitted to client
   due_date         date,                   -- deadline (auto-calc: submitted + working days)
   done_date        date,                   -- stamped when delivered
+  frameio_link        text,               -- Frame.io player URL (set by file.ready webhook)
+  frameio_uploaded_at timestamptz,        -- upload timestamp from Frame.io (set by file.ready webhook)
   notes            text,
   created_at       timestamptz default now(),
   updated_at       timestamptz default now(),

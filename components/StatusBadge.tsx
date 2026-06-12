@@ -1,12 +1,12 @@
 import { ProjectStatus } from '@/lib/types'
 
 const config: Record<ProjectStatus, { label: string; className: string }> = {
-  pending_trigger:  { label: 'Draft',           className: 'bg-th/10 text-th/50' },
-  active:           { label: 'First Cut',         className: 'bg-blue-500/20 text-blue-300' },
-  in_client_review: { label: 'Client Review',    className: 'bg-purple-500/20 text-purple-300' },
-  in_revision:      { label: 'Revision',         className: 'bg-amber-500/20 text-amber-300' },
-  complete:         { label: 'Complete',         className: 'bg-green-500/20 text-green-300' },
-  cancelled:        { label: 'Cancelled',        className: 'bg-brand-red/20 text-brand-red' },
+  pending_trigger:  { label: 'Draft',         className: 'bg-th/[0.12] text-th/60' },
+  active:           { label: 'First Cut',     className: 'bg-blue-500 text-white' },
+  in_client_review: { label: 'Client Review', className: 'bg-purple-500 text-white' },
+  in_revision:      { label: 'Revision',      className: 'bg-amber-400 text-black' },
+  complete:         { label: 'Complete',      className: 'bg-green-500 text-white' },
+  cancelled:        { label: 'Cancelled',     className: 'bg-brand-red text-white' },
 }
 
 export function StatusBadge({ status }: { status: ProjectStatus }) {

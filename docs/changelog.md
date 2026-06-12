@@ -4,6 +4,18 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-12 — Fun fact of the day
+
+### Added
+- **💡 Fun fact button** in the navbar (right of theme toggle). Discreet emoji-only button; clicking opens a popup with a new fact each day. Facts are deterministic by calendar day so all users see the same one. 1002 facts seeded from CSV.
+- `fun_facts` Supabase table + seed SQL at `supabase/fun_facts_seed.sql`.
+- `/api/fun-fact` GET route — picks today's fact by day-of-year mod 1002.
+
+### DB setup required
+Run `supabase/fun_facts_seed.sql` in the Supabase SQL Editor to create and seed the table.
+
+---
+
 ## 2026-06-11 — Frame.io upload link + timestamp in version history
 
 ### Added

@@ -4,7 +4,7 @@ import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
 import { getHolidayDates } from '@/lib/holidays'
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const supabase = await createClient()
@@ -12,6 +12,9 @@ export async function POST(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = params
+
+  let submittedDate: string | null = null
+  try { const body = await req.json(); submittedDate = body?.submittedDate ?? null } catch { /* no body */ }
 
   // Get current version
   const { data: project } = await supabase
@@ -24,9 +27,10 @@ export async function POST(
 
   const nextVersion = project.current_version + 1
 
-  // Create next version row with due date
+  // Calculate due date from the submitted date (or today if not provided)
+  const baseDate = submittedDate ? new Date(submittedDate + 'T00:00:00') : new Date()
   const holidays = await getHolidayDates()
-  const dueDate = addWorkDays(new Date(), workDaysForVersion(nextVersion), holidays)
+  const dueDate = addWorkDays(baseDate, workDaysForVersion(nextVersion), holidays)
   const dueDateStr = dueDate.toISOString().split('T')[0]
 
   // Upsert: if a version row already exists (e.g. after a manual revert), reset its due date

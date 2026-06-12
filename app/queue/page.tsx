@@ -207,14 +207,17 @@ function QueueRow({ project, isAdmin, editorName }: {
             <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">
               {project.client_name || '—'}
             </span>
+            {project.filming_date && (
+              <span className="text-xs text-th/40">
+                {formatDate(project.filming_date)}
+                {project.filming_time && <span className="ml-1">{project.filming_time.split(' - ')[0]}</span>}
+              </span>
+            )}
             <StatusBadge status={project.status} />
             <span className="text-xs text-th/30">V{project.current_version}</span>
           </div>
           <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5">
             {project.type === 'episode' ? 'Episode' : `Highlight #${project.highlight_number}`}
-            {project.filming_date && (
-              <><span className="text-th/15">·</span>Filmed {formatDate(project.filming_date)}</>
-            )}
             <span className="text-th/15">·</span>
             <span className="font-medium text-th/60">{editorName}</span>
           </div>

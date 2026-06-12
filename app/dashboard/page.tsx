@@ -264,10 +264,16 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
       <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
         <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
         <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">
               {project.client_name || '—'}
             </span>
+            {project.filming_date && (
+              <span className="text-xs text-th/40">
+                {formatDate(project.filming_date)}
+                {project.filming_time && <span className="ml-1">{project.filming_time.split(' - ')[0]}</span>}
+              </span>
+            )}
             <span className="text-xs text-th/30">V{project.current_version}</span>
           </div>
           <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5">
@@ -305,6 +311,12 @@ function InProgressRow({ project, isAdmin, editorName }: {
             <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">
               {project.client_name || '—'}
             </span>
+            {project.filming_date && (
+              <span className="text-xs text-th/40">
+                {formatDate(project.filming_date)}
+                {project.filming_time && <span className="ml-1">{project.filming_time.split(' - ')[0]}</span>}
+              </span>
+            )}
             {project.status !== 'in_client_review' && (
               <StatusBadge status={project.status} />
             )}

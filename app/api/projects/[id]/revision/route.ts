@@ -29,14 +29,16 @@ export async function POST(
   const dueDate = addWorkDays(new Date(), workDaysForVersion(nextVersion), holidays)
   const dueDateStr = dueDate.toISOString().split('T')[0]
 
+  // Upsert: if a version row already exists (e.g. after a manual revert), reset its due date
   const { error: versionError } = await supabase
     .from('versions')
-    .insert({
+    .upsert({
       project_id:     id,
       version_number: nextVersion,
       label:          versionLabel(nextVersion),
       due_date:       dueDateStr,
-    })
+      done_date:      null,
+    }, { onConflict: 'project_id,version_number' })
 
   if (versionError) return NextResponse.json({ error: versionError.message }, { status: 500 })
 

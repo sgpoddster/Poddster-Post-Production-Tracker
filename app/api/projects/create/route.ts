@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   const rows = []
 
   // Episode rows: {jobId}E1, {jobId}E2, …
-  for (let i = 1; i <= Math.max(1, Number(episode_count)); i++) {
+  for (let i = 1; i <= Number(episode_count); i++) {
     rows.push({
       job_id:            jobId,
       internal_id:       `${jobId}E${i}`,

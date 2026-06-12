@@ -15,9 +15,14 @@ export default function StartRevisionButton({
 
   async function startRevision() {
     setLoading(true)
-    await fetch(`/api/projects/${projectId}/revision`, { method: 'POST' })
-    router.refresh()
+    const res = await fetch(`/api/projects/${projectId}/revision`, { method: 'POST' })
     setLoading(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(`Could not start revision: ${data.error ?? res.status}`)
+      return
+    }
+    router.refresh()
   }
 
   return (

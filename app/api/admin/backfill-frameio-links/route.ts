@@ -48,7 +48,25 @@ function getLink(file: Record<string, unknown>): string {
   return ''
 }
 
-// Scan a folder up to maxDepth levels, returning all files found
+async function scanVersionStack(
+  stackId: string, token: string,
+  files: Array<{ id: string; name: string; file: Record<string, unknown> }>
+): Promise<void> {
+  let url: string | null = `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/version_stacks/${stackId}/children`
+  while (url) {
+    let json: Record<string, unknown>
+    try { json = await frameGet(url, token) } catch { break }
+    for (const item of (json.data as Record<string, unknown>[]) ?? []) {
+      if (item.type === 'file') {
+        files.push({ id: item.id as string, name: (item.name as string) ?? '', file: item })
+      }
+    }
+    const next = (json.links as Record<string, unknown> | undefined)?.next as string | undefined
+    url = next ? (next.startsWith('http') ? next : `https://api.frame.io${next}`) : null
+  }
+}
+
+// Scan a folder up to maxDepth levels, returning all files found (including inside version stacks)
 async function scanFolder(
   folderId: string, token: string, depth: number, maxDepth: number,
   files: Array<{ id: string; name: string; file: Record<string, unknown> }>
@@ -63,6 +81,8 @@ async function scanFolder(
       const type = item.type as string
       if (type === 'file') {
         files.push({ id: item.id as string, name: (item.name as string) ?? '', file: item })
+      } else if (type === 'version_stack') {
+        await scanVersionStack(item.id as string, token, files)
       } else if (type === 'folder' && depth < maxDepth) {
         await scanFolder(item.id as string, token, depth + 1, maxDepth, files)
       }
@@ -103,7 +123,8 @@ export async function POST() {
     const projRaw = v.projects
     const proj = (Array.isArray(projRaw) ? projRaw[0] : projRaw) as { internal_id: string } | null
     if (proj?.internal_id) {
-      lookup.set(`${proj.internal_id}_V${v.version_number}`, v.id)
+      const cleanId = proj.internal_id.trim()
+      lookup.set(`${cleanId}_V${v.version_number}`, v.id)
     }
   }
 

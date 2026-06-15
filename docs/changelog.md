@@ -4,11 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
-## 2026-06-15 — Manual Frame.io link editor on version rows
+## 2026-06-15 — Frame.io backfill tool
 
 ### Added
-- **Frame.io link editor** — every version row in the project detail page now has an inline pencil icon (`✎`) to manually paste a Frame.io link. If a link already exists (set automatically by the webhook or manually), it shows as a "View in Frame.io ↗" link with an edit pencil next to it. If no link exists, a faint pencil is shown to add one.
-- `/api/projects/[id]/version/frameio-link` PATCH endpoint — updates `frameio_link` on any version row, open to all logged-in users.
+- **Frame.io backfill** — admin-only tool under Admin → Tools tab. Scans all Frame.io projects/folders and populates `frameio_link` on any delivered version rows that don't have one yet. Safe to run multiple times (only touches rows with a `done_date` and no existing link). Constructs `app.frame.io/projects/{projectId}/files/{fileId}` URLs directly from the scan, matching by internal ID in the version stack name.
+- Matches version stacks by exact `INTERNALID_Vn` key first, falls back to `INTERNALID` alone when no version suffix is in the stack name.
+
+### Changed
+- Removed manual Frame.io link editor from version rows — links now come from the webhook (live) or the backfill tool (historical). Deleted `FrameioLinkEditor.tsx` and the `/api/projects/[id]/version/frameio-link` PATCH route.
 
 ---
 

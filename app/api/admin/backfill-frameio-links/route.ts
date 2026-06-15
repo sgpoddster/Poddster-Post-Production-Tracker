@@ -129,7 +129,7 @@ export async function POST() {
 
   // Sample of filenames found (for debugging)
   const sampleFiles = allFiles.slice(0, 20).map(f => f.name)
-  const lookupKeys = [...lookup.keys()]
+  const lookupKeys = Array.from(lookup.keys())
 
   // Match files to version rows and update
   let updated = 0

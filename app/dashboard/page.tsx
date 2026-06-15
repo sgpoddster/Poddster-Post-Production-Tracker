@@ -261,8 +261,18 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
   return (
     <div className="flex items-center px-3 sm:px-5 py-3 sm:py-3.5 gap-3 sm:gap-4 hover:bg-th/[0.02] transition-colors group opacity-60 hover:opacity-80">
       <span className="hidden sm:block w-3 shrink-0" />
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
+      {completedVer?.frameio_link ? (
+        <a href={completedVer.frameio_link} target="_blank" rel="noopener noreferrer"
+          className="hidden sm:block shrink-0 w-20"
+          onClick={e => e.stopPropagation()}>
+          <code className="text-sm font-mono text-brand-red/60 hover:text-brand-red transition-colors underline underline-offset-2 decoration-dotted">
+            {project.internal_id}
+          </code>
+        </a>
+      ) : (
         <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
+      )}
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">
@@ -304,8 +314,18 @@ function InProgressRow({ project, isAdmin, editorName }: {
     // Spacer matches the JobGroup chevron so client names stay in the same column.
     <div className={`flex items-center px-3 sm:px-5 py-3.5 sm:py-4 gap-3 sm:gap-4 hover:bg-th/[0.03] transition-colors group ${overdue ? 'border-l-2 border-l-red-500/70' : ''}`}>
       <span className="hidden sm:block w-3 shrink-0" />
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
+      {currentVer?.frameio_link ? (
+        <a href={currentVer.frameio_link} target="_blank" rel="noopener noreferrer"
+          className="hidden sm:block shrink-0 w-20"
+          onClick={e => e.stopPropagation()}>
+          <code className="text-sm font-mono text-brand-red/60 hover:text-brand-red transition-colors underline underline-offset-2 decoration-dotted">
+            {project.internal_id}
+          </code>
+        </a>
+      ) : (
         <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
+      )}
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">

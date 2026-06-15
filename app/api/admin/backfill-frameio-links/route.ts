@@ -4,7 +4,8 @@ import { getUserProfile } from '@/lib/auth'
 
 const ADOBE_CLIENT_ID = '73aff1fed325400292f5abc97ee331b8'
 const ADOBE_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3'
-const ACCOUNT_ID = 'c385b04f-c1b3-496b-93fd-70388b468756'
+const ACCOUNT_ID   = 'c385b04f-c1b3-496b-93fd-70388b468756'
+const WORKSPACE_ID = '35d53c79-6d1e-42a3-aae2-7aabf1260e48'
 
 async function getAccessToken(): Promise<string> {
   const res = await fetch(ADOBE_TOKEN_URL, {
@@ -109,9 +110,9 @@ export async function POST() {
   // Scan Frame.io
   const token = await getAccessToken()
 
-  // List all projects
+  // List all projects in the workspace
   const projectsJson = await frameGet(
-    `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/projects?page_size=100`,
+    `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/workspaces/${WORKSPACE_ID}/projects?page_size=100`,
     token
   )
   const projects = (projectsJson.data as Record<string, unknown>[]) ?? []

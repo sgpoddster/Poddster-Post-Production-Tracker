@@ -118,11 +118,18 @@ export async function POST() {
   const projects = (projectsJson.data as Record<string, unknown>[]) ?? []
 
   const allFiles: Array<{ id: string; name: string; file: Record<string, unknown> }> = []
+  const projectDebug: Array<{ name: string; id: string; rootFolderId: string | null }> = []
+
   for (const proj of projects) {
-    const rootFolderId = proj.root_folder_id as string | undefined
+    const rootFolderId = (proj.root_folder_id ?? proj.root_asset_id) as string | undefined
+    projectDebug.push({ name: proj.name as string, id: proj.id as string, rootFolderId: rootFolderId ?? null })
     if (!rootFolderId) continue
     await scanFolder(rootFolderId, token, 0, 3, allFiles)
   }
+
+  // Sample of filenames found (for debugging)
+  const sampleFiles = allFiles.slice(0, 20).map(f => f.name)
+  const lookupKeys = [...lookup.keys()]
 
   // Match files to version rows and update
   let updated = 0
@@ -150,11 +157,11 @@ export async function POST() {
 
     await svc.from('versions').update({ frameio_link: link }).eq('id', versionId)
     results.push({ internalId: parsed.internalId, version: parsed.version, link })
-    lookup.delete(key) // prevent double-update
+    lookup.delete(key)
     updated++
   }
 
-    return NextResponse.json({ updated, results })
+    return NextResponse.json({ updated, results, debug: { projects: projectDebug, totalFiles: allFiles.length, sampleFiles, lookupKeys } })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

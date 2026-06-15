@@ -48,25 +48,9 @@ function getLink(file: Record<string, unknown>): string {
   return ''
 }
 
-async function scanVersionStack(
-  stackId: string, token: string,
-  files: Array<{ id: string; name: string; file: Record<string, unknown> }>
-): Promise<void> {
-  let url: string | null = `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/version_stacks/${stackId}/children`
-  while (url) {
-    let json: Record<string, unknown>
-    try { json = await frameGet(url, token) } catch { break }
-    for (const item of (json.data as Record<string, unknown>[]) ?? []) {
-      if (item.type === 'file') {
-        files.push({ id: item.id as string, name: (item.name as string) ?? '', file: item })
-      }
-    }
-    const next = (json.links as Record<string, unknown> | undefined)?.next as string | undefined
-    url = next ? (next.startsWith('http') ? next : `https://api.frame.io${next}`) : null
-  }
-}
-
-// Scan a folder up to maxDepth levels, returning all files found (including inside version stacks)
+// Scan a folder up to maxDepth levels.
+// version_stack items are matched by stack name (which carries the internal ID),
+// using head_version.id for the player link — not by scanning the children.
 async function scanFolder(
   folderId: string, token: string, depth: number, maxDepth: number,
   files: Array<{ id: string; name: string; file: Record<string, unknown> }>
@@ -79,10 +63,14 @@ async function scanFolder(
     const items = (json.data as Record<string, unknown>[]) ?? []
     for (const item of items) {
       const type = item.type as string
+      const name = (item.name as string) ?? ''
       if (type === 'file') {
-        files.push({ id: item.id as string, name: (item.name as string) ?? '', file: item })
+        files.push({ id: item.id as string, name, file: item })
       } else if (type === 'version_stack') {
-        await scanVersionStack(item.id as string, token, files)
+        // Use the stack name for internal_id matching; head_version.id for the player link
+        const headVersion = item.head_version as Record<string, unknown> | undefined
+        const headId = (headVersion?.id as string) ?? (item.id as string)
+        files.push({ id: headId, name, file: item })
       } else if (type === 'folder' && depth < maxDepth) {
         await scanFolder(item.id as string, token, depth + 1, maxDepth, files)
       }

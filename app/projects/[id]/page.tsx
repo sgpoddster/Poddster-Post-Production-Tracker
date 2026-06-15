@@ -16,7 +16,6 @@ import DueDateEditor from './DueDateEditor'
 import CopyFilenameButton from './CopyFilenameButton'
 import CopyFolderButton from './CopyFolderButton'
 import CopyPortalLinkButton from './CopyPortalLinkButton'
-import FrameioLinkEditor from './FrameioLinkEditor'
 import { getUserProfile } from '@/lib/auth'
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
@@ -276,11 +275,19 @@ function VersionRow({ version, isCurrent, projectId, isAdmin }: {
             <span>Uploaded {new Date(version.frameio_uploaded_at).toLocaleString('en-SG', { timeZone: 'Asia/Singapore', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
           )}
         </div>
-        <FrameioLinkEditor
-          projectId={projectId}
-          versionId={version.id}
-          frameioLink={version.frameio_link}
-        />
+        {version.frameio_link && (
+          <a
+            href={version.frameio_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-brand-red/70 hover:text-brand-red transition-colors"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            View in Frame.io
+          </a>
+        )}
       </div>
     </div>
   )

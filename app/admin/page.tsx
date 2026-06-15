@@ -4,6 +4,7 @@ import { getUserProfile } from '@/lib/auth'
 import RoleToggle from './RoleToggle'
 import ClientManager from './ClientManager'
 import HolidayManager from './HolidayManager'
+import FrameioBackfill from './FrameioBackfill'
 
 export default async function AdminPage({
   searchParams,
@@ -17,8 +18,8 @@ export default async function AdminPage({
   const profile = await getUserProfile()
   if (profile?.role !== 'admin') redirect('/dashboard')
 
-  const tab = ['clients', 'holidays'].includes(searchParams?.tab ?? '')
-    ? (searchParams!.tab as 'clients' | 'holidays')
+  const tab = ['clients', 'holidays', 'tools'].includes(searchParams?.tab ?? '')
+    ? (searchParams!.tab as 'clients' | 'holidays' | 'tools')
     : 'team'
 
   const svc = createServiceClient()
@@ -50,6 +51,9 @@ export default async function AdminPage({
         <TabLink href="/admin?tab=holidays" active={tab === 'holidays'}>
           Closed Days
           <span className="ml-1.5 text-th/25 text-xs">{(holidays ?? []).length}</span>
+        </TabLink>
+        <TabLink href="/admin?tab=tools" active={tab === 'tools'}>
+          Tools
         </TabLink>
       </div>
 
@@ -84,6 +88,13 @@ export default async function AdminPage({
       {tab === 'holidays' && (
         <section className="space-y-4">
           <HolidayManager initial={holidays ?? []} />
+        </section>
+      )}
+
+      {/* Tools tab */}
+      {tab === 'tools' && (
+        <section className="space-y-4">
+          <FrameioBackfill />
         </section>
       )}
 

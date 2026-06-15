@@ -44,7 +44,7 @@ function parseFilename(name: string): { internalId: string; version: number | nu
 // Carries projectId so we can construct the Frame.io player URL directly.
 async function scanFolder(
   folderId: string, token: string, depth: number, maxDepth: number, projectId: string,
-  files: Array<{ id: string; name: string; playerUrl: string }>
+  files: Array<{ id: string; name: string; playerUrl: string; rawItem: Record<string, unknown> }>
 ): Promise<void> {
   if (depth > maxDepth) return
   let url: string | null = `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${folderId}/children`
@@ -57,12 +57,11 @@ async function scanFolder(
       const name = (item.name as string) ?? ''
       if (type === 'file') {
         const fileId = item.id as string
-        files.push({ id: fileId, name, playerUrl: `https://app.frame.io/projects/${projectId}/files/${fileId}` })
+        files.push({ id: fileId, name, playerUrl: `https://app.frame.io/projects/${projectId}/files/${fileId}`, rawItem: item })
       } else if (type === 'version_stack') {
-        // Use stack name for internal_id matching; head_version.id for the URL
         const headVersion = item.head_version as Record<string, unknown> | undefined
         const headId = (headVersion?.id as string) ?? (item.id as string)
-        files.push({ id: headId, name, playerUrl: `https://app.frame.io/projects/${projectId}/files/${headId}` })
+        files.push({ id: headId, name, playerUrl: `https://app.frame.io/projects/${projectId}/files/${headId}`, rawItem: item })
       } else if (type === 'folder' && depth < maxDepth) {
         await scanFolder(item.id as string, token, depth + 1, maxDepth, projectId, files)
       }
@@ -71,6 +70,38 @@ async function scanFolder(
     const next = links?.next as string | undefined
     url = next ? (next.startsWith('http') ? next : `https://api.frame.io${next}`) : null
   }
+}
+
+// Debug: GET /api/admin/backfill-frameio-links?stackId=xxx&fileId=yyy&projectId=zzz
+// Returns raw Frame.io API responses so we can find the correct player URL field.
+export async function GET(req: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const profile = await getUserProfile()
+  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { searchParams } = new URL(req.url)
+  const stackId   = searchParams.get('stackId')
+  const fileId    = searchParams.get('fileId')
+  const projectId = searchParams.get('projectId')
+
+  const token = await getAccessToken()
+  const results: Record<string, unknown> = {}
+
+  if (stackId) {
+    try { results.stackObject = await frameGet(`https://api.frame.io/v4/accounts/${ACCOUNT_ID}/files/${stackId}`, token) } catch(e) { results.stackError = String(e) }
+    try { results.stackAsset = await frameGet(`https://api.frame.io/v4/accounts/${ACCOUNT_ID}/assets/${stackId}`, token) } catch(e) { results.stackAssetError = String(e) }
+  }
+  if (fileId) {
+    try { results.fileObject = await frameGet(`https://api.frame.io/v4/accounts/${ACCOUNT_ID}/files/${fileId}`, token) } catch(e) { results.fileError = String(e) }
+    try { results.fileAsset = await frameGet(`https://api.frame.io/v4/accounts/${ACCOUNT_ID}/assets/${fileId}`, token) } catch(e) { results.fileAssetError = String(e) }
+  }
+  if (projectId) {
+    try { results.projectObject = await frameGet(`https://api.frame.io/v4/accounts/${ACCOUNT_ID}/projects/${projectId}`, token) } catch(e) { results.projectError = String(e) }
+  }
+
+  return NextResponse.json(results)
 }
 
 export async function POST() {
@@ -129,7 +160,7 @@ export async function POST() {
     projectsUrl = next ? (next.startsWith('http') ? next : `https://api.frame.io${next}`) : null
   }
 
-  const allFiles: Array<{ id: string; name: string; playerUrl: string }> = []
+  const allFiles: Array<{ id: string; name: string; playerUrl: string; rawItem: Record<string, unknown> }> = []
 
   for (const proj of allProjects) {
     const rootFolderId = (proj.root_folder_id ?? proj.root_asset_id) as string | undefined
@@ -140,25 +171,26 @@ export async function POST() {
   // Match files to version rows and update
   let updated = 0
   const results: Array<{ internalId: string; version: number | null; link: string }> = []
+  let firstMatchRaw: Record<string, unknown> | null = null
 
-  for (const { name, playerUrl } of allFiles) {
+  for (const { name, playerUrl, rawItem } of allFiles) {
     const parsed = parseFilename(name)
     if (!parsed) continue
-    // Try exact version match first, then fall back to any unlinked version for that internal_id
     const versionId = parsed.version != null
       ? (lookupExact.get(`${parsed.internalId}_V${parsed.version}`) ?? lookupById.get(parsed.internalId))
       : lookupById.get(parsed.internalId)
     if (!versionId) continue
 
+    if (!firstMatchRaw) firstMatchRaw = rawItem  // capture first match for debugging
+
     await svc.from('versions').update({ frameio_link: playerUrl }).eq('id', versionId)
     results.push({ internalId: parsed.internalId, version: parsed.version, link: playerUrl })
-    // Remove from both maps to prevent double-update
     if (parsed.version != null) lookupExact.delete(`${parsed.internalId}_V${parsed.version}`)
     lookupById.delete(parsed.internalId)
     updated++
   }
 
-    return NextResponse.json({ updated, results })
+    return NextResponse.json({ updated, results, debug: { firstMatchRaw } })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

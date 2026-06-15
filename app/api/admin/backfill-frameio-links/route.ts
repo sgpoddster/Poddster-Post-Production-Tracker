@@ -24,8 +24,10 @@ async function getAccessToken(): Promise<string> {
 
 async function frameGet(url: string, token: string): Promise<Record<string, unknown>> {
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) throw new Error(`Frame.io ${res.status}: ${url}`)
-  return res.json()
+  const text = await res.text()
+  if (!res.ok) throw new Error(`Frame.io ${res.status} at ${url}: ${text.slice(0, 200)}`)
+  if (!text) return {}
+  return JSON.parse(text)
 }
 
 // Parse filename like "A3F2BH1 230pm 7th May 2026 - V2.mp4"
@@ -77,6 +79,8 @@ export async function POST() {
 
   const profile = await getUserProfile()
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  try {
 
   const svc = createServiceClient()
 
@@ -149,5 +153,8 @@ export async function POST() {
     updated++
   }
 
-  return NextResponse.json({ updated, results })
+    return NextResponse.json({ updated, results })
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
 }

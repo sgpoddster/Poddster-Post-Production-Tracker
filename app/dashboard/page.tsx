@@ -263,8 +263,7 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
       <span className="hidden sm:block w-3 shrink-0" />
       {completedVer?.frameio_link ? (
         <a href={completedVer.frameio_link} target="_blank" rel="noopener noreferrer"
-          className="hidden sm:block shrink-0 w-20"
-          onClick={e => e.stopPropagation()}>
+          className="hidden sm:block shrink-0 w-20">
           <code className="text-sm font-mono text-brand-red/60 hover:text-brand-red transition-colors underline underline-offset-2 decoration-dotted">
             {project.internal_id}
           </code>
@@ -316,8 +315,7 @@ function InProgressRow({ project, isAdmin, editorName }: {
       <span className="hidden sm:block w-3 shrink-0" />
       {currentVer?.frameio_link ? (
         <a href={currentVer.frameio_link} target="_blank" rel="noopener noreferrer"
-          className="hidden sm:block shrink-0 w-20"
-          onClick={e => e.stopPropagation()}>
+          className="hidden sm:block shrink-0 w-20">
           <code className="text-sm font-mono text-brand-red/60 hover:text-brand-red transition-colors underline underline-offset-2 decoration-dotted">
             {project.internal_id}
           </code>

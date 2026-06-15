@@ -130,21 +130,12 @@ export async function POST() {
   }
 
   const allFiles: Array<{ id: string; name: string; playerUrl: string }> = []
-  const projectDebug: Array<{ name: string; id: string; rootFolderId: string | null }> = []
 
   for (const proj of allProjects) {
     const rootFolderId = (proj.root_folder_id ?? proj.root_asset_id) as string | undefined
-    projectDebug.push({ name: proj.name as string, id: proj.id as string, rootFolderId: rootFolderId ?? null })
     if (!rootFolderId) continue
     await scanFolder(rootFolderId, token, 0, 3, proj.id as string, allFiles)
   }
-
-  // All filenames that matched the internal_id regex (for debugging)
-  const parsedFiles = allFiles
-    .map(f => ({ name: f.name, parsed: parseFilename(f.name) }))
-    .filter(f => f.parsed !== null)
-  const sampleFiles = allFiles.slice(0, 20).map(f => f.name)
-  const lookupKeys = Array.from(lookupExact.keys())
 
   // Match files to version rows and update
   let updated = 0
@@ -167,7 +158,7 @@ export async function POST() {
     updated++
   }
 
-    return NextResponse.json({ updated, results, debug: { projects: projectDebug, totalFiles: allFiles.length, sampleFiles, parsedFiles, lookupKeys } })
+    return NextResponse.json({ updated, results })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

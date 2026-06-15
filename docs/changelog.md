@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-15 — Manual Frame.io link editor on version rows
+
+### Added
+- **Frame.io link editor** — every version row in the project detail page now has an inline pencil icon (`✎`) to manually paste a Frame.io link. If a link already exists (set automatically by the webhook or manually), it shows as a "View in Frame.io ↗" link with an edit pencil next to it. If no link exists, a faint pencil is shown to add one.
+- `/api/projects/[id]/version/frameio-link` PATCH endpoint — updates `frameio_link` on any version row, open to all logged-in users.
+
+---
+
 ## 2026-06-12 — Fun fact of the day
 
 ### Added

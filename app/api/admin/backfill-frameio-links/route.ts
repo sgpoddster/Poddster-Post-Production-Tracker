@@ -40,21 +40,11 @@ function parseFilename(name: string): { internalId: string; version: number | nu
   return { internalId: token.toUpperCase(), version: vMatch ? parseInt(vMatch[1]) : null }
 }
 
-function getLink(file: Record<string, unknown>): string {
-  const paths = ['_links.player.href', 'links.player.href', 'player_url', 'review_url', 'review_link']
-  for (const p of paths) {
-    const v = p.split('.').reduce((o: unknown, k) => o && typeof o === 'object' ? (o as Record<string,unknown>)[k] : undefined, file)
-    if (v && typeof v === 'string') return v
-  }
-  return ''
-}
-
 // Scan a folder up to maxDepth levels.
-// version_stack items are matched by stack name (which carries the internal ID),
-// using head_version.id for the player link — not by scanning the children.
+// Carries projectId so we can construct the Frame.io player URL directly.
 async function scanFolder(
-  folderId: string, token: string, depth: number, maxDepth: number,
-  files: Array<{ id: string; name: string; file: Record<string, unknown> }>
+  folderId: string, token: string, depth: number, maxDepth: number, projectId: string,
+  files: Array<{ id: string; name: string; playerUrl: string }>
 ): Promise<void> {
   if (depth > maxDepth) return
   let url: string | null = `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${folderId}/children`
@@ -66,14 +56,15 @@ async function scanFolder(
       const type = item.type as string
       const name = (item.name as string) ?? ''
       if (type === 'file') {
-        files.push({ id: item.id as string, name, file: item })
+        const fileId = item.id as string
+        files.push({ id: fileId, name, playerUrl: `https://app.frame.io/projects/${projectId}/files/${fileId}` })
       } else if (type === 'version_stack') {
-        // Use the stack name for internal_id matching; head_version.id for the player link
+        // Use stack name for internal_id matching; head_version.id for the URL
         const headVersion = item.head_version as Record<string, unknown> | undefined
         const headId = (headVersion?.id as string) ?? (item.id as string)
-        files.push({ id: headId, name, file: item })
+        files.push({ id: headId, name, playerUrl: `https://app.frame.io/projects/${projectId}/files/${headId}` })
       } else if (type === 'folder' && depth < maxDepth) {
-        await scanFolder(item.id as string, token, depth + 1, maxDepth, files)
+        await scanFolder(item.id as string, token, depth + 1, maxDepth, projectId, files)
       }
     }
     const links = json.links as Record<string, unknown> | undefined
@@ -132,14 +123,14 @@ export async function POST() {
   )
   const projects = (projectsJson.data as Record<string, unknown>[]) ?? []
 
-  const allFiles: Array<{ id: string; name: string; file: Record<string, unknown> }> = []
+  const allFiles: Array<{ id: string; name: string; playerUrl: string }> = []
   const projectDebug: Array<{ name: string; id: string; rootFolderId: string | null }> = []
 
   for (const proj of projects) {
     const rootFolderId = (proj.root_folder_id ?? proj.root_asset_id) as string | undefined
     projectDebug.push({ name: proj.name as string, id: proj.id as string, rootFolderId: rootFolderId ?? null })
     if (!rootFolderId) continue
-    await scanFolder(rootFolderId, token, 0, 3, allFiles)
+    await scanFolder(rootFolderId, token, 0, 3, proj.id as string, allFiles)
   }
 
   // All filenames that matched the internal_id regex (for debugging)
@@ -153,7 +144,7 @@ export async function POST() {
   let updated = 0
   const results: Array<{ internalId: string; version: number | null; link: string }> = []
 
-  for (const { name, id: fileId, file } of allFiles) {
+  for (const { name, playerUrl } of allFiles) {
     const parsed = parseFilename(name)
     if (!parsed) continue
     // Try exact version match first, then fall back to any unlinked version for that internal_id
@@ -162,21 +153,8 @@ export async function POST() {
       : lookupById.get(parsed.internalId)
     if (!versionId) continue
 
-    // Try to get link from file object; if not present, fetch full file record
-    let link = getLink(file)
-    if (!link) {
-      try {
-        const full = await frameGet(
-          `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/files/${fileId}`,
-          token
-        )
-        link = getLink((full.data ?? full) as Record<string, unknown>)
-      } catch { /* skip */ }
-    }
-    if (!link) continue
-
-    await svc.from('versions').update({ frameio_link: link }).eq('id', versionId)
-    results.push({ internalId: parsed.internalId, version: parsed.version, link })
+    await svc.from('versions').update({ frameio_link: playerUrl }).eq('id', versionId)
+    results.push({ internalId: parsed.internalId, version: parsed.version, link: playerUrl })
     // Remove from both maps to prevent double-update
     if (parsed.version != null) lookupExact.delete(`${parsed.internalId}_V${parsed.version}`)
     lookupById.delete(parsed.internalId)

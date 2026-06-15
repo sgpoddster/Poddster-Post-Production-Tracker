@@ -142,7 +142,10 @@ export async function POST() {
     await scanFolder(rootFolderId, token, 0, 3, allFiles)
   }
 
-  // Sample of filenames found (for debugging)
+  // All filenames that matched the internal_id regex (for debugging)
+  const parsedFiles = allFiles
+    .map(f => ({ name: f.name, parsed: parseFilename(f.name) }))
+    .filter(f => f.parsed !== null)
   const sampleFiles = allFiles.slice(0, 20).map(f => f.name)
   const lookupKeys = Array.from(lookupExact.keys())
 
@@ -180,7 +183,7 @@ export async function POST() {
     updated++
   }
 
-    return NextResponse.json({ updated, results, debug: { projects: projectDebug, totalFiles: allFiles.length, sampleFiles, lookupKeys } })
+    return NextResponse.json({ updated, results, debug: { projects: projectDebug, totalFiles: allFiles.length, sampleFiles, parsedFiles, lookupKeys } })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

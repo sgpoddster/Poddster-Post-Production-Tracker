@@ -116,17 +116,23 @@ export async function POST() {
   // Scan Frame.io
   const token = await getAccessToken()
 
-  // List all projects in the workspace
-  const projectsJson = await frameGet(
-    `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/workspaces/${WORKSPACE_ID}/projects?page_size=100`,
-    token
-  )
-  const projects = (projectsJson.data as Record<string, unknown>[]) ?? []
+  // List ALL projects in the workspace (paginate)
+  const allProjects: Record<string, unknown>[] = []
+  let projectsUrl: string | null =
+    `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/workspaces/${WORKSPACE_ID}/projects?page_size=50`
+  while (projectsUrl) {
+    const page = await frameGet(projectsUrl, token)
+    const items = (page.data as Record<string, unknown>[]) ?? []
+    allProjects.push(...items)
+    const links = page.links as Record<string, unknown> | undefined
+    const next = links?.next as string | undefined
+    projectsUrl = next ? (next.startsWith('http') ? next : `https://api.frame.io${next}`) : null
+  }
 
   const allFiles: Array<{ id: string; name: string; playerUrl: string }> = []
   const projectDebug: Array<{ name: string; id: string; rootFolderId: string | null }> = []
 
-  for (const proj of projects) {
+  for (const proj of allProjects) {
     const rootFolderId = (proj.root_folder_id ?? proj.root_asset_id) as string | undefined
     projectDebug.push({ name: proj.name as string, id: proj.id as string, rootFolderId: rootFolderId ?? null })
     if (!rootFolderId) continue

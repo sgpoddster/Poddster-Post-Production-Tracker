@@ -161,6 +161,7 @@ export async function POST(req: NextRequest) {
 
     // Extract Frame.io player link and upload timestamp from the file object
     const frameioLink = file ? getAny(file, [
+      'view_url',
       '_links.player.href',
       'links.player.href',
       'player_url',

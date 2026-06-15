@@ -85,11 +85,11 @@ export async function POST() {
 
   const svc = createServiceClient()
 
-  // Get all versions that are delivered but have no Frame.io link
+  // Get all versions with no Frame.io link (regardless of done_date — many older
+  // versions were delivered before done_date tracking existed)
   const { data: versions, error: vErr } = await svc
     .from('versions')
     .select('id, version_number, project_id, projects(internal_id)')
-    .not('done_date', 'is', null)
     .is('frameio_link', null)
 
   if (vErr) return NextResponse.json({ error: vErr.message }, { status: 500 })

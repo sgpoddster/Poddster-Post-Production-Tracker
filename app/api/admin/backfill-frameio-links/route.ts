@@ -32,11 +32,12 @@ async function frameGet(url: string, token: string): Promise<Record<string, unkn
 }
 
 // Parse filename like "A3F2BH1 230pm 7th May 2026 - V2.mp4"
-function parseFilename(name: string): { internalId: string; version: number } | null {
+// version is null when not found in the name — caller falls back to any matching version
+function parseFilename(name: string): { internalId: string; version: number | null } | null {
   const token = name.trim().split(/\s+/)[0]
   if (!/^[A-F][A-F0-9]{4}(E\d*|H\d+)$/i.test(token)) return null
   const vMatch = name.match(/[-\s]V(\d+)/i)
-  return { internalId: token.toUpperCase(), version: vMatch ? parseInt(vMatch[1]) : 1 }
+  return { internalId: token.toUpperCase(), version: vMatch ? parseInt(vMatch[1]) : null }
 }
 
 function getLink(file: Record<string, unknown>): string {
@@ -105,14 +106,19 @@ export async function POST() {
     return NextResponse.json({ updated: 0, message: 'Nothing to backfill' })
   }
 
-  // Build lookup: "INTERNALID_V2" → versionId
-  const lookup = new Map<string, string>()
+  // Build two lookups:
+  // 1. exact: "INTERNALID_V6" → versionId  (when version is in the filename)
+  // 2. byId:  "INTERNALID"    → versionId  (fallback when filename has no version suffix)
+  const lookupExact = new Map<string, string>()
+  const lookupById  = new Map<string, string>()
   for (const v of versions) {
     const projRaw = v.projects
     const proj = (Array.isArray(projRaw) ? projRaw[0] : projRaw) as { internal_id: string } | null
     if (proj?.internal_id) {
       const cleanId = proj.internal_id.trim()
-      lookup.set(`${cleanId}_V${v.version_number}`, v.id)
+      lookupExact.set(`${cleanId}_V${v.version_number}`, v.id)
+      // Keep only the highest version per internal_id as the fallback
+      if (!lookupById.has(cleanId)) lookupById.set(cleanId, v.id)
     }
   }
 
@@ -138,17 +144,19 @@ export async function POST() {
 
   // Sample of filenames found (for debugging)
   const sampleFiles = allFiles.slice(0, 20).map(f => f.name)
-  const lookupKeys = Array.from(lookup.keys())
+  const lookupKeys = Array.from(lookupExact.keys())
 
   // Match files to version rows and update
   let updated = 0
-  const results: Array<{ internalId: string; version: number; link: string }> = []
+  const results: Array<{ internalId: string; version: number | null; link: string }> = []
 
   for (const { name, id: fileId, file } of allFiles) {
     const parsed = parseFilename(name)
     if (!parsed) continue
-    const key = `${parsed.internalId}_V${parsed.version}`
-    const versionId = lookup.get(key)
+    // Try exact version match first, then fall back to any unlinked version for that internal_id
+    const versionId = parsed.version != null
+      ? (lookupExact.get(`${parsed.internalId}_V${parsed.version}`) ?? lookupById.get(parsed.internalId))
+      : lookupById.get(parsed.internalId)
     if (!versionId) continue
 
     // Try to get link from file object; if not present, fetch full file record
@@ -166,7 +174,9 @@ export async function POST() {
 
     await svc.from('versions').update({ frameio_link: link }).eq('id', versionId)
     results.push({ internalId: parsed.internalId, version: parsed.version, link })
-    lookup.delete(key)
+    // Remove from both maps to prevent double-update
+    if (parsed.version != null) lookupExact.delete(`${parsed.internalId}_V${parsed.version}`)
+    lookupById.delete(parsed.internalId)
     updated++
   }
 

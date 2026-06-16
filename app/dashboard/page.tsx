@@ -13,16 +13,38 @@ import { SearchBar } from './SearchBar'
 import { ProducerFilter } from './ProducerFilter'
 import { ClientFilter } from '../queue/ClientFilter'
 import { CollapsibleSection } from './CollapsibleSection'
+import { SortControl } from './SortControl'
 import PendingTriggerList from './PendingTriggerList'
 import MarkDoneButton from '../queue/MarkDoneButton'
 import CompleteButton from '@/components/CompleteButton'
 import UndoButton from '@/components/UndoButton'
 import OnHoldButton from '@/components/OnHoldButton'
 
+// Sort helpers
+function sortSection(
+  ps: Project[],
+  by: string,
+  dateField: (p: Project) => string,
+  editorNames: Record<string, string>
+): Project[] {
+  return [...ps].sort((a, b) => {
+    if (by === 'name') return (a.client_name ?? '').localeCompare(b.client_name ?? '')
+    if (by === 'producer') {
+      return formatAssignee(a.assigned_editor, a.editor, editorNames)
+        .localeCompare(formatAssignee(b.assigned_editor, b.editor, editorNames))
+    }
+    const da = dateField(a), db = dateField(b)
+    return da < db ? -1 : da > db ? 1 : 0
+  })
+}
+const currentVerDueDate  = (p: Project) => (p.versions ?? []).find(v => v.version_number === p.current_version)?.due_date ?? ''
+const currentVerDoneDate = (p: Project) => (p.versions ?? []).find(v => v.version_number === p.current_version)?.done_date ?? ''
+const latestDoneDate     = (p: Project) => [...(p.versions ?? [])].sort((a, b) => b.version_number - a.version_number).find(v => v.done_date)?.done_date ?? ''
+
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams?: { q?: string; editors?: string; client?: string }
+  searchParams?: { q?: string; editors?: string; client?: string; s_draft?: string; s_ip?: string; s_cr?: string; s_done?: string }
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -104,10 +126,16 @@ export default async function DashboardPage({
   ).sort((a, b) => a.localeCompare(b))
 
   const filter = (p: Project) => matchesSearch(p) && matchesEditor(p) && matchesClient(p)
-  const pending    = allProjects.filter(p => p.status === 'pending_trigger').filter(filter)
-  const inProgress = allProjects.filter(p => ['active', 'in_revision'].includes(p.status)).filter(filter)
-  const inReview   = allProjects.filter(p => p.status === 'in_client_review').filter(filter)
-  const completed  = (completedProjects ?? []).filter(filter)
+
+  const sortDraft = searchParams?.s_draft ?? 'date'
+  const sortIp    = searchParams?.s_ip    ?? 'date'
+  const sortCr    = searchParams?.s_cr    ?? 'date'
+  const sortDone  = searchParams?.s_done  ?? 'date'
+
+  const pending    = sortSection(allProjects.filter(p => p.status === 'pending_trigger').filter(filter),    sortDraft, p => p.filming_date ?? '', editorNames)
+  const inProgress = sortSection(allProjects.filter(p => ['active', 'in_revision'].includes(p.status)).filter(filter), sortIp,   currentVerDueDate,  editorNames)
+  const inReview   = sortSection(allProjects.filter(p => p.status === 'in_client_review').filter(filter),  sortCr,    currentVerDoneDate, editorNames)
+  const completed  = sortSection((completedProjects ?? []).filter(filter),                                  sortDone,  latestDoneDate,    editorNames)
 
   const totalShown = pending.length + inProgress.length + inReview.length + completed.length
 
@@ -137,7 +165,8 @@ export default async function DashboardPage({
         <p className="text-sm text-th/30 text-center py-8">No projects match &ldquo;{q}&rdquo;</p>
       )}
 
-      <CollapsibleSection dot="bg-amber-500" title="Draft" count={pending.length} storageKey="draft" noContainer empty="">
+      <CollapsibleSection dot="bg-amber-500" title="Draft" count={pending.length} storageKey="draft" noContainer empty=""
+        actions={<SortControl paramKey="s_draft" dateLabel="Filming Date" />}>
         <PendingTriggerList
           isAdmin={isAdmin}
           emptyText={q ? 'No matches in this section.' : 'No drafts yet.'}
@@ -159,6 +188,7 @@ export default async function DashboardPage({
       <CollapsibleSection
         dot="bg-blue-500" title="In Progress" count={inProgress.length} storageKey="in-progress"
         empty={q ? 'No matches in this section.' : 'Nothing currently in progress.'}
+        actions={<SortControl paramKey="s_ip" dateLabel="Due Date" />}
       >
         {groupByJob(inProgress).map(group =>
           group.length === 1 ? (
@@ -177,6 +207,7 @@ export default async function DashboardPage({
       <CollapsibleSection
         dot="bg-purple-500" title="Client Review" count={inReview.length} storageKey="client-review"
         empty={q ? 'No matches in this section.' : 'Nothing awaiting client review.'}
+        actions={<SortControl paramKey="s_cr" dateLabel="Delivered Date" />}
       >
         {groupByJob(inReview).map(group =>
           group.length === 1 ? (
@@ -195,6 +226,7 @@ export default async function DashboardPage({
       <CollapsibleSection
         dot="bg-green-500" title="Completed" count={completed.length} storageKey="completed"
         empty={q ? 'No matches in this section.' : 'No completions in the last 30 days.'}
+        actions={<SortControl paramKey="s_done" dateLabel="Completed Date" />}
       >
         {groupByJob(completed).map(group =>
           group.length === 1 ? (
@@ -265,7 +297,7 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
       {completedVer?.frameio_link ? (
         <a href={completedVer.frameio_link} target="_blank" rel="noopener noreferrer"
           className="hidden sm:block shrink-0 w-20">
-          <code className="text-sm font-mono text-brand-red/60 hover:text-brand-red transition-colors underline underline-offset-2 decoration-dotted">
+          <code className="text-sm font-mono text-th/45 hover:text-th/70 transition-colors underline underline-offset-2 decoration-dotted">
             {project.internal_id}
           </code>
         </a>
@@ -316,7 +348,7 @@ function InProgressRow({ project, isAdmin, editorName }: {
       {currentVer?.frameio_link ? (
         <a href={currentVer.frameio_link} target="_blank" rel="noopener noreferrer"
           className="hidden sm:block shrink-0 w-20">
-          <code className="text-sm font-mono text-brand-red/60 hover:text-brand-red transition-colors underline underline-offset-2 decoration-dotted">
+          <code className="text-sm font-mono text-th/45 hover:text-th/70 transition-colors underline underline-offset-2 decoration-dotted">
             {project.internal_id}
           </code>
         </a>

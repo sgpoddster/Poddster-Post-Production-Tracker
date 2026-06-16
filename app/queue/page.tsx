@@ -163,20 +163,20 @@ function QueueGroupHeader({ group, editorNames }: {
   const first = group[0]
   const currentVer = (first.versions ?? []).find(v => v.version_number === first.current_version)
   return (
-    // Same 4-column structure as QueueRow: [code w-20] [client flex-1] [countdown] [actions w-36]
-    // The JobGroup chevron acts as the spacer, so no extra spacer needed here.
+    // Strict 5-column grid: [code w-20] [details flex-1] [badge w-24] [countdown w-72] [actions w-36]
     <div className="flex items-center gap-4 w-full">
       <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{first.job_id}</code>
       <div className="min-w-0 flex-1">
-        <span className="text-sm font-medium text-th truncate block">{first.client_name || '—'}</span>
+        <span className="text-sm font-semibold text-th truncate block">{first.client_name || '—'}</span>
         <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5 flex-wrap">
           <span>{summarizeDeliverables(group)}</span>
           {first.filming_date && <><span className="text-th/15">·</span>Filmed {formatDate(first.filming_date)}</>}
           <span className="text-th/15">·</span>
-          <span className="font-medium text-th/60">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
+          <span className="font-medium text-th/50">{formatAssignee(first.assigned_editor, first.editor, editorNames)}</span>
         </div>
       </div>
-      <div className="hidden sm:flex shrink-0">
+      <div className="hidden sm:block w-24 shrink-0" />
+      <div className="hidden sm:flex items-center shrink-0 w-72">
         {currentVer?.due_date && (
           <CountdownTimer dueDate={currentVer.due_date} onHold={first.on_hold} holdDate={first.hold_date} />
         )}
@@ -196,35 +196,36 @@ function QueueRow({ project, isAdmin, editorName }: {
   )
 
   return (
-    // 4-column structure: [spacer w-3] [client flex-1] [countdown] [actions w-36]
-    // Spacer matches the JobGroup chevron so client names stay in the same column.
+    // Strict 6-column grid: [chevron-spacer w-3] [ID w-20] [details flex-1] [badge w-24] [countdown w-72] [actions w-36]
     <div className="flex items-center px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-th/[0.03] transition-colors group gap-3 sm:gap-4">
       <span className="hidden sm:block w-3 shrink-0" />
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
-        <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">
-              {project.client_name || '—'}
+      <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
+      <Link href={`/projects/${project.id}`} className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold text-th group-hover:text-th/90 truncate">
+            {project.client_name || '—'}
+          </span>
+          {project.filming_date && (
+            <span className="hidden lg:inline text-xs text-th/35 whitespace-nowrap">
+              {formatDate(project.filming_date)}
+              {project.filming_time && <span className="ml-1">{project.filming_time.split(' - ')[0]}</span>}
             </span>
-            {project.filming_date && (
-              <span className="text-xs text-th/40">
-                {formatDate(project.filming_date)}
-                {project.filming_time && <span className="ml-1">{project.filming_time.split(' - ')[0]}</span>}
-              </span>
-            )}
-            <StatusBadge status={project.status} />
-            <span className="text-xs text-th/30">V{project.current_version}</span>
-          </div>
-          <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5">
-            {project.type === 'episode' ? 'Episode' : `Highlight #${project.highlight_number}`}
-            <span className="text-th/15">·</span>
-            <span className="font-medium text-th/60">{editorName}</span>
-          </div>
+          )}
+        </div>
+        <div className="text-xs text-th/35 mt-0.5 flex items-center gap-1.5">
+          <span>{project.type === 'episode' ? 'Episode' : `Highlight #${project.highlight_number}`}</span>
+          <span className="text-th/15">·</span>
+          <span className="font-medium text-th/50">{editorName}</span>
+          <span className="text-th/15">·</span>
+          <span>V{project.current_version}</span>
         </div>
       </Link>
 
-      <div className="hidden sm:flex shrink-0">
+      <div className="hidden sm:flex items-center w-24 shrink-0">
+        <StatusBadge status={project.status} />
+      </div>
+
+      <div className="hidden sm:flex items-center shrink-0 w-72">
         {currentVer?.due_date && (
           <CountdownTimer
             dueDate={currentVer.due_date}

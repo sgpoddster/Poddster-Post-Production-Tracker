@@ -159,15 +159,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: `status is '${project.status}'` })
     }
 
-    // Extract Frame.io player link and upload timestamp from the file object
-    const frameioLink = file ? getAny(file, [
-      'view_url',
-      '_links.player.href',
-      'links.player.href',
-      'player_url',
-      'review_url',
-      'review_link',
-    ]) : ''
+    // Build the Frame.io player URL.
+    // Prefer constructing it from known IDs (view_url may be absent when ?include=metadata is set).
+    const frameioProjectId = file ? (file.project_id as string | undefined) : undefined
+    const frameioLink = (frameioProjectId && fileId)
+      ? `https://next.frame.io/project/${frameioProjectId}/view/${fileId}`
+      : file ? getAny(file, ['view_url', '_links.player.href', 'player_url', 'review_url']) : ''
     const frameioUploadedAt = file ? getAny(file, [
       'created_at',
       'inserted_at',

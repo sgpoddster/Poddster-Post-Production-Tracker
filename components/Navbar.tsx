@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserProfile } from '@/lib/auth'
 import SignOutButton from './SignOutButton'
 import { ThemeToggle } from './ThemeToggle'
+import { TimeFormatToggle } from './TimeFormatToggle'
 import { FunFactButton } from './FunFactButton'
 
 export async function Navbar() {
@@ -55,6 +56,7 @@ export async function Navbar() {
                 </span>
               )}
               <FunFactButton />
+              <TimeFormatToggle />
               <ThemeToggle />
               <SignOutButton />
             </div>

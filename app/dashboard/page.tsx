@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project } from '@/lib/types'
-import { formatDate, formatDateShort, formatTimeSGT, formatAssignee, groupByJob, summarizeDeliverables } from '@/lib/utils'
+import { formatDate, formatDateShort, formatAssignee, groupByJob, summarizeDeliverables } from '@/lib/utils'
+import { TimeDisplay } from '@/components/TimeDisplay'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { JobGroup } from '@/components/JobGroup'
@@ -398,7 +399,7 @@ function InProgressRow({ project, isAdmin, editorName }: {
                 <p className="text-sm font-medium text-th/65">
                   {formatDateShort(currentVer.done_date)}
                   {currentVer.updated_at && (
-                    <span className="text-th/40 ml-1.5">{formatTimeSGT(currentVer.updated_at)}</span>
+                    <span className="text-th/40 ml-1.5"><TimeDisplay isoString={currentVer.updated_at} /></span>
                   )}
                 </p>
               </div>

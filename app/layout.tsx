@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Navbar } from '@/components/Navbar'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { TimeFormatProvider } from '@/components/TimeFormatProvider'
 
 export const metadata: Metadata = {
   title: 'Poddster Post Production',
@@ -17,8 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-brand-black font-sans">
         <ThemeProvider>
-          <Navbar />
-          {children}
+          <TimeFormatProvider>
+            <Navbar />
+            {children}
+          </TimeFormatProvider>
         </ThemeProvider>
       </body>
     </html>

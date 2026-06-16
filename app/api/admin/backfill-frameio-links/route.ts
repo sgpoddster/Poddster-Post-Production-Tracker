@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getUserProfile } from '@/lib/auth'
 
+export const maxDuration = 300 // 5 min — Frame.io workspace scan can be slow
+
 const ADOBE_CLIENT_ID = '73aff1fed325400292f5abc97ee331b8'
 const ADOBE_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3'
 const ACCOUNT_ID   = 'c385b04f-c1b3-496b-93fd-70388b468756'
@@ -91,6 +93,7 @@ export async function POST() {
     .from('versions')
     .select('id, version_number, project_id, projects(internal_id)')
     .is('frameio_link', null)
+    .order('version_number', { ascending: true })
 
   if (vErr) return NextResponse.json({ error: vErr.message }, { status: 500 })
   if (!versions || versions.length === 0) {
@@ -108,8 +111,9 @@ export async function POST() {
     if (proj?.internal_id) {
       const cleanId = proj.internal_id.trim()
       lookupExact.set(`${cleanId}_V${v.version_number}`, v.id)
-      // Keep only the highest version per internal_id as the fallback
-      if (!lookupById.has(cleanId)) lookupById.set(cleanId, v.id)
+      // Overwrite so the last (highest) version_number wins as the fallback
+      // (query is ordered ASC so we end up with the highest unlinked version)
+      lookupById.set(cleanId, v.id)
     }
   }
 

@@ -87,11 +87,28 @@ export async function POST() {
 
   const svc = createServiceClient()
 
-  // Get all versions with no Frame.io link (regardless of done_date — many older
-  // versions were delivered before done_date tracking existed)
+  // Clear any frameio_links that were incorrectly set on in-progress current versions
+  // (the backfill previously had a bug where it could match a past file to the active cut)
+  const { data: staleLinks } = await svc
+    .from('versions')
+    .select('id, version_number, projects!inner(status, current_version)')
+    .not('frameio_link', 'is', null)
+    .in('projects.status', ['active', 'in_revision'])
+
+  if (staleLinks) {
+    for (const v of staleLinks) {
+      const proj = (Array.isArray(v.projects) ? v.projects[0] : v.projects) as { status: string; current_version: number } | null
+      if (proj && v.version_number === proj.current_version) {
+        await svc.from('versions').update({ frameio_link: null }).eq('id', v.id)
+      }
+    }
+  }
+
+  // Get all versions with no Frame.io link, including the project's current status
+  // so we can exclude in-progress versions that haven't been delivered yet.
   const { data: versions, error: vErr } = await svc
     .from('versions')
-    .select('id, version_number, project_id, projects(internal_id)')
+    .select('id, version_number, project_id, projects(internal_id, status, current_version)')
     .is('frameio_link', null)
     .order('version_number', { ascending: true })
 
@@ -103,18 +120,26 @@ export async function POST() {
   // Build two lookups:
   // 1. exact: "INTERNALID_V6" → versionId  (when version is in the filename)
   // 2. byId:  "INTERNALID"    → versionId  (fallback when filename has no version suffix)
+  // Skip versions that are the current in-progress cut — no file exists yet for those.
   const lookupExact = new Map<string, string>()
   const lookupById  = new Map<string, string>()
   for (const v of versions) {
     const projRaw = v.projects
-    const proj = (Array.isArray(projRaw) ? projRaw[0] : projRaw) as { internal_id: string } | null
-    if (proj?.internal_id) {
-      const cleanId = proj.internal_id.trim()
-      lookupExact.set(`${cleanId}_V${v.version_number}`, v.id)
-      // Overwrite so the last (highest) version_number wins as the fallback
-      // (query is ordered ASC so we end up with the highest unlinked version)
-      lookupById.set(cleanId, v.id)
-    }
+    const proj = (Array.isArray(projRaw) ? projRaw[0] : projRaw) as {
+      internal_id: string; status: string; current_version: number
+    } | null
+    if (!proj?.internal_id) continue
+    // Skip if this version is the current one on an actively-being-edited project
+    const isActiveCurrentVersion =
+      ['active', 'in_revision'].includes(proj.status) &&
+      v.version_number === proj.current_version
+    if (isActiveCurrentVersion) continue
+
+    const cleanId = proj.internal_id.trim()
+    lookupExact.set(`${cleanId}_V${v.version_number}`, v.id)
+    // Overwrite so the last (highest) eligible version_number wins as the fallback
+    // (query is ordered ASC so we end up with the highest delivered version)
+    lookupById.set(cleanId, v.id)
   }
 
   // Scan Frame.io

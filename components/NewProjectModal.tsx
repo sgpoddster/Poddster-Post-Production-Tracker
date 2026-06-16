@@ -270,7 +270,10 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
             </div>
             {totalRows > 0 && (
               <p className="text-xs text-th/30 mt-2.5">
-                → {totalRows} row{totalRows !== 1 ? 's' : ''} will be created
+                → {[
+                  form.episode_count > 0 && `${form.episode_count} episode${form.episode_count !== 1 ? 's' : ''}`,
+                  form.highlight_count > 0 && `${form.highlight_count} highlight${form.highlight_count !== 1 ? 's' : ''}`,
+                ].filter(Boolean).join(' + ')} ({totalRows} independent tracking row{totalRows !== 1 ? 's' : ''}) will be created
                 {selectedClient && ` for ${selectedClient.name}`}
               </p>
             )}

@@ -91,7 +91,7 @@ export default function PendingTriggerList({
 
     return (
       <div key={item.id}
-        className={`flex items-center gap-3 px-3 sm:px-5 py-3.5 sm:py-4 transition-colors group ${
+        className={`flex items-center gap-2 px-3 sm:px-5 py-3.5 sm:py-4 transition-colors group ${
           checked ? 'bg-brand-red/[0.06]' : 'hover:bg-th/[0.03]'
         }`}>
         <button
@@ -144,7 +144,6 @@ export default function PendingTriggerList({
     const first = group[0]
     return (
       <div className="flex items-center gap-4 w-full">
-        <span className="w-5 shrink-0" /> {/* checkbox spacer */}
         <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{first.job_id}</code>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">

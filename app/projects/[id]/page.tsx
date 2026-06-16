@@ -16,6 +16,7 @@ import DueDateEditor from './DueDateEditor'
 import CopyFilenameButton from './CopyFilenameButton'
 import CopyFolderButton from './CopyFolderButton'
 import CopyPortalLinkButton from './CopyPortalLinkButton'
+import CopyProjectIdButton from './CopyProjectIdButton'
 import { getUserProfile } from '@/lib/auth'
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
@@ -173,6 +174,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
             Version History
           </h2>
           <div className="flex items-center gap-2">
+            <CopyProjectIdButton jobId={project.job_id} />
             <CopyFolderButton
               jobId={project.job_id}
               filmingDate={project.filming_date}

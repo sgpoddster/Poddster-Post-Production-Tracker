@@ -38,9 +38,12 @@ export default function CancelButton({ projectId }: { projectId: string }) {
   return (
     <button
       onClick={() => setConfirming(true)}
-      className="px-3 py-1.5 bg-transparent hover:bg-red-500/10 border border-th/10 hover:border-red-500/30 text-th/30 hover:text-red-400 text-xs font-medium rounded transition-colors"
+      title="Cancel project"
+      className="w-8 h-8 flex items-center justify-center rounded hover:bg-red-500/10 text-th/20 hover:text-red-400 transition-colors"
     >
-      ✕ Cancel Project
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
     </button>
   )
 }

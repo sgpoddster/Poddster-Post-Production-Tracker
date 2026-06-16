@@ -15,9 +15,12 @@ export default function CopyPortalLinkButton({ portalToken }: { portalToken: str
   return (
     <button
       onClick={copy}
-      className="px-3 py-1.5 rounded-lg bg-th/[0.06] hover:bg-th/10 text-th/60 hover:text-th text-xs font-medium transition-colors"
+      className="inline-flex items-center gap-1 text-xs text-th/35 hover:text-th/60 transition-colors"
     >
-      {copied ? '✓ Copied' : 'Copy client link'}
+      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+      </svg>
+      {copied ? 'Copied!' : 'Copy client link'}
     </button>
   )
 }

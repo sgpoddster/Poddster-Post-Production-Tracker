@@ -101,9 +101,13 @@ export default function EditProjectModal({ project, editors, clients, isAdmin }:
     <>
       <button
         onClick={() => setOpen(true)}
-        className="px-3 py-1.5 bg-transparent hover:bg-th/10 border border-th/15 text-th/50 hover:text-th/80 text-xs font-medium rounded transition-colors"
+        title="Edit project"
+        className="w-8 h-8 flex items-center justify-center rounded hover:bg-th/10 text-th/35 hover:text-th/70 transition-colors"
       >
-        ✎ Edit
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.125L18 8.625" />
+        </svg>
       </button>
 
       {open && (

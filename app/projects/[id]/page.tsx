@@ -66,6 +66,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
+
+        {/* Left: title block */}
         <div>
           <div className="flex items-center gap-3 mb-1">
             <code className="text-xs text-th/25 font-mono">{project.internal_id}</code>
@@ -74,42 +76,53 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           <h1 className="text-2xl font-bold text-th tracking-tight">
             {project.client_name || 'Unnamed Project'}
           </h1>
-          {project.client_code && (
-            <span className="text-sm text-th/40 mt-0.5 block">{project.client_code}</span>
-          )}
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            {project.client_code && (
+              <span className="text-sm text-th/40">{project.client_code}</span>
+            )}
+            {isAdmin && portalToken && (
+              <CopyPortalLinkButton portalToken={portalToken} />
+            )}
+          </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="shrink-0 flex gap-2 flex-wrap justify-end">
-          {isAdmin && portalToken && (
-            <CopyPortalLinkButton portalToken={portalToken} />
-          )}
+        {/* Right: two-row action area */}
+        <div className="shrink-0 flex flex-col items-end gap-2">
+
+          {/* Top row: admin utilities (low visual weight) */}
           {isAdmin && (
-            <EditProjectModal project={project} editors={editors} clients={clients} isAdmin={isAdmin} />
+            <div className="flex items-center gap-1">
+              <EditProjectModal project={project} editors={editors} clients={clients} isAdmin={isAdmin} />
+              {project.status !== 'cancelled' && (
+                <CancelButton projectId={project.id} />
+              )}
+            </div>
           )}
-          <AddOutputButton jobId={project.job_id} />
-          {project.status === 'pending_trigger' && (
-            <TriggerButton projectId={project.id} isAdmin={isAdmin} />
-          )}
-          {(project.status === 'active' || project.status === 'in_revision') && !project.on_hold && (
-            <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />
-          )}
-          {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
-            <OnHoldButton projectId={project.id} onHold={project.on_hold} holdReason={project.hold_reason} />
-          )}
-          {project.status === 'in_client_review' && (
-            <>
-              <CompleteButton projectId={project.id} />
-              {isAdmin && <StartRevisionButton projectId={project.id} currentVersion={project.current_version} />}
+
+          {/* Bottom row: workflow actions (primary context) */}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <AddOutputButton jobId={project.job_id} />
+            {project.status === 'pending_trigger' && (
+              <TriggerButton projectId={project.id} isAdmin={isAdmin} />
+            )}
+            {(project.status === 'active' || project.status === 'in_revision') && !project.on_hold && (
+              <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />
+            )}
+            {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
+              <OnHoldButton projectId={project.id} onHold={project.on_hold} holdReason={project.hold_reason} />
+            )}
+            {project.status === 'in_client_review' && (
+              <>
+                <CompleteButton projectId={project.id} />
+                {isAdmin && <StartRevisionButton projectId={project.id} currentVersion={project.current_version} />}
+                <UndoButton projectId={project.id} />
+              </>
+            )}
+            {project.status === 'complete' && (
               <UndoButton projectId={project.id} />
-            </>
-          )}
-          {project.status === 'complete' && (
-            <UndoButton projectId={project.id} />
-          )}
-          {isAdmin && project.status !== 'cancelled' && (
-            <CancelButton projectId={project.id} />
-          )}
+            )}
+          </div>
+
         </div>
       </div>
 

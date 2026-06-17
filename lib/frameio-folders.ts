@@ -112,17 +112,23 @@ export async function createFrameIoShootFolder({
 
   const folderName = buildFolderName(jobId, filmingDate, filmingTime)
 
+  console.log(`[frameio-folders] starting — client="${clientName}" folder="${folderName}"`)
   try {
+    console.log('[frameio-folders] getting access token…')
     const token = await getAccessToken()
+    console.log('[frameio-folders] token ok')
 
     // Step 1: find the client's Frame.io project by name
+    console.log(`[frameio-folders] searching for project "${clientName}"…`)
     const project = await findProjectByName(clientName, token)
     if (!project) {
       console.warn(`[frameio-folders] no project named "${clientName}" in workspace`)
       return null
     }
+    console.log(`[frameio-folders] found project ${project.id}, root=${project.root_folder_id}`)
 
     // Step 2: check if shoot folder already exists (idempotent re-triggers)
+    console.log(`[frameio-folders] checking for existing folder "${folderName}"…`)
     const existing = await findChildFolderByName(project.root_folder_id, folderName, token)
     if (existing) {
       console.log(`[frameio-folders] folder already exists: "${folderName}"`)
@@ -130,6 +136,7 @@ export async function createFrameIoShootFolder({
     }
 
     // Step 3: create the folder
+    console.log(`[frameio-folders] creating folder "${folderName}"…`)
     const res  = await framePost(
       `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${project.root_folder_id}/children`,
       token,
@@ -137,7 +144,7 @@ export async function createFrameIoShootFolder({
     )
     const item = (res.data ?? res) as Record<string, unknown>
     const url  = `https://next.frame.io/project/${project.id}/view/${item.id as string}`
-    console.log(`[frameio-folders] created "${folderName}" → ${url}`)
+    console.log(`[frameio-folders] ✓ created "${folderName}" → ${url}`)
     return url
   } catch (e) {
     console.error('[frameio-folders] error:', e)

@@ -154,23 +154,24 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         {project.order_id && (
           <MetaCell label="Order ID">{project.order_id}</MetaCell>
         )}
-        {project.drive_link && (
-          <MetaCell label="Drive">
-            <a href={project.drive_link} target="_blank" rel="noreferrer"
-              className="text-brand-red hover:underline">
-              Open folder ↗
-            </a>
+        {(project.drive_link || project.frameio_folder_link) && (
+          <MetaCell label="Folders" span2>
+            <div className="flex items-center gap-6">
+              {project.drive_link && (
+                <a href={project.drive_link} target="_blank" rel="noreferrer"
+                  className="text-brand-red hover:underline">
+                  Drive ↗
+                </a>
+              )}
+              {project.frameio_folder_link && (
+                <a href={project.frameio_folder_link} target="_blank" rel="noreferrer"
+                  className="text-brand-red hover:underline">
+                  Frame.io ↗
+                </a>
+              )}
+            </div>
           </MetaCell>
         )}
-        <MetaCell label="Frame Folder">
-          {project.frameio_folder_link
-            ? <a href={project.frameio_folder_link} target="_blank" rel="noreferrer"
-                className="text-brand-red hover:underline">
-                Open in Frame.io ↗
-              </a>
-            : <span className="text-th/25">—</span>
-          }
-        </MetaCell>
         {project.services && (
           <MetaCell label="Services" wide>{project.services}</MetaCell>
         )}
@@ -234,11 +235,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   )
 }
 
-function MetaCell({ label, children, wide }: {
-  label: string; children: React.ReactNode; wide?: boolean
+function MetaCell({ label, children, wide, span2 }: {
+  label: string; children: React.ReactNode; wide?: boolean; span2?: boolean
 }) {
   return (
-    <div className={`bg-brand-surface px-4 py-3 ${wide ? 'col-span-2 sm:col-span-3' : ''}`}>
+    <div className={`bg-brand-surface px-4 py-3 ${wide ? 'col-span-2 sm:col-span-3' : span2 ? 'col-span-2' : ''}`}>
       <div className="text-xs text-th/30 mb-0.5">{label}</div>
       <div className="text-sm text-th/80">{children}</div>
     </div>

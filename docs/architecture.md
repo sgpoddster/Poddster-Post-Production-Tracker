@@ -1,6 +1,6 @@
 # Poddster Post-Production Tracker — Architecture
 
-> Last updated: June 2026 · see `docs/changelog.md` for the running change log
+> Last updated: 2026-06-17 · see `docs/changelog.md` for the running change log
 
 ---
 
@@ -21,8 +21,8 @@ A web app for the Poddster team (Singapore podcast studio) to manage the post-pr
 | Auth | Supabase Auth — Google OAuth (SSO) |
 | Hosting | Vercel |
 | External data in | Google Calendar API (client-side, read-only); Frame.io v4 webhooks |
-| External data out | Email via Google Apps Script web app (GmailApp, sgproduction@poddster.com); Frame.io filename helper |
-| Frame.io auth | Adobe IMS OAuth (refresh-token → access-token) for v4 API |
+| External data out | Email via Google Apps Script web app (GmailApp, sgproduction@poddster.com); Frame.io filename helper; Frame.io v4 folder creation |
+| Frame.io auth | Adobe IMS OAuth (refresh-token → access-token) for v4 API reads + writes |
 | Legacy ingest | Google Apps Script → `/api/bookings/ingest` |
 
 ---
@@ -43,13 +43,16 @@ New Project Modal          POST /api/bookings/ingest
            (status: pending_trigger)
                      │
                Admin triggers
+                     │  Assignment email → editor (filming time included)
+                     │  Frame.io shoot folder auto-created
                      ▼
               versions table
          (status: active, V1 due date set)
                      │
-            Editor edits footage
+            Editor edits footage + uploads to Frame.io
                      │
-               Mark as Done
+               Frame.io webhook (file.ready)
+               auto-moves → in_client_review
                      ▼
          status: in_client_review
                      │
@@ -98,7 +101,9 @@ The core table. One row per deliverable (episodes and highlights are separate ro
 | `hold_reason` | text | Optional note captured when placing a hold |
 | `previous_status` | enum | Status before the last transition (for Undo) |
 | `source` | enum | `manual`, `calendar`, `force_push` |
-| `frame_asset_id` | text | Future Frame.io integration |
+| `frame_asset_id` | text | Frame.io asset ID (future) |
+| `frameio_folder_link` | text | URL to the auto-created shoot folder in Frame.io (set on trigger) |
+| `review_chase_stage` | int | 0 = not yet chased; 1 = day-7 reminder sent; 2 = day-14 final sent |
 | `created_at` / `updated_at` | timestamptz | Auto-managed |
 
 ### `versions`
@@ -115,6 +120,8 @@ One row per version of each project (V1 First Cut, V2, V3…).
 | `due_date` | date | Deadline for this version |
 | `done_date` | date | When editor marked it delivered |
 | `notes` | text | Version-level notes |
+| `frameio_link` | text | Direct Frame.io player URL for the uploaded cut |
+| `frameio_uploaded_at` | timestamptz | When the file landed in Frame.io (from webhook) |
 
 ### `clients`
 
@@ -205,9 +212,9 @@ Closed Days) are skipped. `addWorkDays` takes an optional holiday set.
 |---|---|---|
 | `/` | All | Redirects to `/dashboard` |
 | `/login` | Public | Google OAuth sign-in |
-| `/dashboard` | All | Four **collapsible** sections: Draft, In Progress, Client Review, Completed (last 30 days). Search box + multi-select **client** filter + admin **producer** filter; overdue flagging; batch-trigger checkboxes on Draft. Admin sees all; producer sees own. |
+| `/dashboard` | All | Four **collapsible** sections: Draft, In Progress, Client Review, Completed (last 30 days). Each section has its own **sort control** (Filming Date / Due Date / Delivered Date, persisted in URL params). Search box + multi-select **client** filter + admin **producer** filter; overdue flagging; batch-trigger checkboxes on Draft. Admin sees all; producer sees own. |
 | `/queue` | All | Flat urgency-sorted list of active/in_revision work. Filters (one row): due window (Today/+1/+2/All working days), multi-select client, admin producer. Admin sees all; editor sees own. |
-| `/projects/[id]` | All | Full project detail: meta, version timeline, action buttons. Admin gets Edit (incl. version selector), Cancel, Due Date editor, Copy client link. |
+| `/projects/[id]` | All | Full project detail: meta, version timeline, action buttons. **Copy Project ID** button copies the 5-char Job ID. Frame.io Folder link shown if auto-created. Admin gets Edit (incl. version selector), Cancel, Due Date editor, Copy client link. |
 | `/admin` | Admin only | Tabs: **Team** (role management) and **Clients** (search, add at top, emails ×3, names, portal link). |
 | `/client/[token]` | Public | Login-free client portal — all of a client's projects grouped by session, statuses + version timelines. Served via service-role read; whitelisted in middleware. |
 
@@ -222,8 +229,8 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 | Method | Route | What it does |
 |---|---|---|
 | `POST` | `/api/projects/create` | Create one or more project rows from the New Project form. Generates Job ID. Accepts `editor` and `starting_version`. |
-| `POST` | `/api/projects/[id]/trigger` | Move into the pipeline, create the active version row with deadline. V1 → `active`; V2+ → `in_revision` (with empty placeholders for earlier versions). Accepts optional `submittedDate`. Sends the editor assignment email (awaited). |
-| `POST` | `/api/projects/trigger-batch` | Trigger several pending projects (must share one Job ID) at once; sends **one** consolidated assignment email listing all deliverables. |
+| `POST` | `/api/projects/[id]/trigger` | Move into the pipeline, create the active version row with deadline. V1 → `active`; V2+ → `in_revision` (with empty placeholders for earlier versions). Accepts optional `submittedDate`. Sends the editor assignment email (with filming time, awaited). Auto-creates Frame.io shoot folder and saves URL to `frameio_folder_link`. |
+| `POST` | `/api/projects/trigger-batch` | Trigger several pending projects (must share one Job ID) at once; sends **one** consolidated assignment email listing all deliverables (with filming time). Auto-creates Frame.io shoot folder once for the whole batch. |
 | `PATCH` | `/api/projects/[id]` | Edit project metadata (client, producer/editor, dates, drive link, notes). Code auto-derived from name. **Version change**: reshapes version rows, flips First Cut ↔ Revision, recalculates the deadline. Admin only. |
 | `POST` | `/api/projects/[id]/cancel` | Set status to `cancelled`. Admin only. |
 | `POST` | `/api/projects/[id]/hold` | Freeze timer (`on_hold = true`, `hold_date = today`, optional `hold_reason`). |
@@ -265,6 +272,7 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 |---|---|---|
 | `GET/POST/DELETE` | `/api/admin/clients` | CRUD for the clients lookup table. |
 | `GET/PATCH` | `/api/admin/users` | List users / update role. |
+| `GET/POST` | `/api/admin/backfill-frameio-links` | Scans Frame.io projects for uploaded files and backfills `frameio_link` on delivered version rows matched by internal ID. Excludes active in-progress versions. `maxDuration = 300`. |
 
 ---
 
@@ -274,8 +282,11 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 
 | Component | Purpose |
 |---|---|
-| `Navbar` | Top nav with page links and sign-out. Highlights active route. |
-| `StatusBadge` | Coloured pill for each project status. |
+| `Navbar` | Top nav with page links, sign-out, `ThemeToggle`, and `TimeFormatToggle` (12h/24h). |
+| `StatusBadge` | Coloured pill for each project status. `in_revision` = teal. |
+| `TimeFormatProvider` | React context storing 12h/24h preference in `localStorage`. |
+| `TimeFormatToggle` | Button in navbar toggling between 12h and 24h display. |
+| `TimeDisplay` | Client component that renders an ISO timestamp respecting the time format preference. |
 | `CountdownTimer` | Shows `Xd left` / `Due today` / `Xd overdue` badge + full date. Handles on-hold frozen display. Green → amber (≤2 days) → red (overdue). |
 | `OnHoldButton` | Ghost when idle; solid amber when on hold. Admin only. |
 | `CompleteButton` | Green "✓ Complete" for in_client_review projects. |
@@ -289,8 +300,10 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 | Component | Purpose |
 |---|---|
 | `TriggerButton` | Non-admin: instant trigger. Admin: expands inline with date picker for backdating. |
-| `StartRevisionButton` | Creates next version row and sets `in_revision`. |
+| `StartRevisionButton` | Creates next version row and sets `in_revision`. Visible to **all users** (not just admins). |
 | `NewProjectButton` | Opens `NewProjectModal`. |
+| `SortControl` | Per-section sort dropdown; reads/writes URL search params. |
+| `CollapsibleSection` | Wrapper for each dashboard section; accepts `actions` slot for the sort control. |
 
 ### Project detail (`/app/projects/[id]`)
 
@@ -300,6 +313,9 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 | `CancelButton` | Inline confirmation before calling `/api/.../cancel`. Redirects to dashboard. |
 | `DueDateEditor` | Inline date picker on version rows. Click due date → edit → save. Admin only, non-delivered versions only. |
 | `CopyFilenameButton` | Generates the Frame.io output filename and copies to clipboard. Tooltip previews the filename on hover. |
+| `CopyFolderButton` | Copies the Frame.io shoot folder name (e.g. `DABA2 230pm 16th June 2026`) to clipboard. |
+| `CopyProjectIdButton` | Copies the 5-char Job ID to clipboard. |
+| `CopyPortalLinkButton` | Copies the client portal URL to clipboard. Admin only. |
 | `AddOutputButton` | Register a Frame.io asset (future). |
 
 ### Queue (`/app/queue`)
@@ -452,12 +468,17 @@ This is the automated path for bookings that flow through the GAS pipeline. Manu
 | Feature | Notes |
 |---|---|
 | GAS ingest script | `Code.gs` ingest path exists; full 5-phase calendar sync still to wire up |
-| Durable Frame.io token | GAS → Supabase token bridge so `access_denied` stops recurring |
-| Completion email to clients | Email all stored client addresses when a project completes (via the same GAS relay) |
+| Durable Frame.io token | Adobe OAuth refresh token currently stored as `FRAMEIO_REFRESH_TOKEN` in Vercel; GAS handles re-auth via UserProperties. A longer-term solution would persist the token in Supabase to survive expiry without manual re-auth. |
+| Completion email to clients | Email all stored client addresses when a project completes |
 | Stats / reporting | Looker Studio connected to Supabase Postgres (preferred over in-app) |
 | Public holidays | Deadline calc currently skips weekends only |
+| Review-chase live mode | `REVIEW_CHASE_LIVE=true` env var not yet set in production — cron runs in dry-run mode |
 
 ### Done since the May baseline
 Frame.io webhook (file.ready + Approved/Needs Review automation), dashboard &
 queue search/filters, mobile layout pass, Vercel deployment, client portal,
-editor field, editor assignment emails, client emails/names, version editing.
+editor field, editor assignment emails, client emails/names, version editing,
+Frame.io shoot folder auto-creation (v4 API), 12h/24h time format toggle,
+Copy Project ID button, filming time in trigger emails, teal revision badge,
+Start Revision available to all users, per-section sort controls, review-chase
+cron (day 7 + day 14 emails), backfill-frameio-links admin route.

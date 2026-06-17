@@ -89,19 +89,23 @@ export async function POST(req: NextRequest) {
     }).catch(e => console.error('[email] batch error:', e))
   }
 
-  // Create Frame.io shoot folder once for the whole batch (fire-and-forget)
-  createFrameIoShootFolder({
-    clientName:  first.client_name,
-    jobId:       first.job_id,
-    filmingDate: first.filming_date,
-    filmingTime: first.filming_time,
-  }).then(async folderUrl => {
+  // Create Frame.io shoot folder once for the whole batch — awaited before return
+  // (Vercel terminates the function on response, .then() chains don't run)
+  try {
+    const folderUrl = await createFrameIoShootFolder({
+      clientName:  first.client_name,
+      jobId:       first.job_id,
+      filmingDate: first.filming_date,
+      filmingTime: first.filming_time,
+    })
     if (folderUrl) {
       await supabase.from('projects')
         .update({ frameio_folder_link: folderUrl })
         .eq('job_id', first.job_id)
     }
-  }).catch(e => console.error('[frameio-folders] batch trigger error:', e))
+  } catch (e) {
+    console.error('[frameio-folders] batch trigger error:', e)
+  }
 
   return NextResponse.json({ success: true, triggered: projects.length })
 }

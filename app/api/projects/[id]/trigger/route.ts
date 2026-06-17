@@ -107,19 +107,23 @@ export async function POST(
     }).catch(e => console.error('[email] background error:', e))
   }
 
-  // Create Frame.io shoot folder (fire-and-forget; saves URL to all rows of same job)
-  createFrameIoShootFolder({
-    clientName:  project.client_name,
-    jobId:       project.job_id,
-    filmingDate: project.filming_date,
-    filmingTime: project.filming_time,
-  }).then(async folderUrl => {
+  // Create Frame.io shoot folder — must be awaited before return, Vercel kills
+  // the function as soon as the response is sent so .then() chains never run.
+  try {
+    const folderUrl = await createFrameIoShootFolder({
+      clientName:  project.client_name,
+      jobId:       project.job_id,
+      filmingDate: project.filming_date,
+      filmingTime: project.filming_time,
+    })
     if (folderUrl) {
       await supabase.from('projects')
         .update({ frameio_folder_link: folderUrl })
         .eq('job_id', project.job_id)
     }
-  }).catch(e => console.error('[frameio-folders] trigger error:', e))
+  } catch (e) {
+    console.error('[frameio-folders] trigger error:', e)
+  }
 
   return NextResponse.json({ success: true, project })
 }

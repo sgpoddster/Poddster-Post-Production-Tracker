@@ -34,7 +34,11 @@ async function frameGet(url: string, token: string): Promise<Record<string, unkn
 async function framePost(url: string, token: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/vnd.api+json',
+      Accept: 'application/vnd.api+json',
+    },
     body: JSON.stringify(body),
   })
   if (!res.ok) {
@@ -136,14 +140,20 @@ export async function createFrameIoShootFolder({
     }
 
     // Step 3: create the folder.
-    // Frame.io v4: POST /v4/accounts/{accountId}/folders with parent_id in body.
+    // Frame.io v4 uses JSON:API format — wrap in data.attributes and POST to
+    // the parent folder's /children endpoint.
     console.log(`[frameio-folders] creating folder "${folderName}"…`)
     const res  = await framePost(
-      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders`,
+      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${project.root_folder_id}/children`,
       token,
-      { name: folderName, parent_id: project.root_folder_id }
+      {
+        data: {
+          type: 'folders',
+          attributes: { name: folderName },
+        },
+      }
     )
-    const item = (res.data ?? res) as Record<string, unknown>
+    const item = ((res.data as Record<string, unknown>) ?? res) as Record<string, unknown>
     const url  = `https://next.frame.io/project/${project.id}/view/${item.id as string}`
     console.log(`[frameio-folders] ✓ created "${folderName}" → ${url}`)
     return url

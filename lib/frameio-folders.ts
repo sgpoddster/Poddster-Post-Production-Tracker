@@ -140,36 +140,17 @@ export async function createFrameIoShootFolder({
     }
 
     // Step 3: create the folder.
-    // v4 correct endpoint: POST /v4/accounts/{id}/folders/{parentId}/folders
+    // v4 endpoint: POST /v4/accounts/{id}/folders/{parentId}/folders
     // Payload wraps name inside { data: { name } }.
-    // Also try with legacy-token header so sk_live_ tokens are accepted by v4.
     console.log(`[frameio-folders] creating folder "${folderName}"…`)
-    const legacyToken = process.env.FRAMEIO_REFRESH_TOKEN ?? ''
-    const createUrl   = `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${project.root_folder_id}/folders`
-    const createBody  = JSON.stringify({ data: { name: folderName } })
-
-    // Try 1: Adobe OAuth token, standard v4
-    let createRes = await fetch(createUrl, {
-      method:  'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body:    createBody,
-    })
-    console.log(`[frameio-folders] v4+adobe → ${createRes.status}`)
-
-    // Try 2: legacy sk_live_ token with migration header
-    if (!createRes.ok && legacyToken) {
-      createRes = await fetch(createUrl, {
+    const createRes = await fetch(
+      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${project.root_folder_id}/folders`,
+      {
         method:  'POST',
-        headers: {
-          Authorization: `Bearer ${legacyToken}`,
-          'Content-Type': 'application/json',
-          'x-frameio-legacy-token-auth': 'true',
-        },
-        body: createBody,
-      })
-      console.log(`[frameio-folders] v4+legacy → ${createRes.status}`)
-    }
-
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ data: { name: folderName } }),
+      }
+    )
     if (!createRes.ok) {
       const text = await createRes.text()
       throw new Error(`Frame.io folder POST ${createRes.status}: ${text.slice(0, 300)}`)

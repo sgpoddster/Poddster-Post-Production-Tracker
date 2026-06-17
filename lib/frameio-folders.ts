@@ -1,12 +1,13 @@
 // Frame.io v4 folder creation utility.
-// Finds the client's top-level folder by name, then creates a shoot folder inside it.
-// Auth reuses the same Adobe IMS refresh-token flow as the webhook and backfill.
+// Each client is a separate Frame.io Project in the workspace.
+// Finds the matching project by name, then creates a shoot folder in its root.
 
 import { buildFolderName } from './utils'
 
 const ADOBE_CLIENT_ID = '73aff1fed325400292f5abc97ee331b8'
 const ADOBE_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3'
 const ACCOUNT_ID      = 'c385b04f-c1b3-496b-93fd-70388b468756'
+const WORKSPACE_ID    = '35d53c79-6d1e-42a3-aae2-7aabf1260e48'
 
 async function getAccessToken(): Promise<string> {
   const res = await fetch(ADOBE_TOKEN_URL, {
@@ -43,47 +44,58 @@ async function framePost(url: string, token: string, body: Record<string, unknow
   return res.json()
 }
 
-// Scan all children of a folder (paginated), return the first whose name matches.
-async function findChildByName(
-  folderId: string,
+// Find the Frame.io project whose name matches clientName (paginated).
+async function findProjectByName(
   name: string,
   token: string
-): Promise<{ id: string; project_id: string } | null> {
-  let url: string | null = `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${folderId}/children?page_size=100`
+): Promise<{ id: string; root_folder_id: string } | null> {
+  let url: string | null =
+    `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/workspaces/${WORKSPACE_ID}/projects?page_size=50`
   while (url) {
     const json = await frameGet(url, token)
     const items = (json.data as Record<string, unknown>[]) ?? []
     for (const item of items) {
-      if ((item.name as string) === name && item.type === 'folder') {
-        return { id: item.id as string, project_id: item.project_id as string }
+      if ((item.name as string) === name) {
+        return {
+          id:             item.id as string,
+          root_folder_id: (item.root_folder_id ?? item.root_asset_id) as string,
+        }
       }
     }
     const links = json.links as Record<string, unknown> | undefined
-    const next = links?.next as string | undefined
+    const next  = links?.next as string | undefined
     url = next ? (next.startsWith('http') ? next : `https://api.frame.io${next}`) : null
   }
   return null
 }
 
-// Create a folder inside parentFolderId, return its id + project_id.
-async function createChildFolder(
+// Check whether a folder with the given name already exists inside parentFolderId.
+async function findChildFolderByName(
   parentFolderId: string,
   name: string,
   token: string
-): Promise<{ id: string; project_id: string }> {
-  const json = await framePost(
-    `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${parentFolderId}/children`,
-    token,
-    { name, type: 'folder' }
-  )
-  const item = (json.data ?? json) as Record<string, unknown>
-  return { id: item.id as string, project_id: item.project_id as string }
+): Promise<{ id: string } | null> {
+  let url: string | null =
+    `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${parentFolderId}/children?page_size=100`
+  while (url) {
+    const json = await frameGet(url, token)
+    const items = (json.data as Record<string, unknown>[]) ?? []
+    for (const item of items) {
+      if ((item.name as string) === name && item.type === 'folder') {
+        return { id: item.id as string }
+      }
+    }
+    const links = json.links as Record<string, unknown> | undefined
+    const next  = links?.next as string | undefined
+    url = next ? (next.startsWith('http') ? next : `https://api.frame.io${next}`) : null
+  }
+  return null
 }
 
 /**
- * Finds the client folder by name in the root folder, then creates (or finds)
- * the shoot folder inside it. Returns the Frame.io player URL for the folder,
- * or null if anything fails (caller treats this as non-fatal).
+ * Finds the client's Frame.io project by name, then creates (or finds) the
+ * shoot folder inside its root. Returns the Frame.io URL for the folder, or
+ * null on any failure (caller treats this as non-fatal).
  */
 export async function createFrameIoShootFolder({
   clientName,
@@ -96,11 +108,6 @@ export async function createFrameIoShootFolder({
   filmingDate: string | null
   filmingTime: string | null
 }): Promise<string | null> {
-  const rootFolderId = process.env.FRAMEIO_ROOT_FOLDER_ID
-  if (!rootFolderId) {
-    console.warn('[frameio-folders] FRAMEIO_ROOT_FOLDER_ID not set — skipping')
-    return null
-  }
   if (!clientName) return null
 
   const folderName = buildFolderName(jobId, filmingDate, filmingTime)
@@ -108,23 +115,28 @@ export async function createFrameIoShootFolder({
   try {
     const token = await getAccessToken()
 
-    // Step 1: find the client's top-level folder
-    const clientFolder = await findChildByName(rootFolderId, clientName, token)
-    if (!clientFolder) {
-      console.warn(`[frameio-folders] client folder "${clientName}" not found under root`)
+    // Step 1: find the client's Frame.io project by name
+    const project = await findProjectByName(clientName, token)
+    if (!project) {
+      console.warn(`[frameio-folders] no project named "${clientName}" in workspace`)
       return null
     }
 
-    // Step 2: check if the shoot folder already exists (idempotent)
-    const existing = await findChildByName(clientFolder.id, folderName, token)
+    // Step 2: check if shoot folder already exists (idempotent re-triggers)
+    const existing = await findChildFolderByName(project.root_folder_id, folderName, token)
     if (existing) {
       console.log(`[frameio-folders] folder already exists: "${folderName}"`)
-      return `https://next.frame.io/project/${existing.project_id}/view/${existing.id}`
+      return `https://next.frame.io/project/${project.id}/view/${existing.id}`
     }
 
-    // Step 3: create it
-    const created = await createChildFolder(clientFolder.id, folderName, token)
-    const url = `https://next.frame.io/project/${created.project_id}/view/${created.id}`
+    // Step 3: create the folder
+    const res  = await framePost(
+      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${project.root_folder_id}/children`,
+      token,
+      { name: folderName, type: 'folder' }
+    )
+    const item = (res.data ?? res) as Record<string, unknown>
+    const url  = `https://next.frame.io/project/${project.id}/view/${item.id as string}`
     console.log(`[frameio-folders] created "${folderName}" → ${url}`)
     return url
   } catch (e) {

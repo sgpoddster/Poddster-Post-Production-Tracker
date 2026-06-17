@@ -1,6 +1,6 @@
 // Frame.io v4 folder creation utility.
 // Each client is a separate Frame.io Project in the workspace.
-// Finds the matching project by name, then creates a shoot folder in its root.
+// Finds (or creates) the client project, then creates the shoot folder inside it.
 
 import { buildFolderName } from './utils'
 
@@ -31,23 +31,6 @@ async function frameGet(url: string, token: string): Promise<Record<string, unkn
   return res.json()
 }
 
-async function framePost(url: string, token: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/vnd.api+json',
-      Accept: 'application/vnd.api+json',
-    },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Frame.io POST ${res.status} at ${url}: ${text.slice(0, 200)}`)
-  }
-  return res.json()
-}
-
 // Find the Frame.io project whose name matches clientName (paginated).
 async function findProjectByName(
   name: string,
@@ -71,6 +54,31 @@ async function findProjectByName(
     url = next ? (next.startsWith('http') ? next : `https://api.frame.io${next}`) : null
   }
   return null
+}
+
+// Create a new Frame.io project in the workspace for a new client.
+async function createProject(
+  name: string,
+  token: string
+): Promise<{ id: string; root_folder_id: string }> {
+  const res = await fetch(
+    `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/workspaces/${WORKSPACE_ID}/projects`,
+    {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ data: { name } }),
+    }
+  )
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Frame.io project POST ${res.status}: ${text.slice(0, 300)}`)
+  }
+  const json = await res.json() as Record<string, unknown>
+  const item = (json.data ?? json) as Record<string, unknown>
+  return {
+    id:             item.id as string,
+    root_folder_id: (item.root_folder_id ?? item.root_asset_id) as string,
+  }
 }
 
 // Check whether a folder with the given name already exists inside parentFolderId.
@@ -97,9 +105,9 @@ async function findChildFolderByName(
 }
 
 /**
- * Finds the client's Frame.io project by name, then creates (or finds) the
- * shoot folder inside its root. Returns the Frame.io URL for the folder, or
- * null on any failure (caller treats this as non-fatal).
+ * Finds (or creates) the client's Frame.io project, then creates (or finds)
+ * the shoot folder inside its root. Returns the Frame.io URL for the shoot
+ * folder, or null on any failure (caller treats this as non-fatal).
  */
 export async function createFrameIoShootFolder({
   clientName,
@@ -122,14 +130,16 @@ export async function createFrameIoShootFolder({
     const token = await getAccessToken()
     console.log('[frameio-folders] token ok')
 
-    // Step 1: find the client's Frame.io project by name
+    // Step 1: find the client's Frame.io project, creating it if it doesn't exist
     console.log(`[frameio-folders] searching for project "${clientName}"…`)
-    const project = await findProjectByName(clientName, token)
+    let project = await findProjectByName(clientName, token)
     if (!project) {
-      console.warn(`[frameio-folders] no project named "${clientName}" in workspace`)
-      return null
+      console.log(`[frameio-folders] no project found — creating "${clientName}"…`)
+      project = await createProject(clientName, token)
+      console.log(`[frameio-folders] ✓ created project ${project.id}, root=${project.root_folder_id}`)
+    } else {
+      console.log(`[frameio-folders] found project ${project.id}, root=${project.root_folder_id}`)
     }
-    console.log(`[frameio-folders] found project ${project.id}, root=${project.root_folder_id}`)
 
     // Step 2: check if shoot folder already exists (idempotent re-triggers)
     console.log(`[frameio-folders] checking for existing folder "${folderName}"…`)
@@ -139,7 +149,7 @@ export async function createFrameIoShootFolder({
       return `https://next.frame.io/project/${project.id}/view/${existing.id}`
     }
 
-    // Step 3: create the folder.
+    // Step 3: create the shoot folder inside the project root.
     // v4 endpoint: POST /v4/accounts/{id}/folders/{parentId}/folders
     // Payload wraps name inside { data: { name } }.
     console.log(`[frameio-folders] creating folder "${folderName}"…`)

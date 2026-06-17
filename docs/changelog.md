@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-17 — Auto-create Frame.io client project if missing
+
+### Added
+- **Auto-create Frame.io client project** — if no Frame.io project exists for a client when a shoot is triggered, the app now creates one automatically via `POST /v4/accounts/{id}/workspaces/{workspaceId}/projects` before creating the shoot folder inside it. Previously this step returned null for new clients.
+
+---
+
 ## 2026-06-17 — Frame.io folder auto-creation, UI polish, time format toggle
 
 ### Added

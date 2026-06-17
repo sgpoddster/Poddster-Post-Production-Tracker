@@ -139,21 +139,29 @@ export async function createFrameIoShootFolder({
       return `https://next.frame.io/project/${project.id}/view/${existing.id}`
     }
 
-    // Step 3: create the folder.
-    // Frame.io v4 uses JSON:API format — wrap in data.attributes and POST to
-    // the parent folder's /children endpoint.
-    console.log(`[frameio-folders] creating folder "${folderName}"…`)
-    const res  = await framePost(
-      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${project.root_folder_id}/children`,
-      token,
+    // Step 3: create the folder via Frame.io v2 API.
+    // v4 has no public POST route for folder creation. v2 works fine for writes
+    // and uses the same folder/asset IDs, so the resulting ID is valid for v4 URLs.
+    // FRAMEIO_REFRESH_TOKEN holds the sk_live_ v2 service token.
+    console.log(`[frameio-folders] creating folder "${folderName}" via v2 API…`)
+    const v2Token = process.env.FRAMEIO_REFRESH_TOKEN
+    if (!v2Token) throw new Error('FRAMEIO_REFRESH_TOKEN not set')
+    const v2Res = await fetch(
+      `https://api.frame.io/v2/assets/${project.root_folder_id}/children`,
       {
-        data: {
-          type: 'folders',
-          attributes: { name: folderName },
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${v2Token}`,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ type: 'folder', name: folderName }),
       }
     )
-    const item = ((res.data as Record<string, unknown>) ?? res) as Record<string, unknown>
+    if (!v2Res.ok) {
+      const text = await v2Res.text()
+      throw new Error(`Frame.io v2 POST ${v2Res.status}: ${text.slice(0, 200)}`)
+    }
+    const item = await v2Res.json() as Record<string, unknown>
     const url  = `https://next.frame.io/project/${project.id}/view/${item.id as string}`
     console.log(`[frameio-folders] ✓ created "${folderName}" → ${url}`)
     return url

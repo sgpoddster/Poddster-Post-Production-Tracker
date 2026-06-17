@@ -162,6 +162,14 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
             </a>
           </MetaCell>
         )}
+        {project.frameio_folder_link && (
+          <MetaCell label="Frame.io Folder">
+            <a href={project.frameio_folder_link} target="_blank" rel="noreferrer"
+              className="text-brand-red hover:underline">
+              Open folder ↗
+            </a>
+          </MetaCell>
+        )}
         {project.services && (
           <MetaCell label="Services" wide>{project.services}</MetaCell>
         )}

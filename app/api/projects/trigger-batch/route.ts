@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
 import { getHolidayDates } from '@/lib/holidays'
 import { sendBatchAssignmentEmail } from '@/lib/email'
+import { createFrameIoShootFolder } from '@/lib/frameio-folders'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -82,10 +83,25 @@ export async function POST(req: NextRequest) {
       clientName:  first.client_name ?? 'Client',
       items:       projects.map(p => ({ type: p.type, highlightNumber: p.highlight_number })),
       filmingDate: first.filming_date,
+      filmingTime: first.filming_time,
       dueDate:     representativeDue,
       projectUrl:  `${appUrl}/projects/${first.id}`,
     }).catch(e => console.error('[email] batch error:', e))
   }
+
+  // Create Frame.io shoot folder once for the whole batch (fire-and-forget)
+  createFrameIoShootFolder({
+    clientName:  first.client_name,
+    jobId:       first.job_id,
+    filmingDate: first.filming_date,
+    filmingTime: first.filming_time,
+  }).then(async folderUrl => {
+    if (folderUrl) {
+      await supabase.from('projects')
+        .update({ frameio_folder_link: folderUrl })
+        .eq('job_id', first.job_id)
+    }
+  }).catch(e => console.error('[frameio-folders] batch trigger error:', e))
 
   return NextResponse.json({ success: true, triggered: projects.length })
 }

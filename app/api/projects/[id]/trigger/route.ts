@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { addWorkDays, versionLabel, workDaysForVersion } from '@/lib/utils'
 import { getHolidayDates } from '@/lib/holidays'
 import { sendAssignmentEmail } from '@/lib/email'
+import { createFrameIoShootFolder } from '@/lib/frameio-folders'
 
 export async function POST(
   req: NextRequest,
@@ -100,10 +101,25 @@ export async function POST(
       projectType:     project.type,
       highlightNumber: project.highlight_number,
       filmingDate:     project.filming_date,
+      filmingTime:     project.filming_time,
       dueDate:         dueDateStr,
       projectUrl:      `${appUrl}/projects/${id}`,
     }).catch(e => console.error('[email] background error:', e))
   }
+
+  // Create Frame.io shoot folder (fire-and-forget; saves URL to all rows of same job)
+  createFrameIoShootFolder({
+    clientName:  project.client_name,
+    jobId:       project.job_id,
+    filmingDate: project.filming_date,
+    filmingTime: project.filming_time,
+  }).then(async folderUrl => {
+    if (folderUrl) {
+      await supabase.from('projects')
+        .update({ frameio_folder_link: folderUrl })
+        .eq('job_id', project.job_id)
+    }
+  }).catch(e => console.error('[frameio-folders] trigger error:', e))
 
   return NextResponse.json({ success: true, project })
 }

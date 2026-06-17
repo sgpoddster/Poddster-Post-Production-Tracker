@@ -25,6 +25,7 @@ export interface Project {
   filming_time: string | null       // e.g. '10:00 - 11:00'
   setup: string | null
   drive_link: string | null
+  frameio_folder_link: string | null
   footage_ok: boolean
   shoot_duration: string | null
   seats: number | null

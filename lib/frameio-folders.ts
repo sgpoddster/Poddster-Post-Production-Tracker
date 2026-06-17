@@ -136,11 +136,10 @@ export async function createFrameIoShootFolder({
     }
 
     // Step 3: create the folder.
-    // Frame.io v4: POST /v4/accounts/{accountId}/projects/{projectId}/folders
-    // with parent_id in the body to place it inside the project root.
+    // Frame.io v4: POST /v4/accounts/{accountId}/folders with parent_id in body.
     console.log(`[frameio-folders] creating folder "${folderName}"…`)
     const res  = await framePost(
-      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/projects/${project.id}/folders`,
+      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders`,
       token,
       { name: folderName, parent_id: project.root_folder_id }
     )

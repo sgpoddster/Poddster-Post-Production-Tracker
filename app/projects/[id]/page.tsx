@@ -127,33 +127,37 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      {/* Meta grid */}
+      {/* Meta grid — 3 cols, rows of 3, Folders spans 2 on last row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-th/[0.06] rounded-lg overflow-hidden">
+        {/* Row 1: what / when */}
         <MetaCell label="Type">
-          {project.type === 'episode'
-            ? 'Episode'
-            : `Highlight #${project.highlight_number}`}
+          {project.type === 'episode' ? 'Episode' : `Highlight #${project.highlight_number}`}
         </MetaCell>
-        <MetaCell label="Filming Date">
+        <MetaCell label="Date">
           {project.filming_date ? formatDate(project.filming_date) : '—'}
-          {project.filming_time ? ` · ${project.filming_time}` : ''}
         </MetaCell>
+        <MetaCell label="Time">
+          {project.filming_time || '—'}
+        </MetaCell>
+        {/* Row 2: logistics */}
         <MetaCell label="Room">{project.setup || '—'}</MetaCell>
-        {project.shoot_duration && (
-          <MetaCell label="Duration">
-            {project.shoot_duration === '1' ? '1 hour' : `${project.shoot_duration} hours`}
-          </MetaCell>
-        )}
+        <MetaCell label="Duration">
+          {project.shoot_duration
+            ? project.shoot_duration === '1' ? '1 hour' : `${project.shoot_duration} hours`
+            : '—'}
+        </MetaCell>
         <MetaCell label="Producer">
           {formatAssignee(project.assigned_editor, project.editor, editorNames)}
         </MetaCell>
-        {project.seats != null && (
-          <MetaCell label="Seats">{project.seats}</MetaCell>
-        )}
+        {/* Row 3: admin details */}
+        {project.seats != null
+          ? <MetaCell label="Seats">{project.seats}</MetaCell>
+          : <MetaCell label="Seats"><span className="text-th/25">—</span></MetaCell>}
         <MetaCell label="Version">V{project.current_version}</MetaCell>
-        {project.order_id && (
-          <MetaCell label="Order ID">{project.order_id}</MetaCell>
-        )}
+        <MetaCell label="Order ID">
+          {project.order_id || <span className="text-th/25">—</span>}
+        </MetaCell>
+        {/* Row 4: folder links (span 2) */}
         {(project.drive_link || project.frameio_folder_link) && (
           <MetaCell label="Folders" span2>
             <div className="flex items-center gap-6">

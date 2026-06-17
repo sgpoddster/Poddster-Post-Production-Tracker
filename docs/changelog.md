@@ -4,6 +4,29 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-17 — Frame.io folder auto-creation, UI polish, time format toggle
+
+### Added
+- **Auto-create Frame.io shoot folder on trigger** — when a project (or batch) is triggered, the app finds the client's Frame.io project by name and creates a shoot folder named `{jobId} {time} {date}` (e.g. `DABA2 230pm 16th June 2026`) inside it. Uses Frame.io v4 API: `POST /v4/accounts/{id}/folders/{parentId}/folders` with `{ data: { name } }` body. Idempotent — if the folder already exists it returns the existing one.
+- **Frame.io Folder link in project detail** — `frameio_folder_link` is saved to the project on trigger and shown as a MetaCell ("Frame.io Folder → Open folder ↗") on the project detail page. Requires `ALTER TABLE projects ADD COLUMN IF NOT EXISTS frameio_folder_link TEXT;`.
+- **12h / 24h time format toggle** — button in the navbar (next to theme toggle). Preference persists in `localStorage`. All timestamps on the dashboard respect the toggle via the `TimeDisplay` client component and `TimeFormatProvider` context.
+- **Copy Project ID button** — ghost button in the version history header on project detail; copies the 5-char Job ID (e.g. `DABA2`) to clipboard.
+- **Filming time in assignment emails** — the trigger/batch-trigger emails now include the filming start time alongside the date (e.g. `14 Apr 2026 · 16:00`).
+
+### Changed
+- **Frame.io link colour on dashboard** — changed from red to `text-th/45` (matches surrounding muted text) with `hover:text-th/70`.
+- **Revision badge** — `in_revision` status badge changed from amber to teal (`bg-teal-400 text-black`).
+- **Start Revision button** — now visible to all users (not just admins) on both the dashboard card and the project detail page.
+- **Per-section sort controls** — each dashboard section (Draft, In Progress, Client Review, Completed) has its own sort dropdown (Filming Date / Due Date / Delivered Date) that persists in the URL as `s_draft`, `s_ip`, `s_cr`, `s_done` params.
+- **Draft section alignment** — fixed left-column kerning to match the "In Progress" section (removed extra spacer `<span>` and corrected gap to align checkbox + chevron columns).
+
+### Fixed
+- **Frame.io backfill inconsistency** — query now ordered `ASC` by `version_number` and the lookup map always overwrites so the highest version wins as fallback. Added `export const maxDuration = 300` to prevent Vercel 10s timeout cutting the scan short.
+- **Active current version incorrectly getting Frame.io link** — backfill now excludes active current versions from candidates and runs a cleanup pass to clear any wrongly-assigned links before scanning.
+- **Frame.io folder creation (v4 endpoint)** — correct route is `POST /v4/accounts/{id}/folders/{parentId}/folders` (not `/children`, not `/assets`). Payload must wrap name as `{ data: { name } }`. Standard Adobe OAuth token (no special scopes) works fine.
+
+---
+
 ## 2026-06-15 — Frame.io backfill tool
 
 ### Added

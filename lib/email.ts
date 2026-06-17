@@ -33,6 +33,7 @@ export async function sendAssignmentEmail({
   projectType,
   highlightNumber,
   filmingDate,
+  filmingTime,
   dueDate,
   projectUrl,
 }: {
@@ -42,12 +43,15 @@ export async function sendAssignmentEmail({
   projectType: 'episode' | 'highlight'
   highlightNumber?: number | null
   filmingDate: string | null
+  filmingTime: string | null
   dueDate: string
   projectUrl: string
 }) {
   const typeLabel = projectType === 'episode' ? 'Episode' : `Highlight #${highlightNumber ?? ''}`
   const dueDateFormatted = formatFullDate(dueDate)
-  const filmingFormatted = filmingDate ? formatFullDate(filmingDate) : null
+  const filmingFormatted = filmingDate
+    ? `${formatFullDate(filmingDate)}${filmingTime ? ` · ${filmingTime.split(' - ')[0]}` : ''}`
+    : null
 
   const firstName = editorName.split(' ')[0]
 
@@ -153,6 +157,7 @@ export async function sendBatchAssignmentEmail({
   clientName,
   items,
   filmingDate,
+  filmingTime,
   dueDate,
   projectUrl,
 }: {
@@ -161,12 +166,15 @@ export async function sendBatchAssignmentEmail({
   clientName: string
   items: { type: 'episode' | 'highlight'; highlightNumber?: number | null }[]
   filmingDate: string | null
+  filmingTime: string | null
   dueDate: string
   projectUrl: string
 }) {
   const firstName = editorName.split(' ')[0]
   const dueDateFormatted = formatFullDate(dueDate)
-  const filmingFormatted = filmingDate ? formatFullDate(filmingDate) : null
+  const filmingFormatted = filmingDate
+    ? `${formatFullDate(filmingDate)}${filmingTime ? ` · ${filmingTime.split(' - ')[0]}` : ''}`
+    : null
 
   const epCount = items.filter(i => i.type === 'episode').length
   const hlCount = items.filter(i => i.type === 'highlight').length

@@ -135,12 +135,14 @@ export async function createFrameIoShootFolder({
       return `https://next.frame.io/project/${project.id}/view/${existing.id}`
     }
 
-    // Step 3: create the folder
+    // Step 3: create the folder.
+    // Frame.io v4: POST /v4/accounts/{accountId}/projects/{projectId}/folders
+    // with parent_id in the body to place it inside the project root.
     console.log(`[frameio-folders] creating folder "${folderName}"…`)
     const res  = await framePost(
-      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${project.root_folder_id}/children`,
+      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/projects/${project.id}/folders`,
       token,
-      { name: folderName, type: 'folder' }
+      { name: folderName, parent_id: project.root_folder_id }
     )
     const item = (res.data ?? res) as Record<string, unknown>
     const url  = `https://next.frame.io/project/${project.id}/view/${item.id as string}`

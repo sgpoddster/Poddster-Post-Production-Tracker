@@ -157,25 +157,17 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         <MetaCell label="Order ID">
           {project.order_id || <span className="text-th/25">—</span>}
         </MetaCell>
-        {/* Row 4: folder links (span 2) */}
-        {(project.drive_link || project.frameio_folder_link) && (
-          <MetaCell label="Folders" span2>
-            <div className="flex items-center gap-6">
-              {project.drive_link && (
-                <a href={project.drive_link} target="_blank" rel="noreferrer"
-                  className="text-brand-red hover:underline">
-                  Drive ↗
-                </a>
-              )}
-              {project.frameio_folder_link && (
-                <a href={project.frameio_folder_link} target="_blank" rel="noreferrer"
-                  className="text-brand-red hover:underline">
-                  Frame.io ↗
-                </a>
-              )}
-            </div>
-          </MetaCell>
-        )}
+        {/* Row 4: folder links, one cell each */}
+        <MetaCell label="Drive Folder">
+          {project.drive_link
+            ? <a href={project.drive_link} target="_blank" rel="noreferrer" className="text-brand-red hover:underline">Open folder ↗</a>
+            : <span className="text-th/25">—</span>}
+        </MetaCell>
+        <MetaCell label="Frame Folder">
+          {project.frameio_folder_link
+            ? <a href={project.frameio_folder_link} target="_blank" rel="noreferrer" className="text-brand-red hover:underline">Open folder ↗</a>
+            : <span className="text-th/25">—</span>}
+        </MetaCell>
         {project.services && (
           <MetaCell label="Services" wide>{project.services}</MetaCell>
         )}
@@ -239,11 +231,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   )
 }
 
-function MetaCell({ label, children, wide, span2 }: {
-  label: string; children: React.ReactNode; wide?: boolean; span2?: boolean
+function MetaCell({ label, children, wide }: {
+  label: string; children: React.ReactNode; wide?: boolean
 }) {
   return (
-    <div className={`bg-brand-surface px-4 py-3 ${wide ? 'col-span-2 sm:col-span-3' : span2 ? 'col-span-2' : ''}`}>
+    <div className={`bg-brand-surface px-4 py-3 ${wide ? 'col-span-2 sm:col-span-3' : ''}`}>
       <div className="text-xs text-th/30 mb-0.5">{label}</div>
       <div className="text-sm text-th/80">{children}</div>
     </div>

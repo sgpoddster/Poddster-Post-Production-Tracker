@@ -424,9 +424,7 @@ function InProgressRow({ project, isAdmin, editorName }: {
         {project.status === 'in_client_review' && (
           <>
             <CompleteButton projectId={project.id} />
-            {isAdmin && (
-              <StartRevisionButton projectId={project.id} currentVersion={project.current_version} />
-            )}
+            <StartRevisionButton projectId={project.id} currentVersion={project.current_version} />
             <UndoButton projectId={project.id} />
           </>
         )}

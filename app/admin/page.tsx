@@ -5,6 +5,7 @@ import RoleToggle from './RoleToggle'
 import ClientManager from './ClientManager'
 import HolidayManager from './HolidayManager'
 import FrameioBackfill from './FrameioBackfill'
+import FrameioFolderBackfill from './FrameioFolderBackfill'
 
 export default async function AdminPage({
   searchParams,
@@ -95,6 +96,7 @@ export default async function AdminPage({
       {tab === 'tools' && (
         <section className="space-y-4">
           <FrameioBackfill />
+          <FrameioFolderBackfill />
         </section>
       )}
 

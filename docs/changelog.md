@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-18 — Admin button: Backfill Frame.io folder links
+
+### Added
+- **"Backfill Frame.io Folder Links" button** in Admin → Tools tab. Calls `POST /api/admin/backfill-frameio-folders`, shows a per-job result summary (saved / skipped / errors) with links to created folders.
+
+---
+
 ## 2026-06-18 — Backfill Frame.io folder links for existing projects
 
 ### Added

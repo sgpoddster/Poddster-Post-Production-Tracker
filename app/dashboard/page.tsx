@@ -37,7 +37,12 @@ function sortSection(
     }
     const da = dateField(a), db = dateField(b)
     const cmp = da < db ? -1 : da > db ? 1 : 0
-    return descDates ? -cmp : cmp
+    if (cmp !== 0) return descDates ? -cmp : cmp
+    // Same date — tiebreak by filming_time (HH:MM), newest first
+    const ta = a.filming_time?.split(' - ')[0] ?? ''
+    const tb = b.filming_time?.split(' - ')[0] ?? ''
+    const tcmp = ta < tb ? -1 : ta > tb ? 1 : 0
+    return descDates ? -tcmp : tcmp
   })
 }
 const currentVerDueDate  = (p: Project) => (p.versions ?? []).find(v => v.version_number === p.current_version)?.due_date ?? ''

@@ -4,6 +4,24 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-18 — Sort Client Review & Completed by date and time
+
+### Changed
+- **Client Review and Completed sections now sort by date + filming time** (newest first). Projects on the same date tiebreak by `filming_time` descending — 15:00 on the 19th appears above 14:00 on the 19th.
+
+---
+
+## 2026-06-18 — Review-chase cron fixes
+
+### Fixed
+- **Frame.io folder URL regex** — `deleteFrameIoFolder` now matches the last UUID in the URL rather than looking for a `/view/` segment, handling both the API-constructed format and the browser URL format.
+- **Wrong Supabase import path** in `/api/extend-deletion/route.ts` (`@/lib/supabase/service` → `@/lib/supabase/server`); was causing a build failure.
+
+### Added
+- **`?testDeletion=1` knob** on the review-chase cron — runs the day-21 deletion pass for a single client (`onlyClient=`) without requiring `REVIEW_CHASE_LIVE=true`, safe for testing.
+
+---
+
 ## 2026-06-18 — Frame.io asset deletion automation + review-chase email updates
 
 ### Added

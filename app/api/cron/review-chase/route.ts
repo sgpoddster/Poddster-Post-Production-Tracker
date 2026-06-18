@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendReviewChaseEmail } from '@/lib/email'
+import { deleteFrameIoFolder } from '@/lib/frameio-folders'
 
 // Daily job (called by a GAS time-trigger): chase clients who haven't responded
-// to a Client Review. Purely reads our own tables — no Frame.io.
+// to a Client Review.
 //   Day 7  in review  → reminder    (review_chase_stage 0 → 1)
-//   Day 14 in review  → final notice (review_chase_stage 1 → 2)
+//   Day 14 in review  → final notice (review_chase_stage 1 → 2) + extension link
+//   Day 21 in review  → delete Frame.io folder, auto-complete project
 // Auth: ?key=<INGEST_API_KEY>.
 export async function GET(req: NextRequest)  { return run(req) }
 export async function POST(req: NextRequest) { return run(req) }
@@ -20,7 +22,7 @@ async function run(req: NextRequest) {
   // SAFETY: no real client emails until REVIEW_CHASE_LIVE=true is set in env.
   //   - default            → dry run: report who WOULD be chased, send nothing, change nothing
   //   - ?testTo=me@x.com    → send the real email to THAT address only (preview); no stage change
-  //   - REVIEW_CHASE_LIVE   → live: email clients + advance stage
+  //   - REVIEW_CHASE_LIVE   → live: email clients + advance stage + run deletions
   const testTo = params.get('testTo')
   const live = process.env.REVIEW_CHASE_LIVE === 'true'
   const mode = testTo ? 'test' : live ? 'live' : 'dry-run'
@@ -33,8 +35,51 @@ async function run(req: NextRequest) {
 
   const supabase = createServiceClient()
   const todayMs = Date.now()
+  const today = new Date().toISOString().split('T')[0]
   const dayMs = 86_400_000
 
+  // ─── Day-21 deletion pass (live mode only) ───────────────────────────────
+  // Find stage-2 in_client_review projects whose version done_date is ≥21 days
+  // ago and whose deletion hold has expired (or was never set).
+  let deletedCount = 0
+  const deletionLog: { internalId: string; result: boolean }[] = []
+
+  if (mode === 'live') {
+    const { data: forDeletion } = await supabase
+      .from('projects')
+      .select('id, internal_id, client_name, frameio_folder_link, current_version, deletion_hold_until, versions(*)')
+      .eq('status', 'in_client_review')
+      .eq('review_chase_stage', 2)
+
+    for (const p of forDeletion ?? []) {
+      // Skip if within a user-requested hold period
+      if (p.deletion_hold_until && p.deletion_hold_until >= today) continue
+
+      const ver = (p.versions ?? []).find((v: { version_number: number }) => v.version_number === p.current_version)
+      const days = ver?.done_date
+        ? Math.floor((todayMs - new Date(ver.done_date + 'T00:00:00').getTime()) / dayMs)
+        : null
+      if (days == null || days < 21) continue
+
+      // Delete Frame.io folder if present
+      let deleted = true
+      if (p.frameio_folder_link) {
+        deleted = await deleteFrameIoFolder(p.frameio_folder_link)
+      }
+
+      deletionLog.push({ internalId: p.internal_id, result: deleted })
+
+      // Auto-complete regardless of whether deletion succeeded (folder may already be gone)
+      await supabase
+        .from('projects')
+        .update({ status: 'complete', frameio_folder_link: null })
+        .eq('id', p.id)
+
+      deletedCount++
+    }
+  }
+
+  // ─── Chase email pass ─────────────────────────────────────────────────────
   let query = supabase
     .from('projects')
     .select('id, client_name, type, highlight_number, internal_id, filming_date, filming_time, order_id, current_version, review_chase_stage, assigned_editor, versions(*)')
@@ -112,6 +157,8 @@ async function run(req: NextRequest) {
           orderId: r.project.order_id,
         })),
         portalUrl,
+        // Pass extension token for stage-2 emails so clients can self-serve a 7-day hold
+        extensionToken: stage === 2 ? (client?.portal_token ?? null) : null,
       })
       emailsSent++
     }
@@ -128,5 +175,14 @@ async function run(req: NextRequest) {
     preview.push({ clientName, stage, to: toEmails, count: rows.length })
   }
 
-  return NextResponse.json({ ok: true, mode, due: due.length, emailsSent, clients: groups.size, preview })
+  return NextResponse.json({
+    ok: true,
+    mode,
+    due: due.length,
+    emailsSent,
+    clients: groups.size,
+    preview,
+    deletedCount,
+    deletionLog,
+  })
 }

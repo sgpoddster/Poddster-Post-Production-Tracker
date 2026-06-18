@@ -4,6 +4,23 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-18 — Frame.io asset deletion automation + review-chase email updates
+
+### Added
+- **Day-21 Frame.io folder deletion** — the review-chase cron now runs a deletion pass (live mode only) before the email pass. Any `in_client_review` project at `review_chase_stage=2` whose delivered version `done_date` is ≥ 21 days ago has its Frame.io shoot folder deleted via `DELETE /v4/accounts/{id}/folders/{folderId}`. The project is automatically moved to `status='complete'` and `frameio_folder_link` is cleared, whether or not the delete call succeeds (handles already-deleted folders gracefully).
+- **Self-serve 7-day extension link** in day-14 chase email — stage-2 emails now include a discreet "I need more time →" button that links to `/api/extend-deletion?token={portalToken}`. Clicking it sets `deletion_hold_until = today + 7` on all the client's stage-2 in-review projects. The deletion pass skips any project whose hold is still active.
+- **`/api/extend-deletion` public route** — GET endpoint that finds a client by `portal_token`, extends their deletion hold, and returns a styled HTML confirmation page (no login required).
+- **`deleteFrameIoFolder(folderUrl)`** in `lib/frameio-folders.ts` — parses the folder ID from the `next.frame.io` URL and calls the Frame.io v4 DELETE endpoint. Returns `true` on success, `false` on any error (non-fatal).
+
+### Changed
+- **Review-chase stage-2 emails** now pass `extensionToken` (client's `portal_token`) to `sendReviewChaseEmail()` so the extension button is included. Stage-1 emails are unaffected.
+- **Cron response** now includes `deletedCount` and `deletionLog` fields for observability.
+
+### Database
+- Requires: `ALTER TABLE projects ADD COLUMN IF NOT EXISTS deletion_hold_until date;` — run in Supabase SQL editor.
+
+---
+
 ## 2026-06-18 — Dashboard: newest-first sort + show-20 limit on Client Review & Completed
 
 ### Changed

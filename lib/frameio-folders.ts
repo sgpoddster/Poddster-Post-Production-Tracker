@@ -105,6 +105,39 @@ async function findChildFolderByName(
 }
 
 /**
+ * Deletes a Frame.io shoot folder by its URL.
+ * Parses the folder ID from the next.frame.io URL and calls DELETE.
+ * Returns true on success, false on any failure (non-fatal).
+ */
+export async function deleteFrameIoFolder(folderUrl: string): Promise<boolean> {
+  // URL format: https://next.frame.io/project/{projectId}/view/{folderId}
+  const match = folderUrl.match(/\/view\/([a-f0-9-]+)$/i)
+  if (!match) {
+    console.warn('[frameio-folders] deleteFrameIoFolder: could not parse folder ID from URL', folderUrl)
+    return false
+  }
+  const folderId = match[1]
+  console.log(`[frameio-folders] deleting folder ${folderId}…`)
+  try {
+    const token = await getAccessToken()
+    const res = await fetch(
+      `https://api.frame.io/v4/accounts/${ACCOUNT_ID}/folders/${folderId}`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
+    )
+    if (!res.ok) {
+      const text = await res.text()
+      console.error(`[frameio-folders] DELETE ${res.status}: ${text.slice(0, 200)}`)
+      return false
+    }
+    console.log(`[frameio-folders] ✓ deleted folder ${folderId}`)
+    return true
+  } catch (e) {
+    console.error('[frameio-folders] delete error:', e)
+    return false
+  }
+}
+
+/**
  * Finds (or creates) the client's Frame.io project, then creates (or finds)
  * the shoot folder inside its root. Returns the Frame.io URL for the shoot
  * folder, or null on any failure (caller treats this as non-fatal).

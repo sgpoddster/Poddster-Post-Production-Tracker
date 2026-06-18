@@ -256,6 +256,7 @@ export async function sendReviewChaseEmail({
   stage,
   items,
   portalUrl,
+  extensionToken,
 }: {
   toEmails: string[]
   ccEmails?: string[]
@@ -272,6 +273,7 @@ export async function sendReviewChaseEmail({
     orderId: string | null
   }[]
   portalUrl: string | null
+  extensionToken?: string | null
 }) {
   const to = toEmails.filter(Boolean)
   if (to.length === 0) {
@@ -319,6 +321,10 @@ export async function sendReviewChaseEmail({
           </td></tr>
           ${rows}
         </table>
+        ${stage === 2 && extensionToken
+          ? `<p style="margin:0 0 16px;font-size:13px;color:rgba(255,255,255,0.4);line-height:1.5;">Need more time to download? Click below to extend by 7 days.</p>
+             <a href="${process.env.NEXT_PUBLIC_APP_URL}/api/extend-deletion?token=${extensionToken}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">I need more time →</a>`
+          : ''}
       </td></tr>
       <tr><td style="padding-top:24px;">
         <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">

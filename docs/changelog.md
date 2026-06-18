@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-18 — Backfill Frame.io folder links for existing projects
+
+### Added
+- **`POST /api/admin/backfill-frameio-folders`** — admin-only one-shot route that finds all projects with a null `frameio_folder_link`, deduplicates by `job_id`, calls `createFrameIoShootFolder` for each, and saves the result. Returns a summary of saved/skipped/errored counts plus a per-job log. Safe to re-run — skips jobs where the call returns null (e.g. client name mismatch).
+
+---
+
 ## 2026-06-18 — Fix Frame.io folder link missing on some triggered projects
 
 ### Fixed

@@ -28,10 +28,12 @@ async function run(req: NextRequest) {
   const mode = testTo ? 'test' : live ? 'live' : 'dry-run'
 
   // Test-only knobs (ignored in live runs):
-  //   onlyClient=<name>  → restrict to one client
-  //   days=<n>           → pretend every project's been in review n days
+  //   onlyClient=<name>    → restrict to one client
+  //   days=<n>             → pretend every project's been in review n days
+  //   testDeletion=1       → run the day-21 deletion pass for onlyClient (non-live safe)
   const onlyClient = params.get('onlyClient')
   const daysOverride = params.get('days') ? Number(params.get('days')) : null
+  const testDeletion = params.get('testDeletion') === '1'
 
   const supabase = createServiceClient()
   const todayMs = Date.now()
@@ -44,12 +46,14 @@ async function run(req: NextRequest) {
   let deletedCount = 0
   const deletionLog: { internalId: string; result: boolean }[] = []
 
-  if (mode === 'live') {
-    const { data: forDeletion } = await supabase
+  if (mode === 'live' || testDeletion) {
+    let delQuery = supabase
       .from('projects')
       .select('id, internal_id, client_name, frameio_folder_link, current_version, deletion_hold_until, versions(*)')
       .eq('status', 'in_client_review')
       .eq('review_chase_stage', 2)
+    if (onlyClient) delQuery = delQuery.eq('client_name', onlyClient)
+    const { data: forDeletion } = await delQuery
 
     for (const p of forDeletion ?? []) {
       // Skip if within a user-requested hold period

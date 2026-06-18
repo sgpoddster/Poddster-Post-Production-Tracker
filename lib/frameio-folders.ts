@@ -110,8 +110,11 @@ async function findChildFolderByName(
  * Returns true on success, false on any failure (non-fatal).
  */
 export async function deleteFrameIoFolder(folderUrl: string): Promise<boolean> {
-  // URL format: https://next.frame.io/project/{projectId}/view/{folderId}
-  const match = folderUrl.match(/\/view\/([a-f0-9-]+)$/i)
+  // URL formats:
+  //   https://next.frame.io/project/{projectId}/view/{folderId}  (API-constructed)
+  //   https://next.frame.io/project/{projectId}/{folderId}        (browser URL)
+  // In both cases the folder ID is the last UUID segment.
+  const match = folderUrl.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i)
   if (!match) {
     console.warn('[frameio-folders] deleteFrameIoFolder: could not parse folder ID from URL', folderUrl)
     return false

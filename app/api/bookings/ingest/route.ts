@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
 
   const project = {
-    job_id:            body.jobId,
-    internal_id:       body.internalId,
+    job_id:            String(body.jobId).trim().toUpperCase(),
+    internal_id:       String(body.internalId).trim().toUpperCase(),
     order_id:          body.orderId          ?? null,
     client_name:       body.clientName       ?? null,
     client_code:       body.clientCode       ?? null,

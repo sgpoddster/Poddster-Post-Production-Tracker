@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/service'
+import { createServiceClient } from '@/lib/supabase/server'
 
 // Public route — no auth. Client clicks link in day-14 email.
 // Grants a 7-day extension on all their in-review stage-2 projects.

@@ -5,6 +5,8 @@ import { getHolidayDates } from '@/lib/holidays'
 import { sendAssignmentEmail } from '@/lib/email'
 import { createFrameIoShootFolder } from '@/lib/frameio-folders'
 
+export const maxDuration = 300
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }

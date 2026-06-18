@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-18 — Fix Frame.io folder link missing on some triggered projects
+
+### Fixed
+- **`maxDuration = 300` added to both trigger routes** (`/api/projects/[id]/trigger` and `/api/projects/trigger-batch`). Without this, Vercel's default 10s function timeout was cutting off the Frame.io folder creation call before it completed, causing `frameio_folder_link` to silently stay null. Projects triggered before this fix can be re-triggered to backfill the link (idempotent — finds the existing folder).
+
+---
+
 ## 2026-06-18 — Sort Client Review & Completed by date and time
 
 ### Changed

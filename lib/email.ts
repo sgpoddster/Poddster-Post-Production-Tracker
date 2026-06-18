@@ -294,8 +294,8 @@ export async function sendReviewChaseEmail({
     .join('')
 
   const intro = stage === 1
-    ? `We haven't heard back for 7 days so, when you get a moment, please take a look and let us know if it's good to go or if you'd like any changes (remember to click the 'Needs Review' status button).`
-    : `We're still waiting to hear back on the edit/s below. If we don't hear from you within 7 days we'll assume the edit/s are approved, are downloaded, and we'll move them into our 30-day archive — after this period lapses they will be permanently deleted. To review, please add your comments and remember to click on the 'Needs Review' status button.`
+    ? `We haven't heard back for 7 days so, when you get a moment, please take a look and let us know if it's good to go or if you'd like any changes. Please make your comments in Frame.io and change the status to 'Needs Review' for revisions or change the status to 'Complete' if the project is finished and no further changes required.`
+    : `We're still waiting to hear back on the edit/s below. If we don't hear from you within 7 days we'll assume the edit/s are approved, are downloaded, and we'll move them into our 30-day archive — after this period lapses they will be permanently deleted. To review, please add your comments and remember to click on the 'Needs Review' status button. Or you can change the status to 'Complete' if the project is finished and no further changes required.`
 
   const heading = stage === 1 ? 'Reminder on your edit/s' : 'Final reminder'
   const accent = stage === 1 ? '#3b82f6' : '#f59e0b'
@@ -319,7 +319,6 @@ export async function sendReviewChaseEmail({
           </td></tr>
           ${rows}
         </table>
-        ${portalUrl ? `<a href="${portalUrl}" style="display:inline-block;background:#e53e3e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">View your projects →</a>` : ''}
       </td></tr>
       <tr><td style="padding-top:24px;">
         <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Children } from 'react'
 
 export function CollapsibleSection({
   dot,
@@ -9,6 +9,7 @@ export function CollapsibleSection({
   empty,
   storageKey,
   noContainer = false,
+  defaultLimit,
   actions,
   children,
 }: {
@@ -18,10 +19,12 @@ export function CollapsibleSection({
   empty: string
   storageKey: string
   noContainer?: boolean
+  defaultLimit?: number
   actions?: React.ReactNode
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(true)
+  const [showAll, setShowAll] = useState(false)
 
   // Remember collapsed state across visits
   useEffect(() => {
@@ -29,12 +32,19 @@ export function CollapsibleSection({
     if (localStorage.getItem(`dash-sec-${storageKey}`) === 'closed') setOpen(false)
   }, [storageKey])
 
+  // Reset showAll when section is collapsed
   const toggle = () =>
     setOpen(o => {
       const next = !o
+      if (!next) setShowAll(false)
       try { localStorage.setItem(`dash-sec-${storageKey}`, next ? 'open' : 'closed') } catch {}
       return next
     })
+
+  const childArray = Children.toArray(children)
+  const limited = defaultLimit && !showAll && childArray.length > defaultLimit
+  const visible = limited ? childArray.slice(0, defaultLimit) : childArray
+  const hiddenCount = childArray.length - (defaultLimit ?? 0)
 
   return (
     <section>
@@ -64,9 +74,27 @@ export function CollapsibleSection({
         ) : count === 0 ? (
           <p className="text-sm text-th/25 pl-4">{empty}</p>
         ) : (
-          <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden divide-y divide-th/[0.06]">
-            {children}
-          </div>
+          <>
+            <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden divide-y divide-th/[0.06]">
+              {visible}
+            </div>
+            {limited && (
+              <button
+                onClick={() => setShowAll(true)}
+                className="mt-3 w-full text-xs text-th/40 hover:text-th/60 transition-colors py-2"
+              >
+                Show {hiddenCount} more…
+              </button>
+            )}
+            {showAll && defaultLimit && childArray.length > defaultLimit && (
+              <button
+                onClick={() => setShowAll(false)}
+                className="mt-3 w-full text-xs text-th/40 hover:text-th/60 transition-colors py-2"
+              >
+                Show fewer
+              </button>
+            )}
+          </>
         )
       )}
     </section>

@@ -26,7 +26,8 @@ function sortSection(
   ps: Project[],
   by: string,
   dateField: (p: Project) => string,
-  editorNames: Record<string, string>
+  editorNames: Record<string, string>,
+  descDates = false,
 ): Project[] {
   return [...ps].sort((a, b) => {
     if (by === 'name') return (a.client_name ?? '').localeCompare(b.client_name ?? '')
@@ -35,7 +36,8 @@ function sortSection(
         .localeCompare(formatAssignee(b.assigned_editor, b.editor, editorNames))
     }
     const da = dateField(a), db = dateField(b)
-    return da < db ? -1 : da > db ? 1 : 0
+    const cmp = da < db ? -1 : da > db ? 1 : 0
+    return descDates ? -cmp : cmp
   })
 }
 const currentVerDueDate  = (p: Project) => (p.versions ?? []).find(v => v.version_number === p.current_version)?.due_date ?? ''
@@ -135,8 +137,8 @@ export default async function DashboardPage({
 
   const pending    = sortSection(allProjects.filter(p => p.status === 'pending_trigger').filter(filter),    sortDraft, p => p.filming_date ?? '', editorNames)
   const inProgress = sortSection(allProjects.filter(p => ['active', 'in_revision'].includes(p.status)).filter(filter), sortIp,   currentVerDueDate,  editorNames)
-  const inReview   = sortSection(allProjects.filter(p => p.status === 'in_client_review').filter(filter),  sortCr,    currentVerDoneDate, editorNames)
-  const completed  = sortSection((completedProjects ?? []).filter(filter),                                  sortDone,  latestDoneDate,    editorNames)
+  const inReview   = sortSection(allProjects.filter(p => p.status === 'in_client_review').filter(filter),  sortCr,    currentVerDoneDate, editorNames, true)
+  const completed  = sortSection((completedProjects ?? []).filter(filter),                                  sortDone,  latestDoneDate,    editorNames, true)
 
   const totalShown = pending.length + inProgress.length + inReview.length + completed.length
 
@@ -209,6 +211,7 @@ export default async function DashboardPage({
         dot="bg-purple-500" title="Client Review" count={inReview.length} storageKey="client-review"
         empty={q ? 'No matches in this section.' : 'Nothing awaiting client review.'}
         actions={<SortControl paramKey="s_cr" dateLabel="Delivered Date" />}
+        defaultLimit={20}
       >
         {groupByJob(inReview).map(group =>
           group.length === 1 ? (
@@ -228,6 +231,7 @@ export default async function DashboardPage({
         dot="bg-green-500" title="Completed" count={completed.length} storageKey="completed"
         empty={q ? 'No matches in this section.' : 'No completions in the last 30 days.'}
         actions={<SortControl paramKey="s_done" dateLabel="Completed Date" />}
+        defaultLimit={20}
       >
         {groupByJob(completed).map(group =>
           group.length === 1 ? (

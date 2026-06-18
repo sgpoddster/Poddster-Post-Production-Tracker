@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-18 — Dashboard: newest-first sort + show-20 limit on Client Review & Completed
+
+### Changed
+- **Delivered/Completed Date sort is now newest-first** (descending) for Client Review and Completed sections. Most recently delivered projects appear at the top.
+- **Client Review and Completed sections show 20 items by default** with a "Show X more…" button to expand. Keeps the page manageable when sections grow large. A "Show fewer" button collapses back.
+
+---
+
 ## 2026-06-17 — Auto-create Frame.io client project if missing
 
 ### Added

@@ -19,6 +19,7 @@ import PendingTriggerList from './PendingTriggerList'
 import MarkDoneButton from '../queue/MarkDoneButton'
 import CompleteButton from '@/components/CompleteButton'
 import UndoButton from '@/components/UndoButton'
+import UndoToDraftButton from '@/components/UndoToDraftButton'
 import OnHoldButton from '@/components/OnHoldButton'
 
 // Sort helpers
@@ -425,7 +426,10 @@ function InProgressRow({ project, isAdmin, editorName }: {
 
       <div className="flex items-center gap-1.5 sm:gap-2 justify-end shrink-0 w-64">
         {isAdmin && (project.status === 'active' || project.status === 'in_revision') && (
-          <OnHoldButton projectId={project.id} onHold={project.on_hold} holdReason={project.hold_reason} />
+          <>
+            <UndoToDraftButton projectId={project.id} />
+            <OnHoldButton projectId={project.id} onHold={project.on_hold} holdReason={project.hold_reason} />
+          </>
         )}
         {(project.status === 'active' || project.status === 'in_revision') && !project.on_hold && (
           <MarkDoneButton projectId={project.id} versionId={currentVer?.id} />

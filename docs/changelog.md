@@ -25,6 +25,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-19 — Undo to Draft button on In Progress (admin only)
+
+### Added
+- **↩ Draft button** on all In Progress rows (admin only). Moves the project back to Draft (`pending_trigger`), deletes the version row that was created at trigger time, and resets `current_version`. Sits to the left of the Hold button, matching the style of the existing Undo button on Client Review rows.
+
+---
+
 ## 2026-06-18 — Sort Client Review & Completed by date and time
 
 ### Changed

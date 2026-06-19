@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { createFrameIoShootFolder } from '@/lib/frameio-folders'
+import { findFrameIoShootFolder } from '@/lib/frameio-folders'
 import { getUserProfile } from '@/lib/auth'
 
 export const maxDuration = 300
@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
     .is('frameio_folder_link', null)
     .not('client_name', 'is', null)
     .not('job_id', 'is', null)
-    .in('status', ['pending_trigger', 'active', 'in_revision'])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -33,7 +32,7 @@ export async function POST(req: NextRequest) {
     seen.add(p.job_id)
 
     try {
-      const folderUrl = await createFrameIoShootFolder({
+      const folderUrl = await findFrameIoShootFolder({
         clientName:  p.client_name,
         jobId:       p.job_id,
         filmingDate: p.filming_date,

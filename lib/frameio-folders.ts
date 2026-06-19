@@ -141,6 +141,36 @@ export async function deleteFrameIoFolder(folderUrl: string): Promise<boolean> {
 }
 
 /**
+ * Finds an existing shoot folder in Frame.io without creating anything.
+ * Returns the folder URL if found, null if the project or folder doesn't exist.
+ */
+export async function findFrameIoShootFolder({
+  clientName,
+  jobId,
+  filmingDate,
+  filmingTime,
+}: {
+  clientName:  string | null
+  jobId:       string
+  filmingDate: string | null
+  filmingTime: string | null
+}): Promise<string | null> {
+  if (!clientName) return null
+  const folderName = buildFolderName(jobId, filmingDate, filmingTime)
+  try {
+    const token = await getAccessToken()
+    const project = await findProjectByName(clientName, token)
+    if (!project) return null
+    const folder = await findChildFolderByName(project.root_folder_id, folderName, token)
+    if (!folder) return null
+    return `https://next.frame.io/project/${project.id}/view/${folder.id}`
+  } catch (e) {
+    console.error('[frameio-folders] findFrameIoShootFolder error:', e)
+    return null
+  }
+}
+
+/**
  * Finds (or creates) the client's Frame.io project, then creates (or finds)
  * the shoot folder inside its root. Returns the Frame.io URL for the shoot
  * folder, or null on any failure (caller treats this as non-fatal).

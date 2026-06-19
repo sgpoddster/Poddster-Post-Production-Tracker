@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     .is('frameio_folder_link', null)
     .not('client_name', 'is', null)
     .not('job_id', 'is', null)
+    .in('status', ['pending_trigger', 'active', 'in_revision'])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

@@ -20,7 +20,7 @@ export default function CompleteButton({ projectId }: { projectId: string }) {
       disabled={loading}
       className="px-3 py-1.5 border border-green-500/40 text-green-400/80 hover:bg-green-500 hover:border-green-500 hover:text-white disabled:opacity-40 text-xs font-medium rounded transition-colors whitespace-nowrap"
     >
-      {loading ? 'Saving…' : '✓ Complete'}
+      {loading ? '…' : '✓ Done'}
     </button>
   )
 }

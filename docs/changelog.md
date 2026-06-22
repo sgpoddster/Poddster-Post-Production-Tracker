@@ -4,6 +4,15 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-22 — Footage ingest cron (hourly calendar scan)
+
+### Added
+- **`GET /api/cron/footage-ingest`** — hourly cron that scans all 3 Poddster calendars, filters out hasPP events (those containing edit/highlight/standard services), and upserts footage-only sessions into `footage_deliveries`. Uses the stable Google Calendar event ID as `job_id` so re-runs are idempotent and never overwrite saved drive_link or sent_at.
+- **`vercel.json`** — schedules the cron at `0 * * * *` (top of every hour) via Vercel native cron. Auth uses Vercel's automatic `CRON_SECRET` header; also accepts `?key=INGEST_API_KEY` for manual test runs.
+- Requires 3 new Vercel env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALENDAR_REFRESH_TOKEN` (offline token for singapore@poddster.com with `calendar.readonly` scope).
+
+---
+
 ## 2026-06-22 — Footage Delivery System (Phase 1)
 
 ### Added

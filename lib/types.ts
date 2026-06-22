@@ -60,6 +60,26 @@ export interface Version {
   updated_at: string
 }
 
+export interface FootageDelivery {
+  id: string
+  job_id: string
+  order_id: string | null
+  client_name: string | null
+  client_code: string | null
+  filming_date: string | null    // 'YYYY-MM-DD'
+  filming_time: string | null
+  setup: string | null
+  services: string | null
+  addons: string | null
+  drive_link: string | null
+  sent_at: string | null         // ISO timestamp
+  expires_at: string | null      // 'YYYY-MM-DD'
+  chase_stage: number
+  source: string
+  created_at: string
+  updated_at: string
+}
+
 // Payload shape sent by GAS ingest script
 export interface IngestPayload {
   jobId: string

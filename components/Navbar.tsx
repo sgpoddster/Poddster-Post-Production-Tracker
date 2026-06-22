@@ -41,6 +41,9 @@ export async function Navbar() {
               <Link href="/dashboard" className="text-sm text-th/50 hover:text-th transition-colors">Dashboard</Link>
               <Link href="/queue"     className="text-sm text-th/50 hover:text-th transition-colors">Queue</Link>
               {isAdmin && (
+                <Link href="/footage" className="text-sm text-th/50 hover:text-th transition-colors">Footage</Link>
+              )}
+              {isAdmin && (
                 <Link href="/admin"   className="text-sm text-th/50 hover:text-th transition-colors">Admin</Link>
               )}
             </div>
@@ -68,6 +71,9 @@ export async function Navbar() {
           <div className="sm:hidden flex items-center gap-5 pb-2.5 border-t border-th/[0.04] pt-2">
             <Link href="/dashboard" className="text-sm text-th/50 hover:text-th transition-colors">Dashboard</Link>
             <Link href="/queue"     className="text-sm text-th/50 hover:text-th transition-colors">Queue</Link>
+            {isAdmin && (
+              <Link href="/footage" className="text-sm text-th/50 hover:text-th transition-colors">Footage</Link>
+            )}
             {isAdmin && (
               <Link href="/admin"   className="text-sm text-th/50 hover:text-th transition-colors">Admin</Link>
             )}

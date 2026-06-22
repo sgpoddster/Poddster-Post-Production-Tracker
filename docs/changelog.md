@@ -4,6 +4,22 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-22 — Footage Delivery System (Phase 1)
+
+### Added
+- **`footage_deliveries` Supabase table** — one row per footage-only shoot (job_id unique). Columns: client info, filming details, drive_link, sent_at, expires_at, chase_stage.
+- **`POST /api/footage/ingest`** — GAS posts non-hasPP bookings here (same x-api-key auth as `/api/bookings/ingest`). Upserts on job_id, never overwrites drive_link or sent_at.
+- **`PATCH /api/footage/[id]`** — Admin saves the Google Drive footage link. Admin only.
+- **`POST /api/footage/[id]/send`** — Fires the footage delivery email to the client, sets `sent_at` + `expires_at = sent_at + 7 days`. Looks up client emails from the shared `clients` table. Admin only.
+- **`sendFootageDeliveryEmail()` in `lib/email.ts`** — Email using the standard Poddster template: greeting, Drive link CTA, 7-day policy, Poddster Cloud upsell, Google Review link, social media callout.
+- **`/footage` page** — Admin-only. "To Send" and "Active" sections, sorted by filming date+time newest first. Each row shows client, date/time/setup, inline Drive link input, and Send button.
+- **`FootageDriveLinkInput` component** — Inline URL input + Save button; updates via PATCH.
+- **`FootageSendButton` component** — Confirm-then-send; disabled until Drive link is saved.
+- **Navbar**: added "Footage" link (admin only) between Queue and Admin, on both desktop and mobile nav.
+- **`FootageDelivery` type** added to `lib/types.ts`.
+
+---
+
 ## 2026-06-18 — Admin button: Backfill Frame.io folder links
 
 ### Added

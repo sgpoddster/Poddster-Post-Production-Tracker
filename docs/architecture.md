@@ -137,6 +137,25 @@ Lookup table for the client quick-fill dropdown and the client portal.
 | `portal_token` | uuid | Per-client key for the public `/client/[token]` portal |
 | `exclude_from_reminders` | boolean | If true, the review-chase cron skips this client |
 
+### `footage_deliveries`
+
+Footage-only sessions (no post-production). One row per shoot (job_id is unique).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid (PK) | |
+| `job_id` | text (unique) | Shoot identifier from GAS ingest |
+| `order_id` | text | Optional booking reference |
+| `client_name` / `client_code` | text | From booking |
+| `filming_date` / `filming_time` | date / text | Shoot date + time range |
+| `setup` | text | Room name |
+| `services` / `addons` | text | Raw strings from booking |
+| `drive_link` | text | Admin pastes the Google Drive footage link here |
+| `sent_at` | timestamptz | When the delivery email was sent (null = unsent) |
+| `expires_at` | date | `sent_at + 7 days`; when footage should be deleted |
+| `chase_stage` | int | 0 = no chase; 1 = day-5 reminder sent |
+| `source` | text | `calendar` (from GAS) or `manual` |
+
 ### `user_profiles`
 
 Extends Supabase Auth users with app-specific data.
@@ -215,6 +234,7 @@ Closed Days) are skipped. `addWorkDays` takes an optional holiday set.
 | `/dashboard` | All | Four **collapsible** sections: Draft, In Progress, Client Review, Completed (last 30 days). Each section has its own **sort control** (Filming Date / Due Date / Delivered Date, persisted in URL params). Search box + multi-select **client** filter + admin **producer** filter; overdue flagging; batch-trigger checkboxes on Draft. Admin sees all; producer sees own. |
 | `/queue` | All | Flat urgency-sorted list of active/in_revision work. Filters (one row): due window (Today/+1/+2/All working days), multi-select client, admin producer. Admin sees all; editor sees own. |
 | `/projects/[id]` | All | Full project detail: meta, version timeline, action buttons. **Copy Project ID** button copies the 5-char Job ID. Frame.io Folder link shown if auto-created. Admin gets Edit (incl. version selector), Cancel, Due Date editor, Copy client link. |
+| `/footage` | Admin only | Footage-only sessions. **To Send** (unsent) and **Active** (within 7-day window) sections. Admin pastes Drive link, hits Send to fire the delivery email. |
 | `/admin` | Admin only | Tabs: **Team** (role management) and **Clients** (search, add at top, emails ×3, names, portal link). |
 | `/client/[token]` | Public | Login-free client portal — all of a client's projects grouped by session, statuses + version timelines. Served via service-role read; whitelisted in middleware. |
 
@@ -264,7 +284,15 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 
 | Method | Route | What it does |
 |---|---|---|
-| `POST` | `/api/bookings/ingest` | Upsert a project row from GAS. Authenticated with `INGEST_API_KEY` env var. Matches on `internal_id`. |
+| `POST` | `/api/bookings/ingest` | Upsert a project row from GAS (hasPP bookings). Authenticated with `INGEST_API_KEY` env var. Matches on `internal_id`. |
+| `POST` | `/api/footage/ingest` | Upsert a footage delivery row from GAS (non-hasPP bookings). Same `x-api-key` auth. Matches on `job_id` (one row per shoot). |
+
+### Footage
+
+| Method | Route | What it does |
+|---|---|---|
+| `PATCH` | `/api/footage/[id]` | Save Drive link. Admin only (session auth). |
+| `POST` | `/api/footage/[id]/send` | Fire the footage delivery email, set `sent_at` + `expires_at`. Admin only. |
 
 ### Admin
 
@@ -317,6 +345,8 @@ All routes require a valid Supabase session cookie except `/api/bookings/ingest`
 | `CopyProjectIdButton` | Copies the 5-char Job ID to clipboard. |
 | `CopyPortalLinkButton` | Copies the client portal URL to clipboard. Admin only. |
 | `AddOutputButton` | Register a Frame.io asset (future). |
+| `FootageDriveLinkInput` | Inline URL input + Save for the Drive link on footage delivery rows. |
+| `FootageSendButton` | "✉ Send" button that fires the footage delivery email via `/api/footage/[id]/send`. |
 
 ### Queue (`/app/queue`)
 

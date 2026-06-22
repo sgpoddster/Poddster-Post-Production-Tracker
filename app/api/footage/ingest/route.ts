@@ -45,17 +45,16 @@ export async function POST(req: NextRequest) {
     source:       'calendar' as const,
   }
 
-  // Upsert on job_id — re-running GAS sync is safe, drive_link and sent_at are not overwritten
-  const { data, error } = await supabase
+  // Upsert on job_id — re-running GAS sync is safe, drive_link and sent_at are not overwritten.
+  // No .single() — ignoreDuplicates returns 0 rows when the row already exists.
+  const { error } = await supabase
     .from('footage_deliveries')
     .upsert(row, { onConflict: 'job_id', ignoreDuplicates: true })
-    .select('id, job_id')
-    .single()
 
   if (error) {
     console.error('[footage/ingest] error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, id: data?.id, job_id: data?.job_id })
+  return NextResponse.json({ success: true, job_id: row.job_id })
 }

@@ -31,7 +31,7 @@ export default function FootageSendButton({
     <button
       onClick={send}
       disabled={loading || !hasDriveLink}
-      className="shrink-0 px-3 py-1.5 bg-red-500 hover:bg-red-400 disabled:opacity-40 text-white text-xs font-semibold rounded transition-colors whitespace-nowrap"
+      className="shrink-0 px-3 py-1.5 bg-red-500 hover:bg-red-400 disabled:opacity-40 text-white text-xs font-bold rounded transition-colors whitespace-nowrap drop-shadow-sm"
     >
       {loading ? '…' : '✉ Send 4K'}
     </button>

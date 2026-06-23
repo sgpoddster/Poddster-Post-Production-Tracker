@@ -89,7 +89,7 @@ export default async function DashboardPage({
     await Promise.all([
       query,
       completedQuery,
-      supabase.from('clients').select('id, name, code').order('name'),
+      supabase.from('clients').select('id, name, code').neq('has_post_production', false).order('name'),
       supabase.from('user_profiles').select('email, display_name').order('display_name'),
     ])
 

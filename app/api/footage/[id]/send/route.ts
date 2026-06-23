@@ -28,18 +28,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // Look up client email(s) from the shared clients table
   const { data: client } = await supabase
     .from('clients')
-    .select('emails, cc_emails, first_name')
+    .select('first_name, email, email_2, email_3')
     .ilike('name', delivery.client_name ?? '')
     .single()
 
-  const toEmails: string[] = (client?.emails ?? []).filter(Boolean)
+  const toEmails: string[] = [client?.email, client?.email_2, client?.email_3].filter(Boolean) as string[]
   if (toEmails.length === 0) {
     return NextResponse.json({ error: `No email on file for "${delivery.client_name}"` }, { status: 400 })
   }
 
   await sendFootageDeliveryEmail({
     toEmails,
-    ccEmails: client?.cc_emails ?? [],
+    ccEmails: [],
     clientFirstName: client?.first_name ?? null,
     clientName: delivery.client_name ?? '',
     driveLink: delivery.drive_link,

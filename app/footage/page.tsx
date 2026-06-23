@@ -5,6 +5,7 @@ import { FootageDelivery } from '@/lib/types'
 import FootageDriveLinkInput from '@/components/FootageDriveLinkInput'
 import FootageSendButton from '@/components/FootageSendButton'
 import FootageConvertButton from '@/components/FootageConvertButton'
+import { SearchBar } from '@/app/dashboard/SearchBar'
 
 function formatDate(d: string | null): string {
   if (!d) return '—'
@@ -128,7 +129,11 @@ function Section({
   )
 }
 
-export default async function FootagePage() {
+export default async function FootagePage({
+  searchParams,
+}: {
+  searchParams?: { q?: string }
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -146,15 +151,27 @@ export default async function FootagePage() {
   const all = (rows ?? []) as FootageDelivery[]
   const today = new Date().toISOString().split('T')[0]
 
-  const toSend = all.filter(d => !d.sent_at)
-  const active = all.filter(d => d.sent_at && (!d.expires_at || d.expires_at >= today))
-  const expired = all.filter(d => d.sent_at && d.expires_at && d.expires_at < today)
+  const q = searchParams?.q?.toLowerCase().trim() ?? ''
+  const filtered = q
+    ? all.filter(d =>
+        [d.client_name, d.client_code, d.job_id, d.order_id, d.setup, d.filming_date]
+          .some(v => v?.toLowerCase().includes(q))
+      )
+    : all
+
+  const toSend  = filtered.filter(d => !d.sent_at)
+  const active  = filtered.filter(d => d.sent_at && (!d.expires_at || d.expires_at >= today))
+  const expired = filtered.filter(d => d.sent_at && d.expires_at && d.expires_at < today)
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-th/90">Footage Delivery</h1>
         <p className="mt-1 text-sm text-th/40">Footage-only sessions — no post-production. Add Drive link and send to client.</p>
+      </div>
+
+      <div className="mb-6 max-w-sm">
+        <SearchBar defaultValue={searchParams?.q} />
       </div>
 
       <Section title="To Send" count={toSend.length} accent="bg-amber-400/15 text-amber-400">

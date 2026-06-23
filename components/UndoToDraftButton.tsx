@@ -8,8 +8,15 @@ export default function UndoToDraftButton({ projectId }: { projectId: string }) 
   const router = useRouter()
 
   async function undo() {
+    if (!confirm('Move this project back to Draft? This will delete the current version row.')) return
     setLoading(true)
-    await fetch(`/api/projects/${projectId}/undo-to-draft`, { method: 'POST' })
+    const res = await fetch(`/api/projects/${projectId}/undo-to-draft`, { method: 'POST' })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      alert(`Could not revert to draft: ${d.error ?? res.status}`)
+      setLoading(false)
+      return
+    }
     router.refresh()
     setLoading(false)
   }

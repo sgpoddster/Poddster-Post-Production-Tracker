@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getUserProfile } from '@/lib/auth'
 import { FootageDelivery } from '@/lib/types'
@@ -125,7 +125,8 @@ export default async function FootagePage() {
   const profile = await getUserProfile()
   if (profile?.role !== 'admin') redirect('/dashboard')
 
-  const { data: rows } = await supabase
+  const serviceClient = createServiceClient()
+  const { data: rows } = await serviceClient
     .from('footage_deliveries')
     .select('*')
     .order('filming_date', { ascending: false })

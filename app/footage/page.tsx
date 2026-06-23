@@ -4,6 +4,7 @@ import { getUserProfile } from '@/lib/auth'
 import { FootageDelivery } from '@/lib/types'
 import FootageDriveLinkInput from '@/components/FootageDriveLinkInput'
 import FootageSendButton from '@/components/FootageSendButton'
+import FootageConvertButton from '@/components/FootageConvertButton'
 
 function formatDate(d: string | null): string {
   if (!d) return '—'
@@ -56,32 +57,42 @@ function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
         </div>
       </div>
 
-      {/* Right: drive link + send */}
-      <div className="flex items-center gap-2 sm:w-[400px] shrink-0">
-        {delivery.drive_link ? (
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <a
-              href={delivery.drive_link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 min-w-0 truncate text-xs text-blue-400/80 hover:text-blue-400 underline underline-offset-2 decoration-dotted transition-colors"
-              title={delivery.drive_link}
-            >
-              {delivery.drive_link.replace('https://drive.google.com/', 'drive.google.com/…').slice(0, 45)}…
-            </a>
-            <FootageDriveLinkInput deliveryId={delivery.id} initialLink={delivery.drive_link} />
-          </div>
-        ) : (
-          <FootageDriveLinkInput deliveryId={delivery.id} initialLink={null} />
-        )}
-        {!delivery.sent_at && (
-          <FootageSendButton deliveryId={delivery.id} hasDriveLink={!!delivery.drive_link} />
-        )}
-        {delivery.sent_at && (
-          <span className="shrink-0 text-[11px] text-green-400/70 whitespace-nowrap">
-            ✓ Sent {formatDate(delivery.sent_at.split('T')[0])}
-          </span>
-        )}
+      {/* Right: drive link + send buttons */}
+      <div className="flex flex-col gap-2 sm:w-[420px] shrink-0">
+        {/* Drive link row */}
+        <div className="flex items-center gap-2">
+          {delivery.drive_link ? (
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <a
+                href={delivery.drive_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 min-w-0 truncate text-xs text-blue-400/80 hover:text-blue-400 underline underline-offset-2 decoration-dotted transition-colors"
+                title={delivery.drive_link}
+              >
+                {delivery.drive_link.replace('https://drive.google.com/', 'drive.google.com/…').slice(0, 45)}…
+              </a>
+              <FootageDriveLinkInput deliveryId={delivery.id} initialLink={delivery.drive_link} />
+            </div>
+          ) : (
+            <FootageDriveLinkInput deliveryId={delivery.id} initialLink={null} />
+          )}
+        </div>
+        {/* Action buttons row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {!delivery.sent_at ? (
+            <FootageSendButton deliveryId={delivery.id} hasDriveLink={!!delivery.drive_link} />
+          ) : (
+            <span className="shrink-0 text-[11px] text-green-400/70 whitespace-nowrap">
+              ✓ Sent {formatDate(delivery.sent_at.split('T')[0])}
+            </span>
+          )}
+          <FootageConvertButton
+            deliveryId={delivery.id}
+            hasDriveLink={!!delivery.drive_link}
+            conversionStatus={delivery.conversion_status}
+          />
+        </div>
       </div>
     </div>
   )

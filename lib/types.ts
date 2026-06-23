@@ -76,6 +76,8 @@ export interface FootageDelivery {
   expires_at: string | null      // 'YYYY-MM-DD'
   chase_stage: number
   source: string
+  conversion_status: 'processing' | 'done' | 'error' | null
+  converted_link: string | null  // link to "Smaller File Size 1080p" folder
   created_at: string
   updated_at: string
 }

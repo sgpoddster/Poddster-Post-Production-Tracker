@@ -33,7 +33,7 @@ export default function FootageSendButton({
       disabled={loading || !hasDriveLink}
       className="shrink-0 px-3 py-1.5 bg-brand-red hover:bg-brand-red/80 disabled:opacity-40 text-white text-xs font-medium rounded transition-colors whitespace-nowrap"
     >
-      {loading ? '…' : '✉ Send'}
+      {loading ? '…' : '✉ Send 4K'}
     </button>
   )
 }

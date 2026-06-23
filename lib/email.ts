@@ -337,6 +337,99 @@ export async function sendFootageDeliveryEmail({
   }
 }
 
+// ── 1080p footage delivery email ─────────────────────────────────────────────
+export async function sendFootage1080pEmail({
+  toEmails,
+  ccEmails = [],
+  clientFirstName,
+  clientName,
+  convertedLink,
+}: {
+  toEmails: string[]
+  ccEmails?: string[]
+  clientFirstName: string | null
+  clientName: string
+  convertedLink: string
+}) {
+  const to = toEmails.filter(Boolean)
+  if (to.length === 0) {
+    console.warn(`[email] 1080p delivery: no email on file for ${clientName} — skipping`)
+    return
+  }
+
+  const greeting = clientFirstName ? `Greetings ${clientFirstName},` : 'Greetings,'
+  const GOOGLE_REVIEW = 'https://g.page/r/CeenrgM9UCQxEBM/review'
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;padding:40px 20px;"><tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+      <tr><td style="padding-bottom:32px;">
+        <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
+        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
+      </td></tr>
+      <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
+
+        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">${greeting}</h1>
+
+        <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+          It was a pleasure to host you at Poddster. Here is your footage in a smaller file size (1080p).
+          <strong style="color:#fff;">We will keep it on this link for 7 days:</strong>
+        </p>
+
+        <a href="${convertedLink}" style="display:inline-block;background:#e53e3e;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
+          Access Your Footage (1080p) →
+        </a>
+
+        <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
+          <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+            This folder contains a compressed 1080p version of your footage, which is a fraction of the original file size and much easier to download. The audio files are identical to the originals.
+          </p>
+          <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+            If you prefer us to store it for longer, you would need to subscribe to our
+            <strong style="color:#fff;">Poddster Cloud service at S$68</strong> (one time payment),
+            and sign a personal data hosting waiver with us. We will then be able to hold on to your
+            files for <strong style="color:#fff;">6 months</strong> from the date of recording.
+          </p>
+          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.5;">
+            (If you have already subscribed to our Poddster Cloud storage service, please disregard the 7 day deadline)
+          </p>
+        </div>
+
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;margin-bottom:24px;">
+          <p style="margin:0 0 12px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+            If you enjoyed your session, help us spread the word about Poddster and leave a review:
+          </p>
+          <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
+            ⭐ Leave a Google Review →
+          </a>
+        </div>
+
+        <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.7;">
+          Lastly, we want to help promote your podcast! 📣<br />
+          If you share any content from your session on social media, tag us
+          <strong style="color:#fff;">@poddster.sg</strong> — we'd love to reshare it.
+        </p>
+
+      </td></tr>
+      <tr><td style="padding-top:24px;">
+        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
+          Questions? Just reply to this email — it reaches the Poddster team.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
+
+  try {
+    const cc = ccEmails.filter(Boolean).join(',')
+    await sendViaGas(to.join(','), 'Your Poddster Footage is Ready (Smaller File Size)', html, cc || undefined)
+  } catch (e) {
+    console.error('[email] 1080p footage delivery error:', e)
+  }
+}
+
 // ── Review chase emails to the client (no response after 7 / 14 days) ────────
 export async function sendReviewChaseEmail({
   toEmails,

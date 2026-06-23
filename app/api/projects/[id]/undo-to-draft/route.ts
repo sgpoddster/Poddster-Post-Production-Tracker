@@ -40,8 +40,6 @@ export async function POST(
       status: 'pending_trigger',
       current_version: prevVersion,
       previous_status: null,
-      on_hold: false,
-      hold_reason: null,
     })
     .eq('id', params.id)
 

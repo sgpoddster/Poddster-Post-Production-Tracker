@@ -4,6 +4,72 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-24 — Footage expiry emails, Drive deletion, and Poddster Cloud extend
+
+### Added
+- **`sendFootageReminderEmail()`** — email sent 2 days before `expires_at`: "your footage link expires in 2 days, please download". Includes Poddster Cloud upsell.
+- **`sendFootageExpiredEmail()`** — email sent on `expires_at`: "your footage has been deleted" notice, with Poddster Cloud upsell for future sessions.
+- **`GET /api/cron/footage-expiry`** — daily cron (1am UTC / 9am SGT) that finds rows due for reminder or expiry, sends the appropriate email, and trashes the Drive folder (via service account Drive API) once the expiry email has gone out. Drive link is cleared from the row after successful trash. Neither email fires twice — tracked by `reminder_sent_at` and `expired_sent_at` columns.
+- **`POST /api/footage/[id]/extend`** — adds 6 months to `expires_at` from current expiry (or today if already expired). Resets `expired_sent_at` so the expiry cron won't re-fire incorrectly.
+- **`FootageExtendButton` component** — "☁ +6mo" button shown next to "✓ Sent" on sent rows. Confirms before extending.
+- **`vercel.json`** updated: added `footage-expiry` cron at `0 1 * * *`. Also corrected `footage-ingest` schedule from `0 9` (UTC) to `0 1` (1am UTC = 9am SGT).
+- **SQL**: `reminder_sent_at timestamptz` and `expired_sent_at timestamptz` columns on `footage_deliveries`.
+
+---
+
+## 2026-06-24 — Footage delivery UX improvements
+
+### Added
+- **`FootageUndoButton` component** — "↺ Undo" resets a sent delivery back to unsent (clears `sent_at`, `expires_at`, `conversion_status`, `converted_link`). Admin only. Shown next to "✓ Sent" for testing.
+- **`FootageShowMore` component** — "To Send" section shows 30 rows by default with "Show X more ↓" to reveal the rest (client-side, no page reload).
+- **`GET /api/footage/[id]/undo`** — backing route for undo button.
+
+### Changed
+- Footage page hides future bookings by default (`filming_date <= today`), ordered most recent first.
+- Drive link display changed from truncated URL to clean **"View Folder →"** anchor.
+- Footage buttons updated to match deadline badge colours: Send 4K = white on blue, Convert & Send = black on green.
+
+---
+
+## 2026-06-24 — Footage: direct calendar ingest, email from booking, client name fix
+
+### Changed
+- **GAS footage ingest endpoint retired** (`POST /api/footage/ingest` now returns 410). Footage deliveries are sourced exclusively from the calendar cron.
+- **Client name** on footage rows now always comes from the calendar event summary (the part before `|`), never from the clients table enrichment.
+- **Email** on footage rows now parsed from the calendar event description (`User Email:` field) and stored directly on `footage_deliveries.email`. Send and callback routes use `delivery.email` directly — no longer look up the clients table.
+- Cron now syncs all mutable fields (filming_date, filming_time, setup, client_name, email, order_id) when re-encountering an existing event — handles rescheduled bookings correctly.
+- Cron skips events where the same `order_id + filming_date` already exists (prevents duplicates from legacy GAS rows).
+- Cron removes stale rows within the scan window whose calendar event no longer exists (cancelled bookings). Already-sent rows are never deleted.
+- **SQL**: `email text` column added to `footage_deliveries`.
+
+---
+
+## 2026-06-24 — Convert & Send (1080p transcoding via Cloud Run)
+
+### Added
+- **`conversion_status` / `converted_link`** columns on `footage_deliveries`.
+- **`POST /api/footage/[id]/convert`** — admin triggers Cloud Run mp4-convertor v6. Sets `conversion_status = 'processing'`, fires Cloud Run with `waitUntil`, returns 202.
+- **`POST /api/footage/convert-callback`** — Cloud Run POSTs back when done. Updates `conversion_status`, sends `sendFootage1080pEmail()`, sets `sent_at`/`expires_at`.
+- **`sendFootage1080pEmail()`** in `lib/email.ts` — 1080p delivery email pointing to "Smaller File Size 1080p" subfolder.
+- **`FootageConvertButton` component** — shows "Convert & Send" / "Converting…" / "✓ 1080p sent" / "↺ Retry 1080p" states.
+- **Cloud Run mp4-convertor v6** (`/tmp/mp4-convertor-v6/main.py`) — creates "Smaller File Size 1080p" subfolder in session folder, copies audio files server-side (no download), transcodes MP4s to 1080p H.264 12 Mbps, POSTs callback with token.
+- Requires Vercel env vars: `MP4_CONVERTOR_URL`, `MP4_CONVERTOR_TOKEN`.
+
+### Changed
+- **`FootageSendButton`** label changed to "✉ Send 4K".
+
+---
+
+## 2026-06-24 — Footage: service account calendar auth + has_post_production
+
+### Added
+- **`GOOGLE_SERVICE_ACCOUNT_JSON`** env var support in footage cron. Service account JWT auth replaces legacy OAuth refresh token approach. Falls back to `GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN` if env var absent.
+- **`has_post_production boolean DEFAULT true`** column on `clients` table. Footage-only clients imported as `false`. Dashboard ClientFilter excludes `has_post_production = false` clients.
+- 3rd Poddster calendar (`c_86fc...`) added to `CALENDAR_IDS` in footage cron.
+- Singapore timezone fix for `filming_date` and `filming_time` using `toLocaleDateString('en-CA')` and `toLocaleTimeString('en-SG')`.
+
+---
+
 ## 2026-06-22 — Footage ingest cron (hourly calendar scan)
 
 ### Added

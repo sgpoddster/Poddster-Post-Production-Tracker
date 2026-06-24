@@ -49,7 +49,7 @@ export default function FootageConvertButton({
     <button
       onClick={convert}
       disabled={loading || !hasDriveLink}
-      className="shrink-0 px-3 py-1.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-40 text-white text-xs font-bold rounded transition-colors whitespace-nowrap drop-shadow-sm"
+      className="shrink-0 px-3 py-1.5 bg-green-400 hover:bg-green-300 disabled:opacity-40 text-black text-xs font-bold rounded transition-colors whitespace-nowrap"
     >
       {loading ? '…' : conversionStatus === 'error' ? '↺ Retry 1080p' : 'Convert & Send'}
     </button>

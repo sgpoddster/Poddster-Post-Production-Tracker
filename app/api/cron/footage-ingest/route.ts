@@ -156,6 +156,13 @@ function extractClientName(summary: string | undefined): string | null {
   return before || null
 }
 
+// Extract customer email from event description e.g. "User Email: ben@example.com"
+function extractEmail(description: string | undefined): string | null {
+  if (!description) return null
+  const m = description.match(/User\s+Email\s*:\s*([^\s\n\r<]+)/i)
+  return m ? m[1].trim() : null
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -213,23 +220,24 @@ export async function GET(req: NextRequest) {
       const endISO      = ev.end.dateTime   ?? ''
       const filmingDate = buildFilmingDate(startISO) ?? parsed.filmingDate
       const clientName  = extractClientName(ev.summary)
+      const email       = extractEmail(ev.description)
       const orderDateKey = parsed.orderId && filmingDate ? `${parsed.orderId}|${filmingDate}` : null
 
       if (knownJobIds.has(ev.id)) {
-        // Already a cron row for this event — update client_name in case it changed
+        // Already a cron row for this event — update name/email in case they changed
         await supabase
           .from('footage_deliveries')
-          .update({ client_name: clientName })
+          .update({ client_name: clientName, email })
           .eq('job_id', ev.id)
         skipped++
         continue
       }
 
       if (orderDateKey && knownOrderDates.has(orderDateKey)) {
-        // A GAS row exists for this order+date — update its client_name to the calendar name
+        // A GAS row exists for this order+date — update its name/email from the calendar
         await supabase
           .from('footage_deliveries')
-          .update({ client_name: clientName })
+          .update({ client_name: clientName, email })
           .eq('order_id', parsed.orderId!)
           .eq('filming_date', filmingDate!)
         skipped++
@@ -240,6 +248,7 @@ export async function GET(req: NextRequest) {
         job_id:       ev.id,
         order_id:     parsed.orderId  ?? null,
         client_name:  clientName,
+        email,
         filming_date: filmingDate,
         filming_time: buildFilmingTime(startISO, endISO),
         setup:        parsed.setup    ?? null,

@@ -25,22 +25,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'No Drive link saved yet' }, { status: 400 })
   }
 
-  // Look up client email(s) from the shared clients table
-  const { data: client } = await supabase
-    .from('clients')
-    .select('first_name, email, email_2, email_3')
-    .ilike('name', delivery.client_name ?? '')
-    .single()
-
-  const toEmails: string[] = [client?.email, client?.email_2, client?.email_3].filter(Boolean) as string[]
-  if (toEmails.length === 0) {
-    return NextResponse.json({ error: `No email on file for "${delivery.client_name}"` }, { status: 400 })
+  if (!delivery.email) {
+    return NextResponse.json({ error: `No email on file for "${delivery.client_name}" — re-run the cron to backfill from the calendar booking` }, { status: 400 })
   }
 
   await sendFootageDeliveryEmail({
-    toEmails,
+    toEmails: [delivery.email],
     ccEmails: [],
-    clientFirstName: client?.first_name ?? null,
+    clientFirstName: null,
     clientName: delivery.client_name ?? '',
     driveLink: delivery.drive_link,
   })

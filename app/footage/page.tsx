@@ -54,7 +54,7 @@ function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
           <span>{formatDate(delivery.filming_date)}</span>
           {time && <span>· {time}</span>}
           {delivery.setup && <span>· {delivery.setup}</span>}
-          {delivery.job_id && <code className="font-mono text-th/25">{delivery.job_id}</code>}
+          {delivery.order_id && <code className="font-mono text-th/25">{delivery.order_id}</code>}
         </div>
       </div>
 

@@ -224,10 +224,17 @@ export async function GET(req: NextRequest) {
       const orderDateKey = parsed.orderId && filmingDate ? `${parsed.orderId}|${filmingDate}` : null
 
       if (knownJobIds.has(ev.id)) {
-        // Already a cron row for this event — update name/email in case they changed
+        // Already a cron row — sync all mutable fields in case the booking was rescheduled
         await supabase
           .from('footage_deliveries')
-          .update({ client_name: clientName, email })
+          .update({
+            client_name:  clientName,
+            email,
+            filming_date: filmingDate,
+            filming_time: buildFilmingTime(startISO, endISO),
+            setup:        parsed.setup ?? null,
+            order_id:     parsed.orderId ?? null,
+          })
           .eq('job_id', ev.id)
         skipped++
         continue

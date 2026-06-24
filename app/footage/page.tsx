@@ -145,6 +145,8 @@ export default async function FootagePage({
   const profile = await getUserProfile()
   if (profile?.role !== 'admin') redirect('/dashboard')
 
+  const today = new Date().toISOString().split('T')[0]
+
   const serviceClient = createServiceClient()
   const { data: rows } = await serviceClient
     .from('footage_deliveries')
@@ -154,7 +156,6 @@ export default async function FootagePage({
     .order('filming_time', { ascending: false })
 
   const all = (rows ?? []) as FootageDelivery[]
-  const today = new Date().toISOString().split('T')[0]
 
   const q = searchParams?.q?.toLowerCase().trim() ?? ''
   const filtered = q

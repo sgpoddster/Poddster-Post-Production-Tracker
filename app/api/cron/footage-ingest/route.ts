@@ -209,15 +209,29 @@ export async function GET(req: NextRequest) {
 
       if (isHasPP(parsed)) { hasPPCount++; continue }
 
-      // Skip if already ingested by job_id (calendar event ID)
-      if (knownJobIds.has(ev.id)) { skipped++; continue }
-
-      const startISO   = ev.start.dateTime ?? ''
-      const endISO     = ev.end.dateTime   ?? ''
+      const startISO    = ev.start.dateTime ?? ''
+      const endISO      = ev.end.dateTime   ?? ''
       const filmingDate = buildFilmingDate(startISO) ?? parsed.filmingDate
+      const clientName  = extractClientName(ev.summary)
+      const orderDateKey = parsed.orderId && filmingDate ? `${parsed.orderId}|${filmingDate}` : null
 
-      // Skip if a row already exists for this order + date (e.g. from GAS)
-      if (parsed.orderId && filmingDate && knownOrderDates.has(`${parsed.orderId}|${filmingDate}`)) {
+      if (knownJobIds.has(ev.id)) {
+        // Already a cron row for this event — update client_name in case it changed
+        await supabase
+          .from('footage_deliveries')
+          .update({ client_name: clientName })
+          .eq('job_id', ev.id)
+        skipped++
+        continue
+      }
+
+      if (orderDateKey && knownOrderDates.has(orderDateKey)) {
+        // A GAS row exists for this order+date — update its client_name to the calendar name
+        await supabase
+          .from('footage_deliveries')
+          .update({ client_name: clientName })
+          .eq('order_id', parsed.orderId!)
+          .eq('filming_date', filmingDate!)
         skipped++
         continue
       }
@@ -225,7 +239,7 @@ export async function GET(req: NextRequest) {
       const row = {
         job_id:       ev.id,
         order_id:     parsed.orderId  ?? null,
-        client_name:  extractClientName(ev.summary),
+        client_name:  clientName,
         filming_date: filmingDate,
         filming_time: buildFilmingTime(startISO, endISO),
         setup:        parsed.setup    ?? null,
@@ -241,7 +255,7 @@ export async function GET(req: NextRequest) {
       } else {
         inserted++
         knownJobIds.add(ev.id)
-        if (parsed.orderId && filmingDate) knownOrderDates.add(`${parsed.orderId}|${filmingDate}`)
+        if (orderDateKey) knownOrderDates.add(orderDateKey)
       }
     }
   }

@@ -7,6 +7,7 @@ import FootageSendButton from '@/components/FootageSendButton'
 import FootageConvertButton from '@/components/FootageConvertButton'
 import FootageShowMore from '@/components/FootageShowMore'
 import FootageUndoButton from '@/components/FootageUndoButton'
+import FootageExtendButton from '@/components/FootageExtendButton'
 import { SearchBar } from '@/app/dashboard/SearchBar'
 
 function formatDate(d: string | null): string {
@@ -90,6 +91,7 @@ function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
                 ✓ Sent {formatDate(delivery.sent_at.split('T')[0])}
               </span>
               <FootageUndoButton deliveryId={delivery.id} />
+              <FootageExtendButton deliveryId={delivery.id} />
             </>
           )}
           <FootageConvertButton

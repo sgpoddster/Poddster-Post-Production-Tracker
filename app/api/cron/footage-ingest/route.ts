@@ -260,8 +260,47 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // ── Cleanup: remove rows whose calendar event no longer exists ───────────────
+  // Only applies to cron-sourced rows (long job_ids = calendar event IDs) that
+  // fall within the scan window. Rows already sent are kept as historical records.
+  const now = new Date()
+  const windowMin = new Date(now); windowMin.setDate(windowMin.getDate() - 90)
+  const windowMax = new Date(now); windowMax.setDate(windowMax.getDate() + 365)
+  const windowMinDate = windowMin.toLocaleDateString('en-CA', { timeZone: SINGAPORE_TZ })
+  const windowMaxDate = windowMax.toLocaleDateString('en-CA', { timeZone: SINGAPORE_TZ })
+
+  // Cron rows have long job_ids (calendar event IDs, always > 10 chars)
+  const staleRows = (existing ?? []).filter(r => {
+    const jobId       = r.job_id as string
+    const filmingDate = r.filming_date as string | null
+    return (
+      jobId.length > 10 &&                    // cron-sourced row
+      filmingDate &&
+      filmingDate >= windowMinDate &&          // within scan window
+      filmingDate <= windowMaxDate &&
+      !seen.has(jobId)                        // event not seen in this fetch
+    )
+  })
+
+  let removed = 0
+  if (staleRows.length > 0) {
+    const staleIds = staleRows.map(r => r.job_id as string)
+    const { error: delErr } = await supabase
+      .from('footage_deliveries')
+      .delete()
+      .in('job_id', staleIds)
+      .is('sent_at', null)   // never delete already-sent deliveries
+
+    if (delErr) {
+      console.error('[footage-ingest] cleanup error:', delErr.message)
+    } else {
+      removed = staleRows.length
+      console.log(`[footage-ingest] removed ${removed} stale rows`)
+    }
+  }
+
   skipped = seen.size - inserted - hasPPCount
 
-  console.log(`[footage-ingest] done — total=${seen.size} inserted=${inserted} hasPP=${hasPPCount} skipped=${skipped}`)
-  return NextResponse.json({ ok: true, total: seen.size, inserted, hasPP: hasPPCount, skipped })
+  console.log(`[footage-ingest] done — total=${seen.size} inserted=${inserted} hasPP=${hasPPCount} skipped=${skipped} removed=${removed}`)
+  return NextResponse.json({ ok: true, total: seen.size, inserted, hasPP: hasPPCount, skipped, removed })
 }

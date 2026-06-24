@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/footage-ingest",
-      "schedule": "0 9 * * *"
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/footage-expiry",
+      "schedule": "0 1 * * *"
     }
   ]
 }

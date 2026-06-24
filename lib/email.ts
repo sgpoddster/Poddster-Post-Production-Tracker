@@ -430,6 +430,141 @@ export async function sendFootage1080pEmail({
   }
 }
 
+// ── Footage expiry reminder (2 days before expiry) ───────────────────────────
+export async function sendFootageReminderEmail({
+  toEmails,
+  clientName,
+  driveLink,
+}: {
+  toEmails: string[]
+  clientName: string
+  driveLink: string
+}) {
+  const to = toEmails.filter(Boolean)
+  if (to.length === 0) return
+  const GOOGLE_REVIEW = 'https://g.page/r/CeenrgM9UCQxEBM/review'
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;padding:40px 20px;"><tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+      <tr><td style="padding-bottom:32px;">
+        <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
+        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
+      </td></tr>
+      <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
+
+        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">Friendly reminder — your footage link expires in 2 days</h1>
+
+        <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+          Just a quick note to let you know that the link to your Poddster footage will expire in <strong style="color:#fff;">2 days</strong>.
+          Please make sure you've downloaded everything you need before then.
+        </p>
+
+        <a href="${driveLink}" style="display:inline-block;background:#e53e3e;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
+          Download Your Footage →
+        </a>
+
+        <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
+          <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+            Need more time? You can subscribe to our <strong style="color:#fff;">Poddster Cloud service at S$68</strong> (one time payment)
+            and sign a personal data hosting waiver with us. We'll hold your files for
+            <strong style="color:#fff;">6 months</strong> from the date of recording.
+          </p>
+          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.5;">
+            (If you have already subscribed to our Poddster Cloud storage service, please disregard this reminder)
+          </p>
+        </div>
+
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;">
+          <p style="margin:0 0 12px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+            If you enjoyed your session, we'd love a review:
+          </p>
+          <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
+            ⭐ Leave a Google Review →
+          </a>
+        </div>
+
+      </td></tr>
+      <tr><td style="padding-top:24px;">
+        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
+          Questions? Just reply to this email — it reaches the Poddster team.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
+
+  try {
+    await sendViaGas(to.join(','), 'Your Poddster footage link expires in 2 days', html)
+  } catch (e) {
+    console.error('[email] footage reminder error:', e)
+  }
+}
+
+// ── Footage expiry notification (on expiry date) ──────────────────────────────
+export async function sendFootageExpiredEmail({
+  toEmails,
+  clientName,
+}: {
+  toEmails: string[]
+  clientName: string
+}) {
+  const to = toEmails.filter(Boolean)
+  if (to.length === 0) return
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;padding:40px 20px;"><tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+      <tr><td style="padding-bottom:32px;">
+        <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
+        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
+      </td></tr>
+      <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
+
+        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">Your footage has now been deleted</h1>
+
+        <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+          As the 7-day holding period has come to an end, your footage has now been removed from our servers as per our data retention policy.
+        </p>
+
+        <p style="margin:0 0 28px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+          If you'd like to record with us again in the future, we'd love to have you back at Poddster.
+        </p>
+
+        <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
+          <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+            For future sessions, you can avoid this by subscribing to our
+            <strong style="color:#fff;">Poddster Cloud service at S$68</strong> (one time payment),
+            which holds your footage for <strong style="color:#fff;">6 months</strong> from recording.
+          </p>
+        </div>
+
+        <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.7;">
+          Thank you for recording with us, and don't forget to tag us
+          <strong style="color:#fff;">@poddster.sg</strong> if you share any content on social media!
+        </p>
+
+      </td></tr>
+      <tr><td style="padding-top:24px;">
+        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
+          Questions? Just reply to this email — it reaches the Poddster team.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
+
+  try {
+    await sendViaGas(to.join(','), 'Your Poddster footage has been removed', html)
+  } catch (e) {
+    console.error('[email] footage expired error:', e)
+  }
+}
+
 // ── Review chase emails to the client (no response after 7 / 14 days) ────────
 export async function sendReviewChaseEmail({
   toEmails,

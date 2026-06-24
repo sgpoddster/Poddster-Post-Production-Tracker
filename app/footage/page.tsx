@@ -5,6 +5,7 @@ import { FootageDelivery } from '@/lib/types'
 import FootageDriveLinkInput from '@/components/FootageDriveLinkInput'
 import FootageSendButton from '@/components/FootageSendButton'
 import FootageConvertButton from '@/components/FootageConvertButton'
+import FootageShowMore from '@/components/FootageShowMore'
 import { SearchBar } from '@/app/dashboard/SearchBar'
 
 function formatDate(d: string | null): string {
@@ -68,10 +69,9 @@ function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
                 href={delivery.drive_link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 min-w-0 truncate text-xs text-blue-400/80 hover:text-blue-400 underline underline-offset-2 decoration-dotted transition-colors"
-                title={delivery.drive_link}
+                className="shrink-0 text-xs text-blue-400/80 hover:text-blue-400 underline underline-offset-2 decoration-dotted transition-colors whitespace-nowrap"
               >
-                {delivery.drive_link.replace('https://drive.google.com/', 'drive.google.com/…').slice(0, 45)}…
+                View Folder →
               </a>
               <FootageDriveLinkInput deliveryId={delivery.id} initialLink={delivery.drive_link} />
             </div>
@@ -145,6 +145,7 @@ export default async function FootagePage({
   const { data: rows } = await serviceClient
     .from('footage_deliveries')
     .select('*')
+    .lte('filming_date', today)
     .order('filming_date', { ascending: false })
     .order('filming_time', { ascending: false })
 
@@ -175,7 +176,9 @@ export default async function FootagePage({
       </div>
 
       <Section title="To Send" count={toSend.length} accent="bg-amber-400/15 text-amber-400">
-        {toSend.map(d => <DeliveryRow key={d.id} delivery={d} />)}
+        <FootageShowMore total={toSend.length}>
+          {toSend.map(d => <DeliveryRow key={d.id} delivery={d} />)}
+        </FootageShowMore>
       </Section>
 
       <Section title="Active" count={active.length} accent="bg-green-500/15 text-green-400">

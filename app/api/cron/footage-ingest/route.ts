@@ -184,6 +184,18 @@ export async function GET(req: NextRequest) {
   const seen = new Set<string>()
   let inserted = 0, skipped = 0, hasPPCount = 0
 
+  // Load existing (order_id, filming_date) pairs to avoid duplicating GAS-ingested rows
+  const { data: existing } = await supabase
+    .from('footage_deliveries')
+    .select('job_id, order_id, filming_date')
+
+  const knownJobIds     = new Set((existing ?? []).map(r => r.job_id as string))
+  const knownOrderDates = new Set(
+    (existing ?? [])
+      .filter(r => r.order_id && r.filming_date)
+      .map(r => `${r.order_id}|${r.filming_date}`)
+  )
+
   for (const calId of CALENDAR_IDS) {
     const events = await fetchCalendarEvents(calId, token)
     console.log(`[footage-ingest] ${calId}: ${events.length} events`)
@@ -197,15 +209,24 @@ export async function GET(req: NextRequest) {
 
       if (isHasPP(parsed)) { hasPPCount++; continue }
 
-      const startISO = ev.start.dateTime ?? ''
-      const endISO   = ev.end.dateTime   ?? ''
+      // Skip if already ingested by job_id (calendar event ID)
+      if (knownJobIds.has(ev.id)) { skipped++; continue }
+
+      const startISO   = ev.start.dateTime ?? ''
+      const endISO     = ev.end.dateTime   ?? ''
+      const filmingDate = buildFilmingDate(startISO) ?? parsed.filmingDate
+
+      // Skip if a row already exists for this order + date (e.g. from GAS)
+      if (parsed.orderId && filmingDate && knownOrderDates.has(`${parsed.orderId}|${filmingDate}`)) {
+        skipped++
+        continue
+      }
 
       const row = {
         job_id:       ev.id,
         order_id:     parsed.orderId  ?? null,
         client_name:  extractClientName(ev.summary),
-
-        filming_date: buildFilmingDate(startISO) ?? parsed.filmingDate,
+        filming_date: filmingDate,
         filming_time: buildFilmingTime(startISO, endISO),
         setup:        parsed.setup    ?? null,
         source:       'calendar' as const,
@@ -219,6 +240,8 @@ export async function GET(req: NextRequest) {
         console.error(`[footage-ingest] upsert error for ${ev.id}:`, error.message)
       } else {
         inserted++
+        knownJobIds.add(ev.id)
+        if (parsed.orderId && filmingDate) knownOrderDates.add(`${parsed.orderId}|${filmingDate}`)
       }
     }
   }

@@ -6,6 +6,7 @@ import FootageDriveLinkInput from '@/components/FootageDriveLinkInput'
 import FootageSendButton from '@/components/FootageSendButton'
 import FootageConvertButton from '@/components/FootageConvertButton'
 import FootageShowMore from '@/components/FootageShowMore'
+import FootageUndoButton from '@/components/FootageUndoButton'
 import { SearchBar } from '@/app/dashboard/SearchBar'
 
 function formatDate(d: string | null): string {
@@ -84,9 +85,12 @@ function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
           {!delivery.sent_at ? (
             <FootageSendButton deliveryId={delivery.id} hasDriveLink={!!delivery.drive_link} />
           ) : (
-            <span className="shrink-0 text-[11px] text-green-400/70 whitespace-nowrap">
-              ✓ Sent {formatDate(delivery.sent_at.split('T')[0])}
-            </span>
+            <>
+              <span className="shrink-0 text-[11px] text-green-400/70 whitespace-nowrap">
+                ✓ Sent {formatDate(delivery.sent_at.split('T')[0])}
+              </span>
+              <FootageUndoButton deliveryId={delivery.id} />
+            </>
           )}
           <FootageConvertButton
             deliveryId={delivery.id}

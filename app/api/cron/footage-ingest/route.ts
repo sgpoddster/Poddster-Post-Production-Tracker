@@ -149,6 +149,13 @@ function buildFilmingDate(startISO: string): string | null {
   return new Date(startISO).toLocaleDateString('en-CA', { timeZone: SINGAPORE_TZ })
 }
 
+// Extract client name from event summary e.g. "Neal Moore | Poddster Singapore Studio Booking" → "Neal Moore"
+function extractClientName(summary: string | undefined): string | null {
+  if (!summary) return null
+  const before = summary.split('|')[0].trim()
+  return before || null
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -196,6 +203,7 @@ export async function GET(req: NextRequest) {
       const row = {
         job_id:       ev.id,
         order_id:     parsed.orderId  ?? null,
+        client_name:  extractClientName(ev.summary),
 
         filming_date: buildFilmingDate(startISO) ?? parsed.filmingDate,
         filming_time: buildFilmingTime(startISO, endISO),
@@ -205,7 +213,7 @@ export async function GET(req: NextRequest) {
 
       const { error } = await supabase
         .from('footage_deliveries')
-        .upsert(row, { onConflict: 'job_id', ignoreDuplicates: true })
+        .upsert(row, { onConflict: 'job_id', ignoreDuplicates: false })
 
       if (error) {
         console.error(`[footage-ingest] upsert error for ${ev.id}:`, error.message)

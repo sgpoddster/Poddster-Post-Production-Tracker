@@ -143,7 +143,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-brand-surface border border-th/10 rounded-xl w-full max-w-lg shadow-2xl">
+      <div className="relative bg-brand-surface border border-th/10 rounded-xl w-full max-w-lg shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
 
         {/* Calendar picker overlay (sits inside the card) */}
         {showCalPicker && (
@@ -153,7 +153,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
           />
         )}
 
-        <div className="border-b border-th/[0.06] px-6 py-4 flex items-center justify-between">
+        <div className="border-b border-th/[0.06] px-6 py-4 flex items-center justify-between shrink-0">
           <h2 className="text-base font-semibold text-th">New Project</h2>
           <div className="flex items-center gap-3">
             <button
@@ -167,7 +167,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
           </div>
         </div>
 
-        <form onSubmit={submit} className="px-6 py-6 space-y-5">
+        <form onSubmit={submit} className="px-6 py-6 space-y-5 overflow-y-auto">
 
           {/* Client dropdown */}
           <div>

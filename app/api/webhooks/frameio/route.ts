@@ -14,20 +14,32 @@ import { getHolidayDates } from '@/lib/holidays'
 const ADOBE_CLIENT_ID = '73aff1fed325400292f5abc97ee331b8'
 const ADOBE_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3'
 
-// Server-to-server client_credentials grant — no refresh token needed, never expires.
-// Access tokens last 24h; we request a fresh one per webhook invocation (cheap).
+// Exchange the current refresh token for a fresh access token.
+// Adobe returns a NEW refresh token on every exchange (rotating tokens) — we save
+// it back to Supabase so it stays current and never expires due to inactivity.
 async function getAdobeAccessToken(): Promise<string> {
   const clientSecret = process.env.ADOBE_CLIENT_SECRET
   if (!clientSecret) throw new Error('ADOBE_CLIENT_SECRET not set')
+
+  const supabase = createServiceClient()
+
+  // Read refresh token: prefer the latest one stored in Supabase, fall back to env var.
+  const { data: stored } = await supabase
+    .from('app_config')
+    .select('value')
+    .eq('key', 'frameio_refresh_token')
+    .single()
+  const refreshToken = stored?.value ?? process.env.FRAMEIO_REFRESH_TOKEN
+  if (!refreshToken) throw new Error('No FRAMEIO_REFRESH_TOKEN available')
 
   const res = await fetch(ADOBE_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type:    'client_credentials',
+      grant_type:    'refresh_token',
       client_id:     ADOBE_CLIENT_ID,
       client_secret: clientSecret,
-      scope:         'openid,AdobeID,read_organizations,frameio_api',
+      refresh_token: refreshToken,
     }),
   })
   if (!res.ok) {
@@ -36,6 +48,15 @@ async function getAdobeAccessToken(): Promise<string> {
   }
   const json = await res.json()
   if (!json.access_token) throw new Error('No access_token in Adobe IMS response')
+
+  // Persist the new refresh token so the next exchange uses the latest one.
+  if (json.refresh_token) {
+    await supabase.from('app_config').upsert(
+      { key: 'frameio_refresh_token', value: json.refresh_token, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    )
+  }
+
   return json.access_token as string
 }
 

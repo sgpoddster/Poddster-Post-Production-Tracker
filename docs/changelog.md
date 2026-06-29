@@ -4,6 +4,26 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-29 — PCM live dashboard
+
+### Changed
+- **`app/pcm/page.tsx`** — now a thin server wrapper that loads initial data and passes it to the client component.
+- **`app/pcm/PCMDashboard.tsx`** (new client component) — subscribes to Supabase real-time changes on `pcm_recordings`. Dashboard updates instantly when the NAS pushes a state change — no page refresh needed. Features:
+  - Pulsing dot on `copying` and `uploading` states
+  - Live elapsed timer on active transfers (re-renders every second)
+  - "X transfers in progress" indicator in header
+  - Active rows highlighted in table
+  - Drive folder link once archived
+  - Failure alert banner
+
+### SQL to run in Supabase
+Enable real-time on the pcm_recordings table:
+```sql
+alter publication supabase_realtime add table pcm_recordings;
+```
+
+---
+
 ## 2026-06-29 — PCM Google Drive upload pipeline
 
 ### Added

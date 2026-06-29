@@ -4,6 +4,16 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-29 — PCM NAS workers + nav link
+
+### Added
+- **`docs/nas_files/reporter.py`** — stdlib-only reporter (no pip needed). Drop at `/volume1/PCM/app/core/reporter.py` on the NAS.
+- **`docs/nas_files/copy_one.py`** — updated copy_one that reports `copying` before and `copy_complete` (with file count + bytes) after each copy. Drop at `/volume1/PCM/app/copy_one.py`.
+- **`docs/nas_files/discover.py`** — discovery worker. Scans all enabled ATEMs, detects new recording folders older than `min_age_minutes`, reports `discovered`, then kicks off `copy_one.py` automatically. Drop at `/volume1/PCM/app/discover.py`. Schedule via Synology Task Scheduler every 15 mins.
+- **Navbar** — added "Backup" link to `/pcm` for admin users (desktop + mobile nav).
+
+---
+
 ## 2026-06-29 — PCM (ATEM Backup) dashboard
 
 ### Added

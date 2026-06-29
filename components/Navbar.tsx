@@ -44,6 +44,9 @@ export async function Navbar() {
                 <Link href="/footage" className="text-sm text-th/50 hover:text-th transition-colors">Footage</Link>
               )}
               {isAdmin && (
+                <Link href="/pcm"     className="text-sm text-th/50 hover:text-th transition-colors">Backup</Link>
+              )}
+              {isAdmin && (
                 <Link href="/admin"   className="text-sm text-th/50 hover:text-th transition-colors">Admin</Link>
               )}
             </div>
@@ -73,6 +76,9 @@ export async function Navbar() {
             <Link href="/queue"     className="text-sm text-th/50 hover:text-th transition-colors">Queue</Link>
             {isAdmin && (
               <Link href="/footage" className="text-sm text-th/50 hover:text-th transition-colors">Footage</Link>
+            )}
+            {isAdmin && (
+              <Link href="/pcm"     className="text-sm text-th/50 hover:text-th transition-colors">Backup</Link>
             )}
             {isAdmin && (
               <Link href="/admin"   className="text-sm text-th/50 hover:text-th transition-colors">Admin</Link>

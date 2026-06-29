@@ -4,6 +4,19 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-29 — PCM (ATEM Backup) dashboard
+
+### Added
+- **`supabase/pcm_recordings.sql`** — new `pcm_recordings` table tracking ATEM recording state per studio (discovered → copying → copy_complete → uploading → archived | failed). Includes timestamps for each state transition, file count, total bytes, error field, NAS path, and Drive URL.
+- **`app/api/pcm/update/route.ts`** — `POST /api/pcm/update` endpoint. Authenticated via `x-pcm-secret` header (shared secret in `PCM_SECRET` env var). Uses service role to upsert recording state. Called by PCM Python scripts on the Synology NAS.
+- **`app/pcm/page.tsx`** — PCM dashboard page at `/pcm`. Shows per-studio status cards (latest recording + state) and a full recordings table with state badges, size, file count, and error column. Admin-only.
+- **`docs/pcm_reporter.py`** — Python reporter module to deploy to `/volume1/PCM/app/core/reporter.py` on the NAS. Sends state updates to the Vercel API via outbound HTTPS. Reads `PCM_ENDPOINT` and `PCM_SECRET` from environment variables.
+
+### Environment variables needed
+- `PCM_SECRET` — add to Vercel (dashboard settings) and set the same value on the NAS.
+
+---
+
 ## 2026-06-24 — Footage expiry emails, Drive deletion, and Poddster Cloud extend
 
 ### Added

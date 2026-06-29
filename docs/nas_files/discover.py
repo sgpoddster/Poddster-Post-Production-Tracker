@@ -148,9 +148,9 @@ def main():
                 save_state(state)
                 new_found += 1
 
-                # Kick off copy immediately
+                # Step 1: Copy from ATEM to NAS
                 print(f"[discover]   starting copy: {folder}")
-                result = subprocess.run(
+                copy_result = subprocess.run(
                     [
                         sys.executable,
                         "/volume1/PCM/app/copy_one.py",
@@ -161,11 +161,34 @@ def main():
                     capture_output=False,
                 )
 
-                if result.returncode == 0:
-                    state[key] = "copy_complete"
-                else:
+                if copy_result.returncode != 0:
                     state[key] = "failed"
+                    save_state(state)
+                    continue
+
+                state[key] = "copy_complete"
                 save_state(state)
+
+                # Step 2: Upload to Google Drive + cleanup NAS
+                upload_bin = Path("/volume1/PCM/app/upload_drive.py")
+                if upload_bin.exists():
+                    print(f"[discover]   starting upload to Drive: {folder}")
+                    upload_result = subprocess.run(
+                        [
+                            sys.executable,
+                            str(upload_bin),
+                            "--studio", name,
+                            "--recording", folder,
+                        ],
+                        capture_output=False,
+                    )
+                    if upload_result.returncode == 0:
+                        state[key] = "archived"
+                    else:
+                        state[key] = "failed"
+                    save_state(state)
+                else:
+                    print(f"[discover]   upload_drive.py not found — skipping upload step")
 
             ftp.quit()
 

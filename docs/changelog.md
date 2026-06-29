@@ -4,6 +4,22 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-29 — PCM Google Drive upload pipeline
+
+### Added
+- **`docs/nas_files/install_rclone.sh`** — downloads rclone ARM64 binary to `/volume1/PCM/bin/rclone`. Run once on the NAS.
+- **`docs/nas_files/configure_rclone.sh`** — writes rclone config pointing at Google service account JSON. Run once after placing `service_account.json` in `/volume1/PCM/config/`.
+- **`docs/nas_files/upload_drive.py`** — upload worker. Reads manifest for expected file count, rclone-copies to `ATEM Backups/{Studio}/{Recording}` on Drive, verifies file count, reports `uploading` → `archived` (with Drive URL), then deletes NAS copy. Pass `--no-cleanup` to keep NAS copy.
+- **`docs/nas_files/discover.py`** — updated to chain copy → upload automatically. After a successful copy, kicks off `upload_drive.py`. If `upload_drive.py` doesn't exist yet, skips gracefully.
+
+### Flow
+```
+ATEM SSD → (copy_one.py) → NAS → (upload_drive.py) → Google Drive → verify → delete NAS copy
+```
+Each step reports state to the dashboard: discovered → copying → copy_complete → uploading → archived
+
+---
+
 ## 2026-06-29 — PCM NAS workers + nav link
 
 ### Added

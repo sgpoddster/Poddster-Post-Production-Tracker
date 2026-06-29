@@ -1,6 +1,6 @@
 # Poddster Post-Production Tracker — Architecture
 
-> Last updated: 2026-06-17 · see `docs/changelog.md` for the running change log
+> Last updated: 2026-06-29 · see `docs/changelog.md` for the running change log
 
 ---
 
@@ -493,6 +493,133 @@ This is the automated path for bookings that flow through the GAS pipeline. Manu
 
 ---
 
+## PCM — ATEM Backup System
+
+A separate but integrated subsystem that automatically backs up raw footage from Blackmagic ATEM Mini units in each studio to a Synology NAS, then archives to Google Drive.
+
+### Hardware
+
+| Device | Role | IP |
+|---|---|---|
+| Synology DS223 | NAS — backup destination + Python runtime | 192.168.50.50 |
+| ATEM Mini (Studio 1) | Records to internal SSD via FTP | 192.168.50.221 |
+| ATEM Mini (Studio 2) | Records to internal SSD via FTP | 192.168.50.222 |
+| ATEM Mini (Studio 3) | Records to internal SSD via FTP | 192.168.50.223 |
+| ATEM Mini (Studio 4) | Records to internal SSD via FTP | 192.168.50.224 (pending Cat6) |
+
+### Pipeline
+
+```
+ATEM SSD (FTP)
+      │
+      │  discover.py (runs every 15 mins via Synology Task Scheduler)
+      │  - scans all enabled studios via FTP
+      │  - detects new recording folders (age > min_age_minutes)
+      │  - ignores system/hidden folders
+      │
+      ▼
+copy_one.py  (called by discover.py per recording)
+      │  - recursive FTP copy to NAS
+      │  - .partial temp files prevent incomplete copies
+      │  - file size verification per file
+      │  - generates pcm_manifest.json
+      │  - creates .pcm_copy_complete marker
+      │
+      ▼
+NAS: /volume1/Atem Backup/{Studio}/{Recording}/
+      │
+      │  upload_drive.py (called by discover.py after copy)
+      │  - rclone copy → Google Drive (resumable, checksummed)
+      │  - verifies file count matches manifest
+      │  - deletes NAS copy after verification
+      │
+      ▼
+Google Drive: ATEM Backups/{Studio}/{Recording}/
+      │
+      │  At each state change:
+      │  core/reporter.py  →  POST /api/pcm/update  →  Supabase
+      │
+      ▼
+/pcm dashboard (real-time via Supabase websockets)
+```
+
+### State Machine
+
+```
+discovered → copying → copy_complete → uploading → archived
+                                                         │
+                                              (NAS copy deleted)
+Any state → failed  (on error, with error message)
+```
+
+### NAS File Layout
+
+```
+/volume1/
+  PCM/
+    app/
+      core/
+        ftp_copy.py      — FTP copy engine
+        reporter.py      — posts state updates to Vercel API
+      copy_one.py        — copies one named recording
+      discover.py        — scans all ATEMs, chains copy + upload
+      upload_drive.py    — rclone → Drive, verify, cleanup
+      scan.py            — manual scan/debug tool
+    bin/
+      rclone             — ARM64 binary
+    config/
+      settings.json      — studio IPs, FTP credentials, backup root
+      env.sh             — PCM_ENDPOINT + PCM_SECRET env vars
+      rclone.conf        — gdrive remote (service account)
+      service_account.json — Google service account key (pcm-nas@poddster-pcm)
+      state.json         — local record of seen recordings (prevents re-copy)
+  Atem Backup/
+    Studio 1/
+    Studio 2/
+    Studio 3/
+    Studio 4/
+```
+
+### Google Cloud
+
+| Resource | Detail |
+|---|---|
+| Project | `poddster-pcm` |
+| API | Google Drive API (enabled) |
+| Service account | `pcm-nas@poddster-pcm.iam.gserviceaccount.com` |
+| Drive folder | `ATEM Backups` — shared with service account as Editor |
+
+### Dashboard — `/pcm`
+
+- **Real-time** — Supabase websocket subscription, updates without page refresh
+- Studio cards show latest recording + state with pulsing dot on active transfers
+- Elapsed timer on copying/uploading (re-renders every second)
+- Full recordings table with state, size, file count, Drive link, error
+- Failure alert banner if any recordings in `failed` state
+
+### New Database Table — `pcm_recordings`
+
+| Column | Type | Notes |
+|---|---|---|
+| `studio` | text | `Studio 1` – `Studio 4` |
+| `recording` | text | Folder name e.g. `STUDIO 1 2` |
+| `state` | enum | `discovered` / `copying` / `copy_complete` / `uploading` / `archived` / `failed` |
+| `file_count` | integer | From manifest |
+| `total_bytes` | bigint | From manifest |
+| `error` | text | Last error message |
+| `discovered_at` … `upload_completed_at` | timestamptz | Per-state timestamps |
+| `nas_path` | text | Local path on NAS |
+| `drive_url` | text | Google Drive folder URL once archived |
+
+Unique constraint on `(studio, recording)` — upserted on each state change.
+Real-time enabled via `alter publication supabase_realtime add table pcm_recordings`.
+
+### New API Route — `POST /api/pcm/update`
+
+Receives state updates from the NAS. Authenticated via `x-pcm-secret` header (shared secret stored as `PCM_SECRET` in Vercel env vars + `env.sh` on NAS). Uses Supabase service role to upsert. Auto-sets the relevant state timestamp.
+
+---
+
 ## What's Still To Build
 
 | Feature | Notes |
@@ -511,4 +638,5 @@ editor field, editor assignment emails, client emails/names, version editing,
 Frame.io shoot folder auto-creation (v4 API), 12h/24h time format toggle,
 Copy Project ID button, filming time in trigger emails, teal revision badge,
 Start Revision available to all users, per-section sort controls, review-chase
-cron (day 7 + day 14 emails), backfill-frameio-links admin route.
+cron (day 7 + day 14 emails), backfill-frameio-links admin route,
+PCM ATEM backup system (NAS → Drive pipeline, live dashboard).

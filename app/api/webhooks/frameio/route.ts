@@ -14,20 +14,20 @@ import { getHolidayDates } from '@/lib/holidays'
 const ADOBE_CLIENT_ID = '73aff1fed325400292f5abc97ee331b8'
 const ADOBE_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3'
 
+// Server-to-server client_credentials grant — no refresh token needed, never expires.
+// Access tokens last 24h; we request a fresh one per webhook invocation (cheap).
 async function getAdobeAccessToken(): Promise<string> {
   const clientSecret = process.env.ADOBE_CLIENT_SECRET
-  const refreshToken = process.env.FRAMEIO_REFRESH_TOKEN
-  if (!clientSecret || !refreshToken) {
-    throw new Error('ADOBE_CLIENT_SECRET or FRAMEIO_REFRESH_TOKEN not set')
-  }
+  if (!clientSecret) throw new Error('ADOBE_CLIENT_SECRET not set')
+
   const res = await fetch(ADOBE_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type:    'refresh_token',
+      grant_type:    'client_credentials',
       client_id:     ADOBE_CLIENT_ID,
       client_secret: clientSecret,
-      refresh_token: refreshToken,
+      scope:         'openid,AdobeID,read_organizations,frameio_api',
     }),
   })
   if (!res.ok) {
@@ -126,10 +126,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: true, reason: `event '${eventType}' not handled` })
   }
 
-  const file = await fetchFile(accountId, fileId)
-  const fileName = (file?.name as string) ?? ''
+  // For metadata events Frame.io includes resource.name in the payload — no API call needed.
+  // For file.ready we still fetch the file to get the player URL.
+  let file: Record<string, unknown> | null = null
+  let fileName = getAny(payload, ['resource.name'])
+
+  if (!fileName || eventType === 'file.ready') {
+    file = await fetchFile(accountId, fileId)
+    fileName = (file?.name as string) ?? fileName
+  }
+
   if (!fileName) {
-    return NextResponse.json({ skipped: true, reason: 'could not fetch file from Frame.io API' })
+    return NextResponse.json({ skipped: true, reason: 'could not determine file name' })
   }
 
   const internalId = extractInternalId(fileName)
@@ -197,6 +205,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ── status change ─────────────────────────────────────────────────────────
+  // Prefer payload data (no extra API call); fall back to fetched file metadata.
+  if (!file) file = await fetchFile(accountId, fileId)
   const status = extractStatus(file)
   console.log(`[frameio] "${internalId}" status field = ${status ?? '(none)'}`)
 

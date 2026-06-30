@@ -12,13 +12,23 @@ export default async function PCMPage() {
   const profile = await getUserProfile()
   if (profile?.role !== 'admin') redirect('/dashboard')
 
-  // Initial data load — client component handles live updates from here
   const serviceClient = createServiceClient()
-  const { data: recordings } = await serviceClient
-    .from('pcm_recordings')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(200)
 
-  return <PCMDashboard initialRecordings={recordings ?? []} />
+  const [{ data: recordings }, { data: studioStats }] = await Promise.all([
+    serviceClient
+      .from('pcm_recordings')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200),
+    serviceClient
+      .from('pcm_studio_stats')
+      .select('*'),
+  ])
+
+  return (
+    <PCMDashboard
+      initialRecordings={recordings ?? []}
+      initialStudioStats={studioStats ?? []}
+    />
+  )
 }

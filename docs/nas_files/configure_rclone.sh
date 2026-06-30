@@ -24,6 +24,7 @@ cat > "$CONFIG" << EOF
 type = drive
 scope = drive
 service_account_file = $SA_FILE
+team_drive = 0AIsnaQyK_rovUk9PVA
 EOF
 
 echo "Config written to $CONFIG"

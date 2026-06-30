@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { studio, recording, state, file_count, total_bytes, error, nas_path, drive_url } = body
+  const { studio, recording, state, file_count, total_bytes, error, nas_path, drive_url, retry_count } = body
 
   if (!studio || !recording || !state) {
     return NextResponse.json({ error: 'studio, recording, and state are required' }, { status: 400 })
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     ...(error        !== undefined && { error }),
     ...(nas_path     !== undefined && { nas_path }),
     ...(drive_url    !== undefined && { drive_url }),
+    ...(retry_count  !== undefined && { retry_count }),
     ...timestamps,
   }
 

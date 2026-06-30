@@ -89,14 +89,14 @@ function SsdBar({ stat }: { stat: StudioStat | undefined }) {
   const pct     = Math.min(100, (stat.used_bytes / stat.total_bytes) * 100)
   const usedGB  = (stat.used_bytes  / 1_000_000_000).toFixed(1)
   const totalGB = (stat.total_bytes / 1_000_000_000).toFixed(1)
-  const barColor = pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-yellow-400' : 'bg-blue-500/60'
+  const barColor = pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-yellow-400' : 'bg-blue-500/70'
   return (
     <div className="mt-3">
-      <div className="flex justify-between items-baseline mb-1">
-        <span className="text-[10px] text-th/30">SSD</span>
-        <span className="text-[10px] text-th/40">{usedGB} of {totalGB} GB</span>
+      <div className="flex justify-between items-baseline mb-1.5">
+        <span className="text-xs font-medium text-th/50">SSD</span>
+        <span className="text-xs font-semibold text-th/70">{usedGB} of {totalGB} GB</span>
       </div>
-      <div className="h-1 w-full rounded-full bg-th/[0.08] overflow-hidden">
+      <div className="h-1.5 w-full rounded-full bg-th/[0.10] overflow-hidden">
         <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -340,24 +340,23 @@ export default function PCMDashboard({
             <div className="rounded-lg border border-th/[0.08] bg-brand-surface p-4 flex flex-col">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-th/80">Synology NAS</p>
-                  <p className="text-[10px] text-th/25 mt-0.5 font-mono">{nasName}</p>
+                  <p className="text-base font-bold text-th/90">Synology NAS</p>
+                  <p className="text-xs text-th/50 mt-0.5 font-mono">{nasName}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className={`h-2 w-2 rounded-full ${nasOnline ? 'bg-green-400' : nasStat ? 'bg-red-400/60' : 'bg-gray-600'}`} />
-                  <span className={`text-[10px] ${nasOnline ? 'text-green-400/70' : 'text-th/25'}`}>
+                  <span className={`text-xs font-medium ${nasOnline ? 'text-green-400' : 'text-th/40'}`}>
                     {nasOnline ? 'Online' : nasStat ? 'Offline' : 'No data yet'}
                   </span>
                 </div>
               </div>
               <SsdBar stat={nasStat} />
               {nasStat && (
-                <p className="text-[10px] text-th/20 mt-1.5">Last seen {timeAgo(nasStat.updated_at)}</p>
+                <p className="text-xs text-th/40 mt-2">Last seen {timeAgo(nasStat.updated_at)}</p>
               )}
-              {/* Recordings sitting on NAS awaiting upload */}
               {pendingUpload.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-th/[0.05]">
-                  <p className="text-[10px] text-th/30">
+                <div className="mt-3 pt-3 border-t border-th/[0.08]">
+                  <p className="text-xs text-th/55 font-medium">
                     {pendingUpload.length} recording{pendingUpload.length > 1 ? 's' : ''} on NAS · {(pendingBytes / 1e9).toFixed(1)} GB pending upload
                   </p>
                 </div>
@@ -370,14 +369,14 @@ export default function PCMDashboard({
         <div className="rounded-lg border border-th/[0.08] bg-brand-surface p-4 flex flex-col space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold text-th/80">Google Drive</p>
-              <p className="text-[10px] text-th/25 mt-0.5">{todayDate} · 750 GB / 24 h limit</p>
+              <p className="text-base font-bold text-th/90">Google Drive</p>
+              <p className="text-xs text-th/50 mt-0.5">{todayDate} · 750 GB / 24 h limit</p>
             </div>
             <div className="text-right shrink-0">
-              <p className={`text-sm font-semibold ${quotaExhausted ? 'text-red-400' : quotaPct >= 75 ? 'text-yellow-400' : 'text-green-400'}`}>
-                {(todayUploaded / 1e9).toFixed(1)} <span className="text-th/30 font-normal text-xs">/ 750 GB</span>
+              <p className={`text-sm font-bold ${quotaExhausted ? 'text-red-400' : quotaPct >= 75 ? 'text-yellow-400' : 'text-green-400'}`}>
+                {(todayUploaded / 1e9).toFixed(1)} <span className="text-th/50 font-normal text-xs">/ 750 GB</span>
               </p>
-              <p className="text-[10px] text-th/30 mt-0.5">
+              <p className="text-xs text-th/50 mt-0.5">
                 {quotaExhausted
                   ? 'Exhausted — resets midnight SGT'
                   : `${(quotaRemaining / 1e9).toFixed(1)} GB left tonight`}
@@ -387,7 +386,7 @@ export default function PCMDashboard({
 
           {/* Quota bar */}
           <div>
-            <div className="h-2 w-full rounded-full bg-th/[0.08] overflow-hidden">
+            <div className="h-1.5 w-full rounded-full bg-th/[0.10] overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-700 ${
                   quotaExhausted ? 'bg-red-500' : quotaPct >= 75 ? 'bg-yellow-400' : 'bg-green-500/70'
@@ -396,8 +395,8 @@ export default function PCMDashboard({
               />
             </div>
             <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-th/20">0 GB</span>
-              <span className="text-[10px] text-th/20">750 GB</span>
+              <span className="text-xs text-th/40">0 GB</span>
+              <span className="text-xs text-th/40">750 GB</span>
             </div>
           </div>
 
@@ -406,33 +405,33 @@ export default function PCMDashboard({
             <div className={`rounded-md px-3 py-2 flex items-center justify-between gap-2 ${
               quotaExhausted ? 'bg-red-500/10 border border-red-500/20' : 'bg-th/[0.04]'
             }`}>
-              <p className={`text-xs font-medium ${quotaExhausted ? 'text-red-300' : 'text-th/55'}`}>
+              <p className={`text-sm font-semibold ${quotaExhausted ? 'text-red-300' : 'text-th/70'}`}>
                 {pendingUpload.length} recording{pendingUpload.length > 1 ? 's' : ''} queued
               </p>
               {pendingNightsEst > 1 ? (
-                <span className="text-[10px] text-yellow-400/80 shrink-0">~{pendingNightsEst} nights to clear</span>
+                <span className="text-xs font-medium text-yellow-400 shrink-0">~{pendingNightsEst} nights to clear</span>
               ) : (
-                <span className="text-[10px] text-th/25 shrink-0">clears tonight</span>
+                <span className="text-xs text-th/50 shrink-0">clears tonight</span>
               )}
             </div>
           )}
 
           {/* Recent history mini-bars */}
           {quotaRows.length > 0 && (
-            <div className="pt-1 border-t border-th/[0.05] space-y-1.5">
-              <p className="text-[10px] text-th/25">Upload history</p>
+            <div className="pt-1 border-t border-th/[0.08] space-y-1.5">
+              <p className="text-xs font-medium text-th/50">Upload history</p>
               {quotaRows.slice(0, 5).map(q => {
                 const pct = Math.min(100, (q.bytes_uploaded / DRIVE_QUOTA_BYTES) * 100)
                 return (
                   <div key={q.date} className="flex items-center gap-2">
-                    <span className="text-[10px] text-th/25 w-[72px] shrink-0">{q.date.slice(5)}</span>
-                    <div className="flex-1 h-1 rounded-full bg-th/[0.06] overflow-hidden">
+                    <span className="text-xs text-th/50 w-[72px] shrink-0">{q.date.slice(5)}</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-th/[0.08] overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${pct >= 95 ? 'bg-red-500/60' : pct >= 75 ? 'bg-yellow-400/50' : 'bg-green-500/40'}`}
+                        className={`h-full rounded-full ${pct >= 95 ? 'bg-red-500/70' : pct >= 75 ? 'bg-yellow-400/60' : 'bg-green-500/50'}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-th/25 w-14 text-right shrink-0">
+                    <span className="text-xs text-th/60 w-14 text-right shrink-0 font-medium">
                       {(q.bytes_uploaded / 1e9).toFixed(1)} GB
                     </span>
                   </div>
@@ -455,23 +454,23 @@ export default function PCMDashboard({
           return (
             <div key={studio} className="rounded-lg border border-th/[0.08] bg-brand-surface p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-th/80">{studio} ATEM</p>
+                <p className="text-sm font-bold text-th/90">{studio} ATEM</p>
                 <div className="flex items-center gap-1.5">
-                  <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-400' : stat ? 'bg-red-400/60' : 'bg-gray-600'}`} />
-                  <span className={`text-[10px] ${isOnline ? 'text-green-400/70' : 'text-th/25'}`}>
+                  <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-400' : stat ? 'bg-red-400/70' : 'bg-gray-600'}`} />
+                  <span className={`text-xs font-medium ${isOnline ? 'text-green-400' : 'text-th/45'}`}>
                     {isOnline ? 'Online' : stat ? 'Offline' : 'Unknown'}
                   </span>
                 </div>
               </div>
               {ssdName && (
-                <p className="text-[10px] text-th/25 mt-0.5 font-mono truncate">{ssdName}</p>
+                <p className="text-xs text-th/45 mt-0.5 font-mono truncate">{ssdName}</p>
               )}
               <SsdBar stat={stat} />
               {stat && (
-                <p className="text-[10px] text-th/20 mt-1.5">Last seen {timeAgo(stat.updated_at)}</p>
+                <p className="text-xs text-th/40 mt-2">Last seen {timeAgo(stat.updated_at)}</p>
               )}
               {!stat && (
-                <p className="text-xs text-th/20 mt-3">No data yet</p>
+                <p className="text-xs text-th/40 mt-3">No data yet</p>
               )}
             </div>
           )

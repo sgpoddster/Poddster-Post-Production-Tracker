@@ -254,9 +254,18 @@ def main():
     expected_files = manifest.get("file_count", 0)
     total_bytes    = manifest.get("total_bytes", 0)
 
-    # Get recording start time from earliest file on NAS
-    rec_dt = get_recording_start(local_dir)
-    print(f"[upload] Recording start: {rec_dt}")
+    # Prefer ATEM MDTM timestamp stored by copy_one.py (accurate recording time).
+    # Fall back to earliest local file mtime if not present (old manifests).
+    rec_dt = None
+    if manifest.get("recording_time"):
+        try:
+            rec_dt = datetime.fromisoformat(manifest["recording_time"])
+            print(f"[upload] Recording time (from ATEM MDTM): {rec_dt}")
+        except Exception:
+            pass
+    if not rec_dt:
+        rec_dt = get_recording_start(local_dir)
+        print(f"[upload] Recording time (from file mtime): {rec_dt}")
 
     # Resolve client name from booking calendar
     client_name, booking_time = resolve_booking(args.studio, rec_dt) if rec_dt else (None, None)

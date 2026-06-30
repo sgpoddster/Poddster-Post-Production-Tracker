@@ -9,11 +9,12 @@ import json
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, "/volume1/PCM/app")
 
-from core.ftp_copy import copy_recording
+from core.ftp_copy import connect, copy_recording
 from core.reporter import _post, report
 
 CONFIG   = Path("/volume1/PCM/config/settings.json")
@@ -126,6 +127,23 @@ def main():
             manifest    = json.loads(manifest_path.read_text())
             file_count  = manifest.get("file_count")
             total_bytes = manifest.get("total_bytes")
+
+            # Store the ATEM's own MDTM timestamp so upload_drive.py can use
+            # the real recording time for booking lookup (not NAS copy mtime).
+            if not manifest.get("recording_time"):
+                try:
+                    ftp_cfg = cfg["ftp"]
+                    ftp     = connect(studio["ip"], ftp_cfg["username"],
+                                      ftp_cfg["password"], ftp_cfg.get("timeout_seconds", 30))
+                    resp    = ftp.sendcmd(f"MDTM {remote_dir}")
+                    ts_str  = resp.split()[-1]
+                    rec_ts  = datetime.strptime(ts_str, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+                    ftp.quit()
+                    manifest["recording_time"] = rec_ts.isoformat()
+                    manifest_path.write_text(json.dumps(manifest, indent=2))
+                    print(f"[copy] Recording time from ATEM: {rec_ts.isoformat()}")
+                except Exception as e:
+                    print(f"[copy] WARNING: could not get MDTM from ATEM: {e}")
 
         report(
             args.studio, args.recording, "copy_complete",

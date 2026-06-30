@@ -27,7 +27,7 @@ async function getAdobeAccessToken(): Promise<string> {
   const { data: stored } = await supabase
     .from('app_config')
     .select('value')
-    .eq('key', 'frameio_refresh_token')
+    .eq('key', 'adobe_refresh_token')
     .single()
   const refreshToken = stored?.value ?? process.env.FRAMEIO_REFRESH_TOKEN
   if (!refreshToken) throw new Error('No FRAMEIO_REFRESH_TOKEN available')
@@ -52,7 +52,7 @@ async function getAdobeAccessToken(): Promise<string> {
   // Persist the new refresh token so the next exchange uses the latest one.
   if (json.refresh_token) {
     await supabase.from('app_config').upsert(
-      { key: 'frameio_refresh_token', value: json.refresh_token, updated_at: new Date().toISOString() },
+      { key: 'adobe_refresh_token', value: json.refresh_token, updated_at: new Date().toISOString() },
       { onConflict: 'key' },
     )
   }

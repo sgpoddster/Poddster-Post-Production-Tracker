@@ -127,9 +127,13 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
       unique.push(ev)
     }
 
+    // Only show PP bookings (episodes or highlights) — footage-only sessions
+    // are handled via the Footage Delivery page, not the project creator.
+    const ppOnly = unique.filter(ev => ev.parsed.episodeCount > 0 || ev.parsed.highlightCount > 0)
+
     // Newest first
-    unique.sort((a, b) => b.startISO.localeCompare(a.startISO))
-    setEvents(unique)
+    ppOnly.sort((a, b) => b.startISO.localeCompare(a.startISO))
+    setEvents(ppOnly)
     setLoading(false)
   }, [])
 

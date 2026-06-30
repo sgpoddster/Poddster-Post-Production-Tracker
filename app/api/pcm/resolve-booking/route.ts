@@ -57,13 +57,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: `Unknown studio: ${studio}` }, { status: 400 })
   }
 
-  // Fetch all bookings for this studio on this date that have a setup
+  // Fetch all bookings for this studio on this date that have a setup.
+  // Use ilike per setup value so "Club" matches "club" etc.
   const { data, error } = await supabase
     .from('footage_deliveries')
     .select('client_name, filming_time, setup')
     .eq('filming_date', date)
     .not('setup', 'is', null)
-    .in('setup', setups)
+    .or(setups.map(s => `setup.ilike.${s}`).join(','))
     .order('filming_time', { ascending: true })
 
   if (error) {

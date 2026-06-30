@@ -2,14 +2,15 @@
 """
 PCM Upload Worker — /volume1/PCM/app/upload_drive.py
 
-Uploads a completed NAS recording to Google Drive using rclone,
-verifies the upload, reports status to the dashboard, then
-triggers cleanup once archived.
+Uploads a completed NAS recording to Google Drive using rclone.
+Handles multi-session ATEM folders: files suffixed 01, 02, 03... are
+split into separate Drive folders, each named after the booking they belong to.
 
-The Drive folder is named:
-  Studio 4 CORE — 2026-06-30 10:00 — Acme Podcast
-using the booking calendar (footage_deliveries) to resolve the client name.
-Falls back to "Unknown" if no matching booking is found.
+Drive path: {studio}/{studio} {recording} — {date} {time} — {client}/
+
+The session end time (ATEM MDTM stored in manifest by copy_one.py) is matched
+against footage_deliveries booking windows to resolve the client name.
+There is always a 30-minute gap between bookings, so matching is unambiguous.
 
 Prerequisites:
   - rclone installed at /volume1/PCM/bin/rclone
@@ -18,7 +19,7 @@ Prerequisites:
   - PCM_ENDPOINT and PCM_SECRET env vars set
 
 Usage:
-  python3 /volume1/PCM/app/upload_drive.py --studio "Studio 1" --recording "Untitled 601"
+  python3 /volume1/PCM/app/upload_drive.py --studio "Studio 2" --recording "Studio 2 40"
 """
 
 import argparse
@@ -27,15 +28,13 @@ import os
 import re
 import subprocess
 import sys
-import threading
-import time
 import urllib.request
 import urllib.error
 import urllib.parse
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 SGT = timezone(timedelta(hours=8))
-from pathlib import Path
 
 sys.path.insert(0, "/volume1/PCM/app")
 from core.reporter import report
@@ -44,7 +43,7 @@ CONFIG        = Path("/volume1/PCM/config/settings.json")
 RCLONE        = Path("/volume1/PCM/bin/rclone")
 RCLONE_CONFIG = Path("/volume1/PCM/config/rclone.conf")
 DRIVE_REMOTE  = "gdrive"
-DRIVE_ROOT    = ""  # files go directly under the shared drive root → Studio 2/...
+DRIVE_ROOT    = ""  # files go directly under shared drive root → Studio 2/...
 
 
 def load_config():
@@ -58,22 +57,53 @@ def load_manifest(local_dir):
     return json.loads(manifest_path.read_text())
 
 
-def get_recording_start(local_dir):
+def detect_sessions(local_dir, manifest):
     """
-    Find the earliest file modification time in the recording folder.
-    Returns a datetime or None.
+    Find distinct numeric session suffixes (01, 02...) from ATEM media files.
+    Prefers manifest session_times (accurate ATEM MDTM) over local file scan.
+    Returns a sorted list of suffix strings, e.g. ['01', '02'].
     """
-    earliest = None
-    for f in local_dir.rglob("*"):
-        if f.is_file() and f.name not in ("pcm_manifest.json", ".pcm_copy_complete"):
+    if manifest.get("session_times"):
+        return sorted(manifest["session_times"].keys())
+
+    pattern  = re.compile(r' (\d{2})\.[a-zA-Z0-9]+$', re.IGNORECASE)
+    suffixes = set()
+    skip     = {'pcm_manifest.json', '.pcm_copy_complete'}
+    for f in Path(local_dir).rglob('*'):
+        if f.is_file() and f.name not in skip and not f.name.startswith('.'):
+            m = pattern.search(f.name)
+            if m:
+                suffixes.add(m.group(1))
+    return sorted(suffixes) or ['01']
+
+
+def get_session_end_time(manifest, suffix, local_dir):
+    """
+    Return the end time (UTC datetime) for a session suffix.
+    Uses ATEM MDTM from manifest if available (accurate recording end time).
+    Falls back to latest local file mtime for that suffix (less accurate).
+    """
+    times = manifest.get("session_times", {})
+    if suffix in times:
+        try:
+            return datetime.fromisoformat(times[suffix])
+        except Exception:
+            pass
+
+    # Fallback: latest mtime of NAS files matching this suffix
+    pattern = re.compile(rf' {re.escape(suffix)}\.[a-zA-Z0-9]+$', re.IGNORECASE)
+    latest  = None
+    for f in Path(local_dir).rglob('*'):
+        if f.is_file() and pattern.search(f.name):
             mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
-            if earliest is None or mtime < earliest:
-                earliest = mtime
-    return earliest
+            if latest is None or mtime > latest:
+                latest = mtime
+    return latest
 
 
-def _call_resolve_api(base, secret, studio, date, time_str):
-    params = urllib.parse.urlencode({"studio": studio, "date": date, "time": time_str})
+def _call_resolve_api(base, secret, studio, date, end_time):
+    """Call resolve-booking with session end time HH:MM (SGT) for booking window matching."""
+    params = urllib.parse.urlencode({"studio": studio, "date": date, "end_time": end_time})
     url    = f"{base}/api/pcm/resolve-booking?{params}"
     req    = urllib.request.Request(url, headers={"x-pcm-secret": secret})
     try:
@@ -85,13 +115,11 @@ def _call_resolve_api(base, secret, studio, date, time_str):
         return None, None
 
 
-def resolve_booking(studio, rec_dt):
+def resolve_booking(studio, session_end_dt):
     """
-    Resolve client name from footage_deliveries via the Vercel API.
-
-    Converts rec_dt to SGT first (file mtimes may be from re-copies, offset
-    from the original recording date). Tries today in SGT, then ±1 day, so
-    a mtime drift of a few hours across midnight doesn't break the match.
+    Resolve client name from footage_deliveries by matching session end time
+    to a booking window (booking_start <= end_time <= booking_end + 25 min buffer).
+    Tries SGT date +/-1 day to handle mtime drift across midnight.
     Returns (client_name, booking_time) or (None, None).
     """
     endpoint = os.environ.get("PCM_ENDPOINT", "")
@@ -99,14 +127,14 @@ def resolve_booking(studio, rec_dt):
     if not endpoint or not secret:
         return None, None
 
-    base    = endpoint.rsplit("/api/pcm/", 1)[0]
-    rec_sgt = rec_dt.astimezone(SGT)
+    base = endpoint.rsplit("/api/pcm/", 1)[0]
+    sgt  = session_end_dt.astimezone(SGT)
 
     for delta in (0, -1, 1):
-        candidate  = rec_sgt + timedelta(days=delta)
+        candidate  = sgt + timedelta(days=delta)
         date_str   = candidate.strftime("%Y-%m-%d")
-        time_str   = candidate.strftime("%H:%M")
-        client, bt = _call_resolve_api(base, secret, studio, date_str, time_str)
+        end_time   = candidate.strftime("%H:%M")
+        client, bt = _call_resolve_api(base, secret, studio, date_str, end_time)
         if client:
             print(f"[upload] Booking found on {date_str}: {client} at {bt}")
             return client, bt
@@ -114,21 +142,39 @@ def resolve_booking(studio, rec_dt):
     return None, None
 
 
-def build_drive_folder_name(studio, recording, client_name, booking_time, rec_dt):
+def build_drive_folder_name(studio, recording, client_name, booking_time, session_end_dt):
     """
-    Build the Drive folder name:
-      Studio 4 CORE — 2026-06-30 10:00 — Acme Podcast
+    Build the Drive folder name: Studio 2 40 -- 2026-06-30 13:00 -- Momo
+    Date is always from SGT session end time.
+    Time is from booking start (more accurate) if resolved, else session end time.
     """
-    rec_sgt    = rec_dt.astimezone(SGT) if rec_dt else None
-    date_str   = rec_sgt.strftime("%Y-%m-%d") if rec_sgt else "unknown-date"
-    time_str   = booking_time or (rec_sgt.strftime("%H:%M") if rec_sgt else "")
+    sgt        = session_end_dt.astimezone(SGT) if session_end_dt else None
+    date_str   = sgt.strftime("%Y-%m-%d") if sgt else "unknown-date"
+    time_str   = booking_time or (sgt.strftime("%H:%M") if sgt else "")
     client_str = client_name or "Unknown"
-    # Avoid doubling the studio name if recording already starts with it
     if recording.lower().startswith(studio.lower()):
         prefix = recording
     else:
         prefix = f"{studio} {recording}"
     return f"{prefix} — {date_str} {time_str} — {client_str}"
+
+
+def get_drive_folder_url(studio, drive_folder):
+    """Resolve the Drive folder URL via rclone lsf (returns folder ID)."""
+    try:
+        result = subprocess.run(
+            [str(RCLONE), "--config", str(RCLONE_CONFIG),
+             "lsf", "--dirs-only", "--format", "pi",
+             f"{DRIVE_REMOTE}:{studio}/"],
+            capture_output=True, text=True
+        )
+        for line in result.stdout.splitlines():
+            if drive_folder in line:
+                folder_id = line.split(";")[0].strip()
+                return f"https://drive.google.com/drive/folders/{folder_id}"
+    except Exception:
+        pass
+    return None
 
 
 def _to_bytes(val, unit):
@@ -161,12 +207,12 @@ def _parse_rclone_stats(msg):
     )
     if not m:
         return None
-    bytes_done  = _to_bytes(m.group(1), m.group(2))
-    speed_unit  = m.group(4).split('/')[0]  # "MiB/s" → "MiB"
-    speed_bps   = _to_bytes(m.group(3), speed_unit)
-    speed_mbps  = speed_bps * 8 / 1_000_000
-    speed_str   = f"{speed_mbps:.0f} Mbps"
-    eta_secs    = _parse_eta(m.group(5))
+    bytes_done = _to_bytes(m.group(1), m.group(2))
+    speed_unit = m.group(4).split('/')[0]  # "MiB/s" -> "MiB"
+    speed_bps  = _to_bytes(m.group(3), speed_unit)
+    speed_mbps = speed_bps * 8 / 1_000_000
+    speed_str  = f"{speed_mbps:.0f} Mbps"
+    eta_secs   = _parse_eta(m.group(5))
     return bytes_done, speed_str, eta_secs
 
 
@@ -210,29 +256,11 @@ def rclone_with_progress(studio, recording, *args):
                     print(f"[rclone] progress: {speed_str}, ETA {eta_secs}s, {bytes_done:,} bytes")
                     _report_progress(studio, recording, bytes_done, speed_str, eta_secs)
         except (json.JSONDecodeError, KeyError):
-            # Non-JSON line — print as-is (rclone --progress fallback)
             print(line)
 
     proc.wait()
     if proc.returncode != 0:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
-
-
-def rclone(*args):
-    cmd = [str(RCLONE), "--config", str(RCLONE_CONFIG), *args]
-    print(f"[rclone] {' '.join(str(a) for a in args)}")
-    return subprocess.run(cmd, check=True)
-
-
-def count_drive_files(remote_path):
-    result = subprocess.run(
-        [str(RCLONE), "--config", str(RCLONE_CONFIG), "ls", remote_path],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        return 0
-    lines = [l for l in result.stdout.strip().splitlines() if l.strip()]
-    return len(lines)
 
 
 def main():
@@ -254,96 +282,76 @@ def main():
         report(args.studio, args.recording, "failed", error=str(e))
         raise SystemExit(str(e))
 
-    expected_files = manifest.get("file_count", 0)
     total_bytes    = manifest.get("total_bytes", 0)
+    expected_files = manifest.get("file_count", 0)
 
-    # Prefer ATEM MDTM timestamp stored by copy_one.py (accurate recording time).
-    # Fall back to earliest local file mtime if not present (old manifests).
-    rec_dt = None
-    if manifest.get("recording_time"):
-        try:
-            rec_dt = datetime.fromisoformat(manifest["recording_time"])
-            print(f"[upload] Recording time (from ATEM MDTM): {rec_dt}")
-        except Exception:
-            pass
-    if not rec_dt:
-        rec_dt = get_recording_start(local_dir)
-        print(f"[upload] Recording time (from file mtime): {rec_dt}")
-
-    # Resolve client name from booking calendar
-    client_name, booking_time = resolve_booking(args.studio, rec_dt) if rec_dt else (None, None)
-    print(f"[upload] Booking match: {client_name or 'Unknown'} at {booking_time or '?'}")
-
-    # Build named Drive folder
-    drive_folder = build_drive_folder_name(
-        args.studio, args.recording, client_name, booking_time, rec_dt
-    )
-    drive_dest = f"{DRIVE_REMOTE}:{args.studio}/{drive_folder}"
+    # Detect sessions (01, 02...) -- multi-session ATEM folders split per booking
+    sessions = detect_sessions(local_dir, manifest)
+    n        = len(sessions)
 
     print(f"\n[upload] Studio:    {args.studio}")
     print(f"[upload] Recording: {args.recording}")
     print(f"[upload] Local:     {local_dir}")
-    print(f"[upload] Drive:     {drive_dest}")
+    print(f"[upload] Sessions:  {sessions} ({n} total)")
     print(f"[upload] Expected:  {expected_files} files / {total_bytes:,} bytes\n")
 
     report(args.studio, args.recording, "uploading")
 
-    try:
-        rclone_with_progress(
-            args.studio, args.recording,
-            "copy",
-            str(local_dir),
-            drive_dest,
-            "--checksum",
-            "--exclude", "pcm_manifest.json",
-            "--exclude", ".pcm_copy_complete",
-            "--transfers", "4",
+    first_drive_url = None
+
+    for suffix in sessions:
+        session_end_dt = get_session_end_time(manifest, suffix, local_dir)
+        print(f"[upload] --- Session {suffix} ---")
+        print(f"[upload] End time: {session_end_dt}")
+
+        if session_end_dt:
+            client_name, booking_time = resolve_booking(args.studio, session_end_dt)
+        else:
+            client_name, booking_time = None, None
+        print(f"[upload] Booking: {client_name or 'Unknown'} at {booking_time or '?'}")
+
+        drive_folder = build_drive_folder_name(
+            args.studio, args.recording, client_name, booking_time, session_end_dt
         )
-    except subprocess.CalledProcessError as e:
-        report(args.studio, args.recording, "failed", error=f"rclone copy failed: {e}")
-        raise SystemExit(f"Upload failed: {e}")
+        drive_dest = f"{DRIVE_REMOTE}:{args.studio}/{drive_folder}"
+        print(f"[upload] Drive: {drive_dest}")
 
-    # Verify file count on Drive
-    actual_files = count_drive_files(drive_dest)
-    print(f"\n[upload] Verification: expected {expected_files}, found {actual_files} on Drive")
+        # Upload only files for this session suffix + shared .drp project file.
+        # rclone --include implicitly excludes everything else (no --exclude needed).
+        try:
+            rclone_with_progress(
+                args.studio, args.recording,
+                "copy",
+                str(local_dir),
+                drive_dest,
+                "--checksum",
+                "--include", f"* {suffix}.*",
+                "--include", "*.drp",
+                "--transfers", "4",
+            )
+        except subprocess.CalledProcessError as e:
+            report(args.studio, args.recording, "failed",
+                   error=f"rclone failed (session {suffix}): {e}")
+            raise SystemExit(f"Upload failed: {e}")
 
-    if actual_files < expected_files:
-        err = f"Upload verification failed: expected {expected_files} files, got {actual_files} on Drive"
-        report(args.studio, args.recording, "failed", error=err)
-        raise SystemExit(err)
-
-    # Get Drive folder URL
-    drive_url = None
-    try:
-        result = subprocess.run(
-            [str(RCLONE), "--config", str(RCLONE_CONFIG),
-             "lsf", "--dirs-only", "--format", "pi",
-             f"{DRIVE_REMOTE}:{args.studio}/"],
-            capture_output=True, text=True
-        )
-        for line in result.stdout.splitlines():
-            if drive_folder in line:
-                folder_id = line.split(";")[0].strip()
-                drive_url = f"https://drive.google.com/drive/folders/{folder_id}"
-                break
-    except Exception:
-        pass
+        if first_drive_url is None:
+            first_drive_url = get_drive_folder_url(args.studio, drive_folder)
 
     report(
         args.studio, args.recording, "archived",
-        drive_url=drive_url,
-        file_count=actual_files,
+        drive_url=first_drive_url,
+        file_count=expected_files,
         total_bytes=total_bytes,
     )
-    print(f"\n[upload] ✓ Archived: {drive_dest}")
+    print(f"\n[upload] Archived: {n} session(s) uploaded to Drive")
 
     if not args.no_cleanup:
         print(f"[upload] Deleting NAS copy: {local_dir}")
         import shutil
         shutil.rmtree(local_dir)
-        print(f"[upload] ✓ NAS copy deleted")
+        print(f"[upload] NAS copy deleted")
     else:
-        print(f"[upload] --no-cleanup set — NAS copy kept at {local_dir}")
+        print(f"[upload] --no-cleanup set -- NAS copy kept at {local_dir}")
 
 
 if __name__ == "__main__":

@@ -23,16 +23,31 @@ function setupsForStudio(studio: string): string[] {
     .map(([setup]) => setup)
 }
 
-// Parse "HH:MM - HH:MM" → start minutes since midnight
-function parseStartMinutes(filming_time: string): number | null {
+// Parse "HH:MM" → minutes since midnight
+function toMinutes(t: string): number | null {
   try {
-    const start = filming_time.split('-')[0].trim() // "10:00"
-    const [h, m] = start.split(':').map(Number)
+    const [h, m] = t.trim().split(':').map(Number)
     return h * 60 + m
   } catch {
     return null
   }
 }
+
+// Parse "HH:MM - HH:MM" → {start, end} minutes
+function parseBookingTimes(filming_time: string): { start: number; end: number } | null {
+  try {
+    const parts = filming_time.split(/\s*-\s*/)
+    const start = toMinutes(parts[0])
+    const end   = toMinutes(parts[1])
+    if (start === null || end === null) return null
+    return { start, end }
+  } catch {
+    return null
+  }
+}
+
+// Sessions can run up to 25 mins past booking end (30-min gap between bookings keeps this unambiguous)
+const OVERRUN_BUFFER = 25
 
 export async function GET(request: Request) {
   const secret = request.headers.get('x-pcm-secret')
@@ -41,17 +56,16 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const studio      = searchParams.get('studio')       // e.g. "Studio 4"
-  const date        = searchParams.get('date')          // e.g. "2026-06-30"
-  const time_str    = searchParams.get('time')          // e.g. "10:05" (recording start)
+  const studio       = searchParams.get('studio')    // e.g. "Studio 4"
+  const date         = searchParams.get('date')       // e.g. "2026-06-30"
+  const end_time_str = searchParams.get('end_time')  // session end time HH:MM (SGT) — preferred
+  const time_str     = searchParams.get('time')       // legacy: recording start time HH:MM
 
-  if (!studio || !date || !time_str) {
-    return NextResponse.json({ error: 'studio, date and time are required' }, { status: 400 })
+  if (!studio || !date || (!end_time_str && !time_str)) {
+    return NextResponse.json({ error: 'studio, date, and end_time (or time) are required' }, { status: 400 })
   }
 
-  const [h, m]        = time_str.split(':').map(Number)
-  const rec_minutes   = h * 60 + m
-  const setups        = setupsForStudio(studio)
+  const setups = setupsForStudio(studio)
 
   if (setups.length === 0) {
     return NextResponse.json({ error: `Unknown studio: ${studio}` }, { status: 400 })
@@ -75,22 +89,38 @@ export async function GET(request: Request) {
     return NextResponse.json({ client_name: null, booking_time: null })
   }
 
-  // Find the booking whose start time is closest before the recording start,
-  // but before the next booking's start time
   let match = null
-  for (let i = 0; i < data.length; i++) {
-    const booking_start = parseStartMinutes(data[i].filming_time)
-    if (booking_start === null) continue
 
-    const next_start = i + 1 < data.length
-      ? parseStartMinutes(data[i + 1].filming_time)
-      : null
-
-    if (
-      booking_start <= rec_minutes + 30 && // recording started within 30 mins after booking
-      (next_start === null || rec_minutes < next_start) // before next booking
-    ) {
-      match = data[i]
+  if (end_time_str) {
+    // Match by session end time: booking_start <= end_minutes <= booking_end + buffer.
+    // 25-min buffer handles overruns; 30-min gap between bookings keeps it unambiguous.
+    const end_minutes = toMinutes(end_time_str)
+    if (end_minutes !== null) {
+      for (const booking of data) {
+        const times = parseBookingTimes(booking.filming_time)
+        if (!times) continue
+        if (times.start <= end_minutes && end_minutes <= times.end + OVERRUN_BUFFER) {
+          match = booking
+        }
+      }
+    }
+  } else {
+    // Legacy: match by recording start time proximity
+    const rec_minutes = toMinutes(time_str!)
+    if (rec_minutes !== null) {
+      for (let i = 0; i < data.length; i++) {
+        const times = parseBookingTimes(data[i].filming_time)
+        if (!times) continue
+        const next_start = i + 1 < data.length
+          ? parseBookingTimes(data[i + 1].filming_time)?.start ?? null
+          : null
+        if (
+          times.start <= rec_minutes + 30 &&
+          (next_start === null || rec_minutes < next_start)
+        ) {
+          match = data[i]
+        }
+      }
     }
   }
 

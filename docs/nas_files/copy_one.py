@@ -6,6 +6,7 @@ Copies one named ATEM recording folder to the NAS and reports status to the dash
 
 import argparse
 import json
+import re
 import sys
 import threading
 import time
@@ -125,22 +126,54 @@ def main():
             file_count  = manifest.get("file_count")
             total_bytes = manifest.get("total_bytes")
 
-            # Store the ATEM's own MDTM timestamp so upload_drive.py can use
-            # the real recording time for booking lookup (not NAS copy mtime).
-            if not manifest.get("recording_time"):
+            # Get ATEM timestamps: folder MDTM (recording_time) + per-file MDTMs
+            # (session_times) so upload_drive.py can split multi-session folders.
+            if not manifest.get("session_times"):
                 try:
                     ftp_cfg = cfg["ftp"]
                     ftp     = connect(studio["ip"], ftp_cfg["username"],
                                       ftp_cfg["password"], ftp_cfg.get("timeout_seconds", 30))
-                    resp    = ftp.sendcmd(f"MDTM {remote_dir}")
-                    ts_str  = resp.split()[-1]
-                    rec_ts  = datetime.strptime(ts_str, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+
+                    # Folder MDTM -> recording_time (end of last session)
+                    try:
+                        resp   = ftp.sendcmd(f"MDTM {remote_dir}")
+                        rec_ts = datetime.strptime(resp.split()[-1], "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+                        manifest["recording_time"] = rec_ts.isoformat()
+                        print(f"[copy] Recording time: {rec_ts.isoformat()}")
+                    except Exception as e:
+                        print(f"[copy] WARNING: could not get folder MDTM: {e}")
+
+                    # Per-file MDTMs -> session_times {suffix: end_time}
+                    # Scans Video ISO Files and root for files ending in " NN.ext"
+                    suffix_re     = re.compile(r' (\d{2})\.[a-zA-Z0-9]+$')
+                    session_times = {}
+                    for scan_dir in (f"{remote_dir}/Video ISO Files", remote_dir):
+                        try:
+                            for path in ftp.nlst(scan_dir):
+                                m = suffix_re.search(path.split('/')[-1])
+                                if m:
+                                    suffix = m.group(1)
+                                    try:
+                                        resp = ftp.sendcmd(f"MDTM {path}")
+                                        ts   = datetime.strptime(resp.split()[-1], "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+                                        prev = session_times.get(suffix)
+                                        if prev is None or ts > datetime.fromisoformat(prev):
+                                            session_times[suffix] = ts.isoformat()
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
+
                     ftp.quit()
-                    manifest["recording_time"] = rec_ts.isoformat()
+
+                    if session_times:
+                        manifest["session_times"] = session_times
+                        print(f"[copy] Sessions: {session_times}")
+
                     manifest_path.write_text(json.dumps(manifest, indent=2))
-                    print(f"[copy] Recording time from ATEM: {rec_ts.isoformat()}")
+
                 except Exception as e:
-                    print(f"[copy] WARNING: could not get MDTM from ATEM: {e}")
+                    print(f"[copy] WARNING: could not get ATEM timestamps: {e}")
 
         report(
             args.studio, args.recording, "copy_complete",

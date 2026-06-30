@@ -267,9 +267,8 @@ def rclone_with_progress(studio, recording, *args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--studio",     required=True)
-    parser.add_argument("--recording",  required=True)
-    parser.add_argument("--no-cleanup", action="store_true")
+    parser.add_argument("--studio",    required=True)
+    parser.add_argument("--recording", required=True)
     args = parser.parse_args()
 
     cfg       = load_config()
@@ -349,14 +348,7 @@ def main():
         total_bytes=total_bytes,
     )
     print(f"\n[upload] Archived: {n} session(s) uploaded to Drive")
-
-    if not args.no_cleanup:
-        print(f"[upload] Deleting NAS copy: {local_dir}")
-        import shutil
-        shutil.rmtree(local_dir)
-        print(f"[upload] NAS copy deleted")
-    else:
-        print(f"[upload] --no-cleanup set -- NAS copy kept at {local_dir}")
+    print(f"[upload] NAS copy retained at {local_dir} — discover.py will delete after 10 days")
 
 
 if __name__ == "__main__":

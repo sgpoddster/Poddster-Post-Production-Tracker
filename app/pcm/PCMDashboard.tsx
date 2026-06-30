@@ -23,6 +23,7 @@ type Recording = {
   drive_url: string | null
   drive_folder: string | null
   retry_count: number | null
+  nas_deleted_at: string | null
   deleted_at: string | null
   created_at: string
   updated_at: string
@@ -163,26 +164,24 @@ function formatDate(ts: string | null): string {
   })
 }
 
-const RETENTION_DAYS = 30
+const NAS_RETENTION_DAYS   = 10
+const DRIVE_RETENTION_DAYS = 30
 
-function deletionDate(upload_completed_at: string | null): Date | null {
+function retentionDate(upload_completed_at: string | null, days: number): Date | null {
   if (!upload_completed_at) return null
   const d = new Date(upload_completed_at)
-  d.setDate(d.getDate() + RETENTION_DAYS)
+  d.setDate(d.getDate() + days)
   return d
 }
 
-function DaysTodeletion({ upload_completed_at }: { upload_completed_at: string | null }) {
-  const due = deletionDate(upload_completed_at)
-  if (!due) return <span className="text-th/30">—</span>
-
+function DaysCountdown({ due, deleted }: { due: Date | null; deleted?: boolean }) {
+  if (deleted) return <span className="text-th/25 text-xs">Deleted</span>
+  if (!due)    return <span className="text-th/30">—</span>
   const daysLeft = Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-
   const colour = daysLeft <= 3  ? 'text-red-400 font-semibold'
                : daysLeft <= 7  ? 'text-red-400/70'
                : daysLeft <= 14 ? 'text-yellow-400/80'
                :                  'text-th/35'
-
   const label = daysLeft <= 0 ? 'Today' : `${daysLeft}d`
   return <span className={`text-xs ${colour}`}>{label}</span>
 }
@@ -427,35 +426,45 @@ export default function PCMDashboard({
               <table className="min-w-full divide-y divide-th/[0.05] text-sm">
                 <thead className="bg-th/[0.02]">
                   <tr>
-                    {['Studio', 'Recording', 'Size', 'Files', 'Completed', 'Deletion Date', 'Days to Deletion', 'Drive'].map(h => (
+                    {['Studio', 'Recording', 'Size', 'Files', 'Completed', 'NAS Delete', 'NAS Days', 'Drive Delete', 'Drive Days', 'Drive'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-th/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-th/[0.04]">
-                  {completedVisible.map(r => (
-                    <tr key={r.id} className="hover:bg-th/[0.02] transition-colors">
-                      <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
-                      <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
-                      <td className="px-4 py-3 text-th/50">{r.file_count ?? '—'}</td>
-                      <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.upload_completed_at)}</td>
-                      <td className="px-4 py-3 text-xs whitespace-nowrap text-th/35">
-                        {deletionDate(r.upload_completed_at)?.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) ?? '—'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <DaysTodeletion upload_completed_at={r.upload_completed_at} />
-                      </td>
-                      <td className="px-4 py-3">
-                        {r.drive_url ? (
-                          <a href={r.drive_url} target="_blank" rel="noopener noreferrer"
-                            className="text-xs text-blue-400/70 hover:text-blue-400 underline underline-offset-2 decoration-dotted">
-                            View →
-                          </a>
-                        ) : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {completedVisible.map(r => {
+                    const nasDate   = retentionDate(r.upload_completed_at, NAS_RETENTION_DAYS)
+                    const driveDate = retentionDate(r.upload_completed_at, DRIVE_RETENTION_DAYS)
+                    return (
+                      <tr key={r.id} className="hover:bg-th/[0.02] transition-colors">
+                        <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
+                        <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
+                        <td className="px-4 py-3 text-th/50">{r.file_count ?? '—'}</td>
+                        <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.upload_completed_at)}</td>
+                        <td className="px-4 py-3 text-xs whitespace-nowrap text-th/35">
+                          {r.nas_deleted_at ? formatDate(r.nas_deleted_at) : (nasDate?.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) ?? '—')}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <DaysCountdown due={nasDate} deleted={!!r.nas_deleted_at} />
+                        </td>
+                        <td className="px-4 py-3 text-xs whitespace-nowrap text-th/35">
+                          {driveDate?.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) ?? '—'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <DaysCountdown due={driveDate} />
+                        </td>
+                        <td className="px-4 py-3">
+                          {r.drive_url ? (
+                            <a href={r.drive_url} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-blue-400/70 hover:text-blue-400 underline underline-offset-2 decoration-dotted">
+                              View →
+                            </a>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

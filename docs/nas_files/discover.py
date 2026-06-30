@@ -429,6 +429,69 @@ def report_nas_stats():
         print(f"[discover] WARNING: could not report NAS stats: {e}")
 
 
+def cleanup_nas():
+    """
+    Fetch recordings whose NAS copy is due for deletion (archived 10+ days ago),
+    rmtree each, then stamp nas_deleted_at via the update API.
+    """
+    endpoint = os.environ.get("PCM_ENDPOINT", "")
+    secret   = os.environ.get("PCM_SECRET", "")
+    if not endpoint or not secret:
+        return
+
+    base = endpoint.rsplit("/api/pcm/", 1)[0]
+    url  = f"{base}/api/pcm/pending-nas-deletion"
+    req  = urllib.request.Request(url, headers={"x-pcm-secret": secret})
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            pending = json.loads(resp.read().decode())
+    except Exception as e:
+        print(f"[nas-cleanup] WARNING: could not fetch pending NAS deletions: {e}")
+        return
+
+    if not pending:
+        return
+
+    import shutil
+    print(f"[nas-cleanup] {len(pending)} recording(s) due for deletion from NAS")
+
+    for rec in pending:
+        studio    = rec["studio"]
+        recording = rec["recording"]
+        nas_path  = rec.get("nas_path")
+
+        if not nas_path:
+            print(f"[nas-cleanup] No nas_path for {studio}/{recording} — skipping")
+            continue
+
+        path = Path(nas_path)
+        if not path.exists():
+            print(f"[nas-cleanup] Path already gone: {nas_path} — marking deleted")
+        else:
+            try:
+                shutil.rmtree(nas_path)
+                print(f"[nas-cleanup] ✓ Deleted from NAS: {nas_path}")
+            except Exception as e:
+                print(f"[nas-cleanup] WARNING: rmtree failed for {nas_path}: {e}")
+                continue
+
+        # Stamp nas_deleted_at without changing state (stays 'archived')
+        now_iso  = datetime.now(timezone.utc).isoformat()
+        payload  = json.dumps({"studio": studio, "recording": recording, "state": "archived", "nas_deleted_at": now_iso}).encode()
+        update_req = urllib.request.Request(
+            f"{base}/api/pcm/update",
+            data=payload,
+            headers={"x-pcm-secret": secret, "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(update_req, timeout=10):
+                pass
+        except Exception as e:
+            print(f"[nas-cleanup] WARNING: could not stamp nas_deleted_at: {e}")
+
+
 def cleanup_drive():
     """
     Fetch recordings ready for deletion (archived 30+ days ago) from the API,
@@ -522,6 +585,7 @@ def main():
     print(f"\n[discover] Done. {counters['found']} new, {counters['deferred']} deferred for upload window.")
 
     report_nas_stats()
+    cleanup_nas()
     cleanup_drive()
 
 

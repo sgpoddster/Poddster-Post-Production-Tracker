@@ -24,6 +24,10 @@ import json
 import subprocess
 import sys
 import threading
+import urllib.request
+import urllib.error
+import urllib.parse
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -403,6 +407,63 @@ def scan_studio(studio_cfg, cfg, state, in_window, counters):
 
 
 # ---------------------------------------------------------------------------
+# Drive cleanup — delete recordings backed up more than 30 days ago
+# ---------------------------------------------------------------------------
+
+def cleanup_drive():
+    """
+    Fetch recordings ready for deletion (archived 30+ days ago) from the API,
+    purge each from Google Drive via rclone, then mark them as 'deleted'.
+    """
+    endpoint = os.environ.get("PCM_ENDPOINT", "")
+    secret   = os.environ.get("PCM_SECRET", "")
+    if not endpoint or not secret:
+        return
+
+    base = endpoint.rsplit("/api/pcm/", 1)[0]
+    url  = f"{base}/api/pcm/pending-deletion"
+    req  = urllib.request.Request(url, headers={"x-pcm-secret": secret})
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            pending = json.loads(resp.read().decode())
+    except Exception as e:
+        print(f"[cleanup] WARNING: could not fetch pending deletions: {e}")
+        return
+
+    if not pending:
+        return
+
+    rclone     = Path("/volume1/PCM/bin/rclone")
+    rclone_cfg = Path("/volume1/PCM/config/rclone.conf")
+
+    print(f"[cleanup] {len(pending)} recording(s) due for deletion from Drive")
+
+    for rec in pending:
+        studio       = rec["studio"]
+        recording    = rec["recording"]
+        drive_folder = rec.get("drive_folder")
+
+        if not drive_folder:
+            print(f"[cleanup] No drive_folder stored for {studio}/{recording} — skipping")
+            continue
+
+        drive_path = f"gdrive:{studio}/{drive_folder}"
+        print(f"[cleanup] Purging: {drive_path}")
+
+        result = subprocess.run(
+            [str(rclone), "--config", str(rclone_cfg), "purge", drive_path],
+            capture_output=True, text=True
+        )
+
+        if result.returncode == 0:
+            report(studio, recording, "deleted")
+            print(f"[cleanup] ✓ Deleted from Drive: {studio}/{recording}")
+        else:
+            print(f"[cleanup] WARNING: rclone purge failed for {studio}/{recording}: {result.stderr}")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -440,6 +501,8 @@ def main():
         t.join()
 
     print(f"\n[discover] Done. {counters['found']} new, {counters['deferred']} deferred for upload window.")
+
+    cleanup_drive()
 
 
 if __name__ == "__main__":

@@ -299,7 +299,8 @@ def main():
 
     report(args.studio, args.recording, "uploading")
 
-    first_drive_url = None
+    first_drive_url    = None
+    first_drive_folder = None
 
     for suffix in sessions:
         session_end_dt = get_session_end_time(manifest, suffix, local_dir)
@@ -337,11 +338,13 @@ def main():
             raise SystemExit(f"Upload failed: {e}")
 
         if first_drive_url is None:
-            first_drive_url = get_drive_folder_url(args.studio, drive_folder)
+            first_drive_url    = get_drive_folder_url(args.studio, drive_folder)
+            first_drive_folder = drive_folder
 
     report(
         args.studio, args.recording, "archived",
         drive_url=first_drive_url,
+        drive_folder=first_drive_folder,
         file_count=expected_files,
         total_bytes=total_bytes,
     )

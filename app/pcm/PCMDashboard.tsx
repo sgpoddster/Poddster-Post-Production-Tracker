@@ -21,7 +21,9 @@ type Recording = {
   upload_completed_at: string | null
   nas_path: string | null
   drive_url: string | null
+  drive_folder: string | null
   retry_count: number | null
+  deleted_at: string | null
   created_at: string
   updated_at: string
 }
@@ -40,7 +42,8 @@ const STATE_META: Record<string, { label: string; classes: string; active?: bool
   copying:       { label: 'Copying…',    classes: 'bg-blue-500/15 text-blue-400',    active: true },
   copy_complete: { label: 'On NAS',      classes: 'bg-yellow-400/15 text-yellow-400' },
   uploading:     { label: 'Uploading…',  classes: 'bg-purple-500/15 text-purple-400', active: true },
-  archived:      { label: 'Archived',    classes: 'bg-green-500/15 text-green-400' },
+  archived:      { label: 'Backed Up',   classes: 'bg-green-500/15 text-green-400' },
+  deleted:       { label: 'Deleted',     classes: 'bg-gray-500/15 text-gray-500' },
   failed:        { label: 'Failed',      classes: 'bg-red-500/15 text-red-400' },
   gave_up:       { label: 'Gave up',     classes: 'bg-red-900/30 text-red-300' },
 }
@@ -226,6 +229,11 @@ export default function PCMDashboard({
 
   const completedVisible = showAllCompleted ? completed : completed.slice(0, COMPLETED_PAGE)
 
+  const deleted = recordings
+    .filter(r => r.state === 'deleted')
+    .sort((a, b) => new Date(b.deleted_at ?? b.updated_at).getTime()
+                  - new Date(a.deleted_at ?? a.updated_at).getTime())
+
   const activeCount  = recordings.filter(r => ['copying', 'uploading'].includes(r.state)).length
   const failingCount = inProgress.filter(r => r.state === 'failed' && r.recording !== '—').length
   const gaveUpCount  = inProgress.filter(r => r.state === 'gave_up').length
@@ -405,6 +413,38 @@ export default function PCMDashboard({
           </>
         )}
       </div>
+
+      {/* Deleted */}
+      {deleted.length > 0 && (
+        <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden opacity-60">
+          <div className="px-4 py-3 border-b border-th/[0.06] flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-th/50">Deleted from Drive</h2>
+            <span className="text-xs text-th/30">{deleted.length} total</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-th/[0.05] text-sm">
+              <thead className="bg-th/[0.02]">
+                <tr>
+                  {['Studio', 'Recording', 'Size', 'Backed Up', 'Deleted'].map(h => (
+                    <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-th/30 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-th/[0.04]">
+                {deleted.map(r => (
+                  <tr key={r.id} className="hover:bg-th/[0.02] transition-colors">
+                    <td className="px-4 py-3 font-medium text-th/50 whitespace-nowrap">{r.studio}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-th/40">{r.recording}</td>
+                    <td className="px-4 py-3 text-th/40 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
+                    <td className="px-4 py-3 text-th/30 text-xs whitespace-nowrap">{formatDate(r.upload_completed_at)}</td>
+                    <td className="px-4 py-3 text-th/30 text-xs whitespace-nowrap">{formatDate(r.deleted_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
     </div>
   )

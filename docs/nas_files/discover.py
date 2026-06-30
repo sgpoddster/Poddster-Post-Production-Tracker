@@ -410,6 +410,25 @@ def scan_studio(studio_cfg, cfg, state, in_window, counters):
 # Drive cleanup — delete recordings backed up more than 30 days ago
 # ---------------------------------------------------------------------------
 
+def report_nas_stats():
+    """Report Synology NAS volume usage to the dashboard."""
+    try:
+        import shutil, socket
+        usage    = shutil.disk_usage("/volume1")
+        hostname = socket.gethostname()
+        from core.reporter import _post
+        _post("/api/pcm/studio-status", {
+            "studio":      "NAS",
+            "used_bytes":  usage.used,
+            "free_bytes":  usage.free,
+            "total_bytes": usage.total,
+            "ssd_root":    hostname,
+        })
+        print(f"[discover] NAS: {usage.used / 1e9:.1f} GB used / {usage.total / 1e9:.1f} GB total")
+    except Exception as e:
+        print(f"[discover] WARNING: could not report NAS stats: {e}")
+
+
 def cleanup_drive():
     """
     Fetch recordings ready for deletion (archived 30+ days ago) from the API,
@@ -502,6 +521,7 @@ def main():
 
     print(f"\n[discover] Done. {counters['found']} new, {counters['deferred']} deferred for upload window.")
 
+    report_nas_stats()
     cleanup_drive()
 
 

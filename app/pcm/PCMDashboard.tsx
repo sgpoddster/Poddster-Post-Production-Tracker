@@ -268,8 +268,8 @@ export default function PCMDashboard({
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-th/90">ATEM Backup</h1>
-          <p className="mt-1 text-sm text-th/40">Synology NAS → Google Drive · Live</p>
+          <h1 className="text-2xl font-bold text-th/90">Poddster Backup Status</h1>
+          <p className="mt-1 text-sm text-th/40">ATEM ISO SSDs → Synology NAS → Google Drive · Live</p>
         </div>
         <div className="text-right">
           {activeCount > 0 && (
@@ -284,6 +284,35 @@ export default function PCMDashboard({
           <p className="text-xs text-th/25">Updated {timeAgo(lastUpdated.toISOString())}</p>
         </div>
       </div>
+
+      {/* NAS card */}
+      {(() => {
+        const nasStat  = studioStats.find(s => s.studio === 'NAS')
+        const nasOnline = nasStat
+          ? (Date.now() - new Date(nasStat.updated_at).getTime()) < ONLINE_THRESHOLD_MS
+          : false
+        const nasName  = nasStat?.ssd_root ?? 'Synology NAS'
+        return (
+          <div className="rounded-lg border border-th/[0.08] bg-brand-surface p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-th/80">Synology NAS</p>
+                <p className="text-[10px] text-th/25 mt-0.5 font-mono">{nasName}</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${nasOnline ? 'bg-green-400' : nasStat ? 'bg-red-400/60' : 'bg-gray-600'}`} />
+                <span className={`text-[10px] ${nasOnline ? 'text-green-400/70' : 'text-th/25'}`}>
+                  {nasOnline ? 'Online' : nasStat ? 'Offline' : 'No data yet'}
+                </span>
+              </div>
+            </div>
+            <SsdBar stat={nasStat} />
+            {nasStat && (
+              <p className="text-[10px] text-th/20 mt-1.5">Last seen {timeAgo(nasStat.updated_at)}</p>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Studio cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -372,7 +401,9 @@ export default function PCMDashboard({
                       </td>
                       <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
                       <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{timeAgo(r.updated_at)}</td>
-                      <td className="px-4 py-3 text-red-400 text-xs max-w-xs truncate">{r.error ?? ''}</td>
+                      <td className="px-4 py-3 text-red-400 text-xs max-w-xs truncate">
+                        {['failed', 'gave_up'].includes(r.state) ? (r.error ?? '') : ''}
+                      </td>
                     </tr>
                   )
                 })}

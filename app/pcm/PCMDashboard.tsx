@@ -163,6 +163,30 @@ function formatDate(ts: string | null): string {
   })
 }
 
+const RETENTION_DAYS = 30
+
+function deletionDate(upload_completed_at: string | null): Date | null {
+  if (!upload_completed_at) return null
+  const d = new Date(upload_completed_at)
+  d.setDate(d.getDate() + RETENTION_DAYS)
+  return d
+}
+
+function DaysTodeletion({ upload_completed_at }: { upload_completed_at: string | null }) {
+  const due = deletionDate(upload_completed_at)
+  if (!due) return <span className="text-th/30">—</span>
+
+  const daysLeft = Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+
+  const colour = daysLeft <= 3  ? 'text-red-400 font-semibold'
+               : daysLeft <= 7  ? 'text-red-400/70'
+               : daysLeft <= 14 ? 'text-yellow-400/80'
+               :                  'text-th/35'
+
+  const label = daysLeft <= 0 ? 'Today' : `${daysLeft}d`
+  return <span className={`text-xs ${colour}`}>{label}</span>
+}
+
 export default function PCMDashboard({
   initialRecordings,
   initialStudioStats,
@@ -372,7 +396,7 @@ export default function PCMDashboard({
               <table className="min-w-full divide-y divide-th/[0.05] text-sm">
                 <thead className="bg-th/[0.02]">
                   <tr>
-                    {['Studio', 'Recording', 'Size', 'Files', 'Completed', 'Drive'].map(h => (
+                    {['Studio', 'Recording', 'Size', 'Files', 'Completed', 'Deletion Date', 'Days to Deletion', 'Drive'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-th/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -385,6 +409,12 @@ export default function PCMDashboard({
                       <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
                       <td className="px-4 py-3 text-th/50">{r.file_count ?? '—'}</td>
                       <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.upload_completed_at)}</td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap text-th/35">
+                        {deletionDate(r.upload_completed_at)?.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <DaysTodeletion upload_completed_at={r.upload_completed_at} />
+                      </td>
                       <td className="px-4 py-3">
                         {r.drive_url ? (
                           <a href={r.drive_url} target="_blank" rel="noopener noreferrer"

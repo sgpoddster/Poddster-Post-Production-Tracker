@@ -160,19 +160,19 @@ def build_drive_folder_name(studio, recording, client_name, booking_time, sessio
 
 
 def get_drive_folder_url(studio, drive_folder):
-    """Resolve the Drive folder URL via rclone lsf (returns folder ID)."""
+    """Resolve the Drive folder URL via rclone lsjson (unambiguous JSON ID field)."""
     try:
         result = subprocess.run(
             [str(RCLONE), "--config", str(RCLONE_CONFIG),
-             "lsf", "--dirs-only", "--format", "pi",
+             "lsjson", "--dirs-only",
              f"{DRIVE_REMOTE}:{studio}/"],
             capture_output=True, text=True
         )
-        for line in result.stdout.splitlines():
-            if drive_folder in line:
-                parts = line.split(";")
-                if len(parts) >= 2:
-                    folder_id = parts[1].strip().rstrip('/')
+        items = json.loads(result.stdout)
+        for item in items:
+            if item.get("Name") == drive_folder:
+                folder_id = item.get("ID", "")
+                if folder_id:
                     return f"https://drive.google.com/drive/folders/{folder_id}"
     except Exception:
         pass

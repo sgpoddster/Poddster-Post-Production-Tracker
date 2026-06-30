@@ -32,7 +32,9 @@ import time
 import urllib.request
 import urllib.error
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+SGT = timezone(timedelta(hours=8))
 from pathlib import Path
 
 sys.path.insert(0, "/volume1/PCM/app")
@@ -70,9 +72,26 @@ def get_recording_start(local_dir):
     return earliest
 
 
+def _call_resolve_api(base, secret, studio, date, time_str):
+    params = urllib.parse.urlencode({"studio": studio, "date": date, "time": time_str})
+    url    = f"{base}/api/pcm/resolve-booking?{params}"
+    req    = urllib.request.Request(url, headers={"x-pcm-secret": secret})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+            return data.get("client_name"), data.get("booking_time")
+    except Exception as e:
+        print(f"[upload] WARNING: resolve-booking API error: {e}")
+        return None, None
+
+
 def resolve_booking(studio, rec_dt):
     """
-    Call the Vercel API to resolve client name from footage_deliveries.
+    Resolve client name from footage_deliveries via the Vercel API.
+
+    Converts rec_dt to SGT first (file mtimes may be from re-copies, offset
+    from the original recording date). Tries today in SGT, then ±1 day, so
+    a mtime drift of a few hours across midnight doesn't break the match.
     Returns (client_name, booking_time) or (None, None).
     """
     endpoint = os.environ.get("PCM_ENDPOINT", "")
@@ -81,19 +100,18 @@ def resolve_booking(studio, rec_dt):
         return None, None
 
     base    = endpoint.rsplit("/api/pcm/", 1)[0]
-    date    = rec_dt.strftime("%Y-%m-%d")
-    time    = rec_dt.strftime("%H:%M")
-    params  = urllib.parse.urlencode({"studio": studio, "date": date, "time": time})
-    url     = f"{base}/api/pcm/resolve-booking?{params}"
+    rec_sgt = rec_dt.astimezone(SGT)
 
-    req = urllib.request.Request(url, headers={"x-pcm-secret": secret})
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode())
-            return data.get("client_name"), data.get("booking_time")
-    except Exception as e:
-        print(f"[upload] WARNING: could not resolve booking: {e}")
-        return None, None
+    for delta in (0, -1, 1):
+        candidate  = rec_sgt + timedelta(days=delta)
+        date_str   = candidate.strftime("%Y-%m-%d")
+        time_str   = candidate.strftime("%H:%M")
+        client, bt = _call_resolve_api(base, secret, studio, date_str, time_str)
+        if client:
+            print(f"[upload] Booking found on {date_str}: {client} at {bt}")
+            return client, bt
+
+    return None, None
 
 
 def build_drive_folder_name(studio, recording, client_name, booking_time, rec_dt):
@@ -101,8 +119,9 @@ def build_drive_folder_name(studio, recording, client_name, booking_time, rec_dt
     Build the Drive folder name:
       Studio 4 CORE — 2026-06-30 10:00 — Acme Podcast
     """
-    date_str   = rec_dt.strftime("%Y-%m-%d") if rec_dt else "unknown-date"
-    time_str   = booking_time or (rec_dt.strftime("%H:%M") if rec_dt else "")
+    rec_sgt    = rec_dt.astimezone(SGT) if rec_dt else None
+    date_str   = rec_sgt.strftime("%Y-%m-%d") if rec_sgt else "unknown-date"
+    time_str   = booking_time or (rec_sgt.strftime("%H:%M") if rec_sgt else "")
     client_str = client_name or "Unknown"
     # Avoid doubling the studio name if recording already starts with it
     if recording.lower().startswith(studio.lower()):

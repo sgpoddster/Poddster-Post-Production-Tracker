@@ -44,7 +44,7 @@ CONFIG        = Path("/volume1/PCM/config/settings.json")
 RCLONE        = Path("/volume1/PCM/bin/rclone")
 RCLONE_CONFIG = Path("/volume1/PCM/config/rclone.conf")
 DRIVE_REMOTE  = "gdrive"
-DRIVE_ROOT    = "ATEM Backups"
+DRIVE_ROOT    = ""  # files go directly under the shared drive root → Studio 2/...
 
 
 def load_config():
@@ -275,7 +275,7 @@ def main():
     drive_folder = build_drive_folder_name(
         args.studio, args.recording, client_name, booking_time, rec_dt
     )
-    drive_dest = f"{DRIVE_REMOTE}:{DRIVE_ROOT}/{args.studio}/{drive_folder}"
+    drive_dest = f"{DRIVE_REMOTE}:{args.studio}/{drive_folder}"
 
     print(f"\n[upload] Studio:    {args.studio}")
     print(f"[upload] Recording: {args.recording}")
@@ -315,7 +315,7 @@ def main():
         result = subprocess.run(
             [str(RCLONE), "--config", str(RCLONE_CONFIG),
              "lsf", "--dirs-only", "--format", "pi",
-             f"{DRIVE_REMOTE}:{DRIVE_ROOT}/{args.studio}/"],
+             f"{DRIVE_REMOTE}:{args.studio}/"],
             capture_output=True, text=True
         )
         for line in result.stdout.splitlines():

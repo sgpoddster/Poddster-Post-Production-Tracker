@@ -269,7 +269,7 @@ export default function PCMDashboard({
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-th/90">Poddster Backup Status</h1>
-          <p className="mt-1 text-sm text-th/40">ATEM ISO SSDs → Synology NAS → Google Drive · Live</p>
+          <p className="mt-1 text-sm text-th/40">ATEM SSDs → Synology NAS → Google Drive</p>
         </div>
         <div className="text-right">
           {activeCount > 0 && (
@@ -326,7 +326,7 @@ export default function PCMDashboard({
           return (
             <div key={studio} className="rounded-lg border border-th/[0.08] bg-brand-surface p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-th/80">{studio}</p>
+                <p className="text-sm font-semibold text-th/80">{studio} ATEM</p>
                 <div className="flex items-center gap-1.5">
                   <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-400' : stat ? 'bg-red-400/60' : 'bg-gray-600'}`} />
                   <span className={`text-[10px] ${isOnline ? 'text-green-400/70' : 'text-th/25'}`}>

@@ -38,6 +38,15 @@ type StudioStat = {
   updated_at: string
 }
 
+type QuotaRow = {
+  date: string
+  bytes_uploaded: number
+  updated_at: string
+}
+
+const DRIVE_QUOTA_BYTES = 750_000_000_000
+const DRIVE_QUOTA_SAFE  = DRIVE_QUOTA_BYTES * 0.95
+
 const STATE_META: Record<string, { label: string; classes: string; active?: boolean }> = {
   discovered:    { label: 'Discovered',  classes: 'bg-gray-500/15 text-gray-400' },
   copying:       { label: 'Copying…',    classes: 'bg-blue-500/15 text-blue-400',    active: true },
@@ -189,12 +198,17 @@ function DaysCountdown({ due, deleted }: { due: Date | null; deleted?: boolean }
 export default function PCMDashboard({
   initialRecordings,
   initialStudioStats,
+  initialQuotaRows,
+  todayDate,
 }: {
   initialRecordings: Recording[]
   initialStudioStats: StudioStat[]
+  initialQuotaRows: QuotaRow[]
+  todayDate: string
 }) {
   const [recordings,  setRecordings]  = useState<Recording[]>(initialRecordings)
   const [studioStats, setStudioStats] = useState<StudioStat[]>(initialStudioStats)
+  const [quotaRows,   setQuotaRows]   = useState<QuotaRow[]>(initialQuotaRows)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [showAllCompleted, setShowAllCompleted] = useState(false)
   const [tick, setTick] = useState(0)
@@ -235,11 +249,39 @@ export default function PCMDashboard({
       })
       .subscribe()
 
+    const quotaChannel = supabase
+      .channel('pcm_quota_live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pcm_upload_quota' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const updated = payload.new as QuotaRow
+          setQuotaRows(prev => {
+            const exists = prev.find(q => q.date === updated.date)
+            return exists ? prev.map(q => q.date === updated.date ? updated : q) : [updated, ...prev]
+          })
+        }
+      })
+      .subscribe()
+
     return () => {
       supabase.removeChannel(recChannel)
       supabase.removeChannel(statsChannel)
+      supabase.removeChannel(quotaChannel)
     }
   }, [])
+
+  // Quota for today + recent history
+  const todayQuota    = quotaRows.find(q => q.date === todayDate)
+  const todayUploaded = todayQuota?.bytes_uploaded ?? 0
+  const quotaPct      = Math.min(100, (todayUploaded / DRIVE_QUOTA_BYTES) * 100)
+  const quotaRemaining = Math.max(0, DRIVE_QUOTA_SAFE - todayUploaded)
+  const quotaExhausted = todayUploaded >= DRIVE_QUOTA_SAFE
+
+  // Recordings waiting to upload (on NAS, not yet sent to Drive)
+  const pendingUpload    = recordings.filter(r => r.state === 'copy_complete')
+  const pendingBytes     = pendingUpload.reduce((s, r) => s + (r.total_bytes ?? 0), 0)
+  const pendingNightsEst = pendingBytes > 0
+    ? Math.ceil(pendingBytes / DRIVE_QUOTA_SAFE)
+    : 0
 
   const inProgress = recordings
     .filter(r => IN_PROGRESS_STATES.has(r.state) && r.recording !== '—')
@@ -312,6 +354,88 @@ export default function PCMDashboard({
           </div>
         )
       })()}
+
+      {/* Drive Quota Panel */}
+      <div className="rounded-lg border border-th/[0.08] bg-brand-surface p-4 space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-th/80">Google Drive Upload Quota</p>
+            <p className="text-[10px] text-th/25 mt-0.5">{todayDate} (SGT) · 750 GB / 24 h limit</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className={`text-sm font-semibold ${quotaExhausted ? 'text-red-400' : quotaPct >= 75 ? 'text-yellow-400' : 'text-green-400'}`}>
+              {(todayUploaded / 1e9).toFixed(1)} <span className="text-th/30 font-normal text-xs">/ 750 GB</span>
+            </p>
+            <p className="text-[10px] text-th/30 mt-0.5">
+              {quotaExhausted ? 'Quota exhausted — resumes midnight SGT' : `${(quotaRemaining / 1e9).toFixed(1)} GB remaining tonight`}
+            </p>
+          </div>
+        </div>
+
+        {/* Quota bar */}
+        <div>
+          <div className="h-2 w-full rounded-full bg-th/[0.08] overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${
+                quotaExhausted ? 'bg-red-500' : quotaPct >= 75 ? 'bg-yellow-400' : 'bg-green-500/70'
+              }`}
+              style={{ width: `${quotaPct}%` }}
+            />
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[10px] text-th/20">0 GB</span>
+            <span className="text-[10px] text-th/20">750 GB</span>
+          </div>
+        </div>
+
+        {/* Backlog row */}
+        {pendingUpload.length > 0 && (
+          <div className={`rounded-md px-3 py-2 flex items-center justify-between gap-4 ${
+            quotaExhausted ? 'bg-red-500/10 border border-red-500/20' : 'bg-th/[0.04]'
+          }`}>
+            <div>
+              <p className={`text-xs font-medium ${quotaExhausted ? 'text-red-300' : 'text-th/60'}`}>
+                {pendingUpload.length} recording{pendingUpload.length > 1 ? 's' : ''} waiting to upload
+              </p>
+              <p className="text-[10px] text-th/25 mt-0.5">
+                {(pendingBytes / 1e9).toFixed(1)} GB total
+                {pendingNightsEst > 1 && ` · est. ${pendingNightsEst} nights to clear backlog`}
+              </p>
+            </div>
+            {pendingNightsEst > 1 && (
+              <span className="text-xs text-yellow-400/80 shrink-0">
+                ~{pendingNightsEst}× upload windows
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Recent quota history */}
+        {quotaRows.length > 1 && (
+          <div className="pt-1 border-t border-th/[0.05]">
+            <p className="text-[10px] text-th/25 mb-2">Recent upload history</p>
+            <div className="space-y-1.5">
+              {quotaRows.slice(0, 5).map(q => {
+                const pct = Math.min(100, (q.bytes_uploaded / DRIVE_QUOTA_BYTES) * 100)
+                return (
+                  <div key={q.date} className="flex items-center gap-3">
+                    <span className="text-[10px] text-th/30 w-20 shrink-0">{q.date}</span>
+                    <div className="flex-1 h-1 rounded-full bg-th/[0.06] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${pct >= 95 ? 'bg-red-500/60' : pct >= 75 ? 'bg-yellow-400/50' : 'bg-green-500/40'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-th/30 w-16 text-right shrink-0">
+                      {(q.bytes_uploaded / 1e9).toFixed(1)} GB
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Studio cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -14,7 +14,9 @@ export default async function PCMPage() {
 
   const serviceClient = createServiceClient()
 
-  const [{ data: recordings }, { data: studioStats }] = await Promise.all([
+  const sgtDate = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const [{ data: recordings }, { data: studioStats }, { data: quotaRows }] = await Promise.all([
     serviceClient
       .from('pcm_recordings')
       .select('*')
@@ -23,12 +25,19 @@ export default async function PCMPage() {
     serviceClient
       .from('pcm_studio_stats')
       .select('*'),
+    serviceClient
+      .from('pcm_upload_quota')
+      .select('*')
+      .gte('date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
+      .order('date', { ascending: false }),
   ])
 
   return (
     <PCMDashboard
       initialRecordings={recordings ?? []}
       initialStudioStats={studioStats ?? []}
+      initialQuotaRows={quotaRows ?? []}
+      todayDate={sgtDate}
     />
   )
 }

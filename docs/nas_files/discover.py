@@ -50,6 +50,8 @@ IGNORE_PREFIXES = (".", "._", "@", "#", "$")
 DONE_STATES   = {"archived", "gave_up"}
 ACTIVE_STATES = {"copying", "uploading", "discovered"}
 
+EXIT_QUOTA = 3  # upload_drive.py exits with this when daily Drive quota is exhausted
+
 # Thread lock for shared state dict + counters
 _state_lock = threading.Lock()
 
@@ -244,7 +246,16 @@ def recording_looks_complete(ftp, root, folder, min_age_minutes):
         return True
 
 
+QUOTA_EXHAUSTED = False  # module-level flag: stop all uploads once quota is hit
+
+
 def run_upload(name, folder, retries, state, key):
+    """
+    Run upload_drive.py for one recording.
+    Returns: True = archived, False = failed/retrying, 'quota' = quota exhausted (caller should stop).
+    """
+    global QUOTA_EXHAUSTED
+
     upload_bin = Path("/volume1/PCM/app/upload_drive.py")
     if not upload_bin.exists():
         print(f"[{name}]   upload_drive.py not found — skipping")
@@ -261,6 +272,11 @@ def run_upload(name, folder, retries, state, key):
             set_status(state, key, "archived", 0)
             save_state(state)
         return True
+
+    if result.returncode == EXIT_QUOTA:
+        print(f"[{name}]   Drive quota exhausted — deferring {folder} and all remaining uploads")
+        QUOTA_EXHAUSTED = True
+        return 'quota'
 
     new_retries = retries + 1
     with _state_lock:
@@ -327,10 +343,16 @@ def scan_studio(studio_cfg, cfg, state, in_window, counters):
                 print(f"[{name}]   too old, skipping: {folder}")
                 continue
 
-            # ── copy_complete: upload if in window ───────────────────────
+            # ── copy_complete: upload if in window and quota available ───
             if status == "copy_complete":
                 if in_window:
-                    run_upload(name, folder, retries, state, key)
+                    if QUOTA_EXHAUSTED:
+                        counters["quota_held"] += 1
+                        print(f"[{name}]   quota exhausted — deferring: {folder}")
+                    else:
+                        result = run_upload(name, folder, retries, state, key)
+                        if result == 'quota':
+                            counters["quota_held"] += 1
                 else:
                     counters["deferred"] += 1
                     print(f"[{name}]   deferred (outside upload window): {folder}")
@@ -392,9 +414,15 @@ def scan_studio(studio_cfg, cfg, state, in_window, counters):
                 set_status(state, key, "copy_complete", 0)
                 save_state(state)
 
-            # ── Upload NAS → Drive (window-gated) ────────────────────────
+            # ── Upload NAS → Drive (window-gated + quota-gated) ──────────
             if in_window:
-                run_upload(name, folder, 0, state, key)
+                if QUOTA_EXHAUSTED:
+                    counters["quota_held"] += 1
+                    print(f"[{name}]   quota exhausted — deferring: {folder}")
+                else:
+                    result = run_upload(name, folder, 0, state, key)
+                    if result == 'quota':
+                        counters["quota_held"] += 1
             else:
                 counters["deferred"] += 1
                 print(f"[{name}]   on NAS, upload deferred until upload window: {folder}")
@@ -567,7 +595,7 @@ def main():
     enabled = [s for s in cfg["studios"] if s.get("enabled", True)]
     print(f"[discover] Scanning {len(enabled)} studio(s) in parallel…")
 
-    counters = {"found": 0, "deferred": 0}
+    counters = {"found": 0, "deferred": 0, "quota_held": 0}
     threads  = []
 
     for studio_cfg in enabled:
@@ -582,7 +610,8 @@ def main():
     for t in threads:
         t.join()
 
-    print(f"\n[discover] Done. {counters['found']} new, {counters['deferred']} deferred for upload window.")
+    quota_msg = f", {counters['quota_held']} held (Drive quota)" if counters['quota_held'] else ""
+    print(f"\n[discover] Done. {counters['found']} new, {counters['deferred']} deferred for upload window{quota_msg}.")
 
     report_nas_stats()
     cleanup_nas()

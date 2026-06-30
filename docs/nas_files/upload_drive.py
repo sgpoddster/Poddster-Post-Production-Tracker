@@ -36,6 +36,12 @@ from pathlib import Path
 
 SGT = timezone(timedelta(hours=8))
 
+# Google Drive shared-drive daily upload limit per service account.
+# We stop at 95% to leave headroom for retries and manifest overhead.
+QUOTA_LIMIT_BYTES  = 750_000_000_000
+QUOTA_SAFE_BYTES   = int(QUOTA_LIMIT_BYTES * 0.95)  # 712.5 GB
+EXIT_QUOTA         = 3  # special exit code: quota exhausted, caller should defer
+
 sys.path.insert(0, "/volume1/PCM/app")
 from core.reporter import report
 
@@ -48,6 +54,57 @@ DRIVE_ROOT    = ""  # files go directly under shared drive root → Studio 2/...
 
 def load_config():
     return json.load(open(CONFIG))
+
+
+# ---------------------------------------------------------------------------
+# Quota helpers
+# ---------------------------------------------------------------------------
+
+def _quota_base():
+    endpoint = os.environ.get("PCM_ENDPOINT", "")
+    secret   = os.environ.get("PCM_SECRET", "")
+    if not endpoint or not secret:
+        return None, None
+    base = endpoint.rsplit("/api/pcm/", 1)[0]
+    return base, secret
+
+
+def get_quota_today():
+    """Return (bytes_used_today, sgt_date_str). Returns (0, date) on error."""
+    base, secret = _quota_base()
+    sgt_date = datetime.now(SGT).strftime("%Y-%m-%d")
+    if not base:
+        return 0, sgt_date
+    url = f"{base}/api/pcm/quota?date={sgt_date}"
+    req = urllib.request.Request(url, headers={"x-pcm-secret": secret})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+            return data.get("bytes_uploaded", 0), sgt_date
+    except Exception as e:
+        print(f"[upload] WARNING: could not fetch quota: {e}")
+        return 0, sgt_date
+
+
+def report_quota(date, bytes_add):
+    """Increment the daily upload quota counter."""
+    base, secret = _quota_base()
+    if not base or bytes_add <= 0:
+        return
+    payload = json.dumps({"date": date, "bytes_add": bytes_add}).encode()
+    req = urllib.request.Request(
+        f"{base}/api/pcm/quota",
+        data=payload,
+        headers={"x-pcm-secret": secret, "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+            used = data.get("bytes_uploaded", 0)
+            print(f"[upload] Quota updated: {used/1e9:.1f} GB / {QUOTA_LIMIT_BYTES/1e9:.0f} GB used today")
+    except Exception as e:
+        print(f"[upload] WARNING: could not report quota: {e}")
 
 
 def load_manifest(local_dir):
@@ -286,6 +343,15 @@ def main():
     total_bytes    = manifest.get("total_bytes", 0)
     expected_files = manifest.get("file_count", 0)
 
+    # --- Quota check ---
+    bytes_used, quota_date = get_quota_today()
+    remaining = QUOTA_SAFE_BYTES - bytes_used
+    print(f"[upload] Drive quota ({quota_date}): {bytes_used/1e9:.1f} / {QUOTA_LIMIT_BYTES/1e9:.0f} GB used, "
+          f"{remaining/1e9:.1f} GB remaining (safe limit)")
+    if total_bytes > 0 and total_bytes > remaining:
+        print(f"[upload] QUOTA EXCEEDED: need {total_bytes/1e9:.1f} GB but only {remaining/1e9:.1f} GB remaining — deferring")
+        sys.exit(EXIT_QUOTA)
+
     # Detect sessions (01, 02...) -- multi-session ATEM folders split per booking
     sessions = detect_sessions(local_dir, manifest)
     n        = len(sessions)
@@ -347,6 +413,7 @@ def main():
         file_count=expected_files,
         total_bytes=total_bytes,
     )
+    report_quota(quota_date, total_bytes)
     print(f"\n[upload] Archived: {n} session(s) uploaded to Drive")
     print(f"[upload] NAS copy retained at {local_dir} — discover.py will delete after 10 days")
 

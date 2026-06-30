@@ -424,7 +424,8 @@ def main():
                 print(f"[upload] Google reported the 750 GB rolling limit (rclone exit 8) — deferring {args.recording}")
                 report(args.studio, args.recording, "copy_complete")
                 if actual_uploaded_bytes > 0:
-                    report_quota(actual_uploaded_bytes, studio=args.studio, recording=args.recording)
+                    partial = min(actual_uploaded_bytes, total_bytes) if total_bytes > 0 else actual_uploaded_bytes
+                    report_quota(partial, studio=args.studio, recording=args.recording)
                 sys.exit(EXIT_QUOTA)
             report(args.studio, args.recording, "failed",
                    error=f"rclone failed (session {suffix}): {e}")
@@ -441,9 +442,13 @@ def main():
         file_count=expected_files,
         total_bytes=total_bytes,
     )
-    # Report ACTUAL bytes sent to Drive, not the expected size — files skipped by
-    # --checksum (re-runs / duplicates) transfer ~0 bytes and must not inflate the quota.
-    report_quota(actual_uploaded_bytes, studio=args.studio, recording=args.recording)
+    # Report bytes sent to Drive, capped at the recording's real size:
+    #  - checksum-skipped re-runs transfer ~0 → counts ~0 (no dup inflation)
+    #  - rclone's "Transferred" counter includes RETRIED chunks, so on a flaky/
+    #    rate-limited link it can exceed the file size — cap so retries don't
+    #    inflate the quota (Google counts stored data, not wire retries).
+    quota_bytes = min(actual_uploaded_bytes, total_bytes) if total_bytes > 0 else actual_uploaded_bytes
+    report_quota(quota_bytes, studio=args.studio, recording=args.recording)
     print(f"\n[upload] Archived: {n} session(s) uploaded to Drive")
     print(f"[upload] NAS copy retained at {local_dir} — discover.py will delete after 10 days")
 

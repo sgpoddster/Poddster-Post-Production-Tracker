@@ -110,6 +110,11 @@ function TransferProgress({ r }: { r: Recording }) {
   if (!r.bytes_transferred && !r.transfer_speed) return null
   const isCopy   = r.state === 'copying'
   const hasTotal = !!r.total_bytes
+  // rclone's "Transferred" counter includes retried chunks, so it can exceed the
+  // real file size on a flaky link — clamp the display so we never show >100%.
+  const shownTransferred = (hasTotal && r.bytes_transferred != null)
+    ? Math.min(r.bytes_transferred, r.total_bytes!)
+    : r.bytes_transferred
   const pct      = (hasTotal && r.bytes_transferred)
     ? Math.min(100, (r.bytes_transferred / r.total_bytes!) * 100) : null
   const barColor = isCopy ? 'bg-blue-500/50' : 'bg-purple-500/60'
@@ -125,8 +130,8 @@ function TransferProgress({ r }: { r: Recording }) {
         </div>
       )}
       <div className="flex items-center gap-2 text-[10px]">
-        {r.bytes_transferred != null && (
-          <span className="text-th/50">{formatBytes(r.bytes_transferred)}{hasTotal ? ` / ${formatBytes(r.total_bytes)}` : ' copied'}</span>
+        {shownTransferred != null && (
+          <span className="text-th/50">{formatBytes(shownTransferred)}{hasTotal ? ` / ${formatBytes(r.total_bytes)}` : ' copied'}</span>
         )}
         {r.transfer_speed && <span className="text-th/35">· {r.transfer_speed}</span>}
         {r.eta_seconds != null && r.eta_seconds > 0 && (

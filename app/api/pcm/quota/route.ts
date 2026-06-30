@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-export const QUOTA_LIMIT_BYTES = 750_000_000_000 // 750 GB Google Drive daily limit
+const QUOTA_LIMIT_BYTES = 750_000_000_000 // 750 GB Google Drive daily limit
 
 function authenticate(request: Request) {
   const secret = request.headers.get('x-pcm-secret')

@@ -215,7 +215,7 @@ export default function PCMDashboard({
   }, [])
 
   const inProgress = recordings
-    .filter(r => IN_PROGRESS_STATES.has(r.state))
+    .filter(r => IN_PROGRESS_STATES.has(r.state) && r.recording !== '—')
     .sort((a, b) => (STATE_SORT[a.state] ?? 9) - (STATE_SORT[b.state] ?? 9))
 
   const completed = recordings
@@ -226,7 +226,7 @@ export default function PCMDashboard({
   const completedVisible = showAllCompleted ? completed : completed.slice(0, COMPLETED_PAGE)
 
   const activeCount  = recordings.filter(r => ['copying', 'uploading'].includes(r.state)).length
-  const failingCount = inProgress.filter(r => r.state === 'failed').length
+  const failingCount = inProgress.filter(r => r.state === 'failed' && r.recording !== '—').length
   const gaveUpCount  = inProgress.filter(r => r.state === 'gave_up').length
 
   return (

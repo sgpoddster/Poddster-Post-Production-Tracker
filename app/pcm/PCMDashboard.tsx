@@ -51,7 +51,7 @@ const STATE_SORT: Record<string, number> = {
 }
 const STUDIOS    = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4']
 const MAX_RETRIES = 5
-const ONLINE_THRESHOLD_MS = 25 * 60 * 1000 // 25 minutes
+const ONLINE_THRESHOLD_MS = 10 * 60 * 1000 // 10 minutes
 const COMPLETED_PAGE = 20
 
 function Badge({ state, retryCount }: { state: string; retryCount?: number | null }) {

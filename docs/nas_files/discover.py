@@ -141,43 +141,54 @@ def recording_is_too_old(ftp, root, folder, min_date_str):
 # SSD capacity
 # ---------------------------------------------------------------------------
 
-def get_ssd_stats(ftp, root):
-    free_bytes = None
-    used_bytes = None
-
-    for cmd in ("SITE AVAIL", "SITE DISKFREE", "SITE FREE"):
-        try:
-            resp   = ftp.sendcmd(cmd)
-            digits = "".join(c for c in resp if c.isdigit())
-            if digits:
-                free_bytes = int(digits)
-                break
-        except Exception:
-            continue
-
+def _ftp_dir_size(ftp, path, depth=0):
+    """Recursively sum file sizes via FTP DIR listings (max 4 levels deep)."""
+    if depth > 4:
+        return 0
+    total = 0
     try:
-        total_size = 0
         lines = []
-        ftp.dir(root, lines.append)
+        ftp.dir(path, lines.append)
         for line in lines:
-            parts = line.split()
-            if len(parts) >= 5:
+            parts = line.split(None, 8)
+            if len(parts) < 9:
+                continue
+            name = parts[8]
+            if name in ('.', '..') or ignore(name):
+                continue
+            child = path.rstrip('/') + '/' + name
+            if line.startswith('d'):
+                total += _ftp_dir_size(ftp, child, depth + 1)
+            else:
                 try:
-                    total_size += int(parts[4])
+                    total += int(parts[4])
                 except ValueError:
                     pass
-        used_bytes = total_size if total_size > 0 else None
     except Exception:
         pass
+    return total
 
-    if free_bytes is None and used_bytes is None:
-        return None
 
+def get_ssd_stats(ftp, root, studio_cfg=None):
+    """
+    Compute SSD usage by recursively summing file sizes via FTP.
+    total_bytes comes from ssd_capacity_bytes in studio config (if set).
+    """
+    used_bytes  = _ftp_dir_size(ftp, root)
     total_bytes = None
-    if free_bytes is not None and used_bytes is not None:
-        total_bytes = free_bytes + used_bytes
+    free_bytes  = None
 
-    return {"used_bytes": used_bytes, "free_bytes": free_bytes, "total_bytes": total_bytes}
+    if studio_cfg:
+        cap = studio_cfg.get("ssd_capacity_bytes")
+        if cap:
+            total_bytes = int(cap)
+            free_bytes  = max(0, total_bytes - used_bytes)
+
+    return {
+        "used_bytes":  used_bytes  if used_bytes  else None,
+        "free_bytes":  free_bytes,
+        "total_bytes": total_bytes,
+    }
 
 
 def report_studio_stats(name, stats):
@@ -282,7 +293,7 @@ def scan_studio(studio_cfg, cfg, state, in_window, counters):
         root = find_ssd_root(ftp, studio_cfg)
         print(f"[{name}] SSD root: {root}")
 
-        stats = get_ssd_stats(ftp, root)
+        stats = get_ssd_stats(ftp, root, studio_cfg)
         if stats:
             stats['ssd_root'] = root
             print(f"[{name}] SSD root={root}, used={stats.get('used_bytes')}, free={stats.get('free_bytes')}")

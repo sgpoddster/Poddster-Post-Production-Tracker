@@ -170,8 +170,10 @@ def get_drive_folder_url(studio, drive_folder):
         )
         for line in result.stdout.splitlines():
             if drive_folder in line:
-                folder_id = line.split(";")[0].strip()
-                return f"https://drive.google.com/drive/folders/{folder_id}"
+                parts = line.split(";")
+                if len(parts) >= 2:
+                    folder_id = parts[1].strip().rstrip('/')
+                    return f"https://drive.google.com/drive/folders/{folder_id}"
     except Exception:
         pass
     return None

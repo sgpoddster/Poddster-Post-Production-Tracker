@@ -4,6 +4,83 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-30 — Frame.io token rotation + modal scroll fix
+
+### Fixed
+- **Frame.io webhook token expiry** — Adobe IMS uses rotating refresh tokens: each exchange returns a new refresh token and invalidates the old one. The webhook now saves the new token back to Supabase (`app_config` table, key `adobe_refresh_token`) on every exchange, so the token stays permanently fresh without manual renewal. Requires a one-time seed of the token in Supabase (done).
+- **New Project modal cut off at 100% zoom** — modal now caps at viewport height (`max-h-[calc(100vh-2rem)]`) with a scrollable form body and pinned header, so all fields are accessible at any zoom level.
+
+### Added
+- **`app_config` Supabase table** — key/value store for internal server-side config. Created with `key text primary key, value text, updated_at timestamptz`. No RLS (service-role-only access).
+
+### Changed
+- **`app/api/webhooks/frameio/route.ts`** — `getAdobeAccessToken()` now reads refresh token from `app_config` (falls back to `FRAMEIO_REFRESH_TOKEN` env var), exchanges it, and upserts the returned refresh token back to `app_config`. Also skips the Frame.io API call for `metadata.value.updated` events when `resource.name` is present in the webhook payload.
+- **`components/NewProjectModal.tsx`** — outer card is `flex flex-col max-h-[calc(100vh-2rem)]`; header has `shrink-0`; form has `overflow-y-auto`.
+
+---
+
+## 2026-06-29 — PCM upload window + SSD capacity bars
+
+### Added
+- **Upload window** — Drive uploads only run between `upload_window.start_hour` and `upload_window.end_hour` (default 00:00–08:00, set in `settings.json`). ATEM→NAS copy still happens immediately on discovery. Recordings sit as `copy_complete` on NAS outside the window and are uploaded automatically on the next scan inside it.
+- **SSD capacity bars** — each studio card on the dashboard now shows a thin capacity bar + "X.X of Y GB" label. Data is probed via FTP `SITE AVAIL` (free bytes) and directory size sum (used bytes) on every discover run. Updates live via Supabase real-time.
+- **`supabase/pcm_studio_stats.sql`** — new `pcm_studio_stats` table (one row per studio: used/free/total bytes + updated_at). Includes RLS policy and real-time publication.
+- **`app/api/pcm/studio-status/route.ts`** — `POST /api/pcm/studio-status` endpoint, same secret auth as the recordings endpoint. Upserts SSD stats per studio.
+- **`docs/nas_files/reporter.py`** — refactored: `_post(path, payload)` helper now shared so discover.py can POST to `/api/pcm/studio-status` without duplicating HTTP logic.
+
+### Changed
+- **`docs/nas_files/discover.py`** — `copy_complete` recordings are now checked against the upload window before triggering Drive upload. Outside the window they're skipped with a "deferred" log line and picked up on the next in-window scan.
+- **`app/pcm/PCMDashboard.tsx`** — `SsdBar` component added; studio cards render capacity bar if data is available. Bar turns amber at 75% and red at 90%.
+- **`app/pcm/page.tsx`** — loads `pcm_studio_stats` in parallel with recordings and passes to dashboard.
+
+### SQL to run in Supabase
+Run `supabase/pcm_studio_stats.sql` in the Supabase SQL editor.
+
+### settings.json addition
+Add to `/volume1/PCM/config/settings.json` on the NAS:
+```json
+"upload_window": { "start_hour": 0, "end_hour": 8 }
+```
+
+---
+
+## 2026-06-29 — PCM gave_up state + retry count on dashboard
+
+### Added
+- **`supabase/pcm_recordings_v2_retry.sql`** — migration: adds `retry_count integer` column and extends the state check constraint to include `gave_up`.
+- **`gave_up` state** — after 5 consecutive failures, a recording transitions from `failed` → `gave_up`. It stops auto-retrying and requires manual intervention. Distinct from `failed` (which auto-retries).
+
+### Changed
+- **`docs/nas_files/discover.py`** — `state.json` now stores `{status, retries}` dicts (migrates old string entries transparently). After each failure, `retries` increments. At `MAX_RETRIES = 5`, reports `gave_up` instead of `failed`.
+- **`app/api/pcm/update/route.ts`** — accepts `retry_count` in request body and upserts it to the DB.
+- **`app/pcm/PCMDashboard.tsx`**:
+  - `gave_up` badge: dark red `bg-red-900/30`, label "Gave up · N×" with retry count
+  - `failed` badge: shows retry count ("Failed · 2×") so you can see how many attempts have run
+  - Separate alert banners: orange "will auto-retry" for `failed`, dark red "manual intervention required" for `gave_up`
+
+### SQL to run in Supabase
+Run `supabase/pcm_recordings_v2_retry.sql` in the Supabase SQL editor.
+
+---
+
+## 2026-06-29 — PCM disconnection resilience + auto-retry
+
+### Changed
+- **`docs/nas_files/discover.py`** — `failed` recordings are now automatically retried on the next discover run instead of being skipped permanently. When the ATEM SSD is disconnected mid-copy, the FTP drop marks the recording as `failed`; the next scheduled run detects this state and re-queues the copy. copy_one.py's per-file resume logic then skips already-verified files, so only the missing portion is re-copied.
+
+### Integrity checks summary
+| Mechanism | What it protects |
+|-----------|-----------------|
+| `.partial` temp files | Incomplete individual file downloads |
+| Per-file size verification | Byte-level correctness of each copied file |
+| Per-file resume (size check) | Skip already-good files when retrying |
+| `.pcm_copy_complete` marker | Full folder only marked done after all files pass |
+| rclone `--checksum` | Drive upload verified by checksum, not just size |
+| Drive file count vs manifest | Confirms every file reached Drive before archiving |
+| Auto-retry on `failed` state | Re-queues on next discover run after any interruption |
+
+---
+
 ## 2026-06-29 — PCM live dashboard
 
 ### Changed

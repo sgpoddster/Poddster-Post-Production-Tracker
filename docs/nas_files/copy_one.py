@@ -26,11 +26,11 @@ def load_config():
 
 
 def _dir_bytes(path):
-    """Sum bytes of all non-partial, non-manifest files in path."""
+    """Sum bytes of all files in path, including .partial files being written."""
     total = 0
     try:
         for f in Path(path).rglob("*"):
-            if f.is_file() and not f.name.endswith(".partial") and f.name != "pcm_manifest.json":
+            if f.is_file() and f.name != "pcm_manifest.json":
                 try:
                     total += f.stat().st_size
                 except OSError:

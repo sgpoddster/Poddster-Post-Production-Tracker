@@ -190,6 +190,7 @@ def report_studio_stats(name, stats):
             "used_bytes":  stats.get("used_bytes"),
             "free_bytes":  stats.get("free_bytes"),
             "total_bytes": stats.get("total_bytes"),
+            "ssd_root":    stats.get("ssd_root"),
         })
     except Exception as e:
         print(f"[{name}] WARNING: could not report SSD stats: {e}")
@@ -283,7 +284,8 @@ def scan_studio(studio_cfg, cfg, state, in_window, counters):
 
         stats = get_ssd_stats(ftp, root)
         if stats:
-            print(f"[{name}] SSD used={stats.get('used_bytes')}, free={stats.get('free_bytes')}")
+            stats['ssd_root'] = root
+            print(f"[{name}] SSD root={root}, used={stats.get('used_bytes')}, free={stats.get('free_bytes')}")
             report_studio_stats(name, stats)
 
         for folder in list_names(ftp, root):

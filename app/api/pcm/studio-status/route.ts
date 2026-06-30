@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { studio, used_bytes, free_bytes, total_bytes } = body
+  const { studio, used_bytes, free_bytes, total_bytes, ssd_root } = body
 
   if (!studio) {
     return NextResponse.json({ error: 'studio is required' }, { status: 400 })
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const { error: dbError } = await supabase
     .from('pcm_studio_stats')
     .upsert(
-      { studio, used_bytes, free_bytes, total_bytes, updated_at: new Date().toISOString() },
+      { studio, used_bytes, free_bytes, total_bytes, ssd_root, updated_at: new Date().toISOString() },
       { onConflict: 'studio' }
     )
 

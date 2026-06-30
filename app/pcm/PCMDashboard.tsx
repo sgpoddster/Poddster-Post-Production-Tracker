@@ -31,6 +31,7 @@ type StudioStat = {
   used_bytes: number | null
   free_bytes: number | null
   total_bytes: number | null
+  ssd_root: string | null
   updated_at: string
 }
 
@@ -43,6 +44,15 @@ const STATE_META: Record<string, { label: string; classes: string; active?: bool
   failed:        { label: 'Failed',      classes: 'bg-red-500/15 text-red-400' },
   gave_up:       { label: 'Gave up',     classes: 'bg-red-900/30 text-red-300' },
 }
+
+const IN_PROGRESS_STATES = new Set(['discovered', 'copying', 'copy_complete', 'uploading', 'failed', 'gave_up'])
+const STATE_SORT: Record<string, number> = {
+  copying: 0, uploading: 1, failed: 2, gave_up: 3, copy_complete: 4, discovered: 5,
+}
+const STUDIOS    = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4']
+const MAX_RETRIES = 5
+const ONLINE_THRESHOLD_MS = 25 * 60 * 1000 // 25 minutes
+const COMPLETED_PAGE = 20
 
 function Badge({ state, retryCount }: { state: string; retryCount?: number | null }) {
   const m = STATE_META[state] ?? { label: state, classes: 'bg-gray-500/15 text-gray-400' }
@@ -63,73 +73,46 @@ function Badge({ state, retryCount }: { state: string; retryCount?: number | nul
 
 function SsdBar({ stat }: { stat: StudioStat | undefined }) {
   if (!stat?.total_bytes || !stat?.used_bytes) return null
-
   const pct     = Math.min(100, (stat.used_bytes / stat.total_bytes) * 100)
   const usedGB  = (stat.used_bytes  / 1_073_741_824).toFixed(1)
   const totalGB = (stat.total_bytes / 1_073_741_824).toFixed(1)
-
-  const barColor =
-    pct >= 90 ? 'bg-red-500'    :
-    pct >= 75 ? 'bg-yellow-400' :
-                'bg-blue-500/60'
-
+  const barColor = pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-yellow-400' : 'bg-blue-500/60'
   return (
-    <div className="mt-2.5">
+    <div className="mt-3">
       <div className="flex justify-between items-baseline mb-1">
         <span className="text-[10px] text-th/30">SSD</span>
         <span className="text-[10px] text-th/40">{usedGB} of {totalGB} GB</span>
       </div>
       <div className="h-1 w-full rounded-full bg-th/[0.08] overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-          style={{ width: `${pct}%` }}
-        />
+        <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   )
 }
 
-function formatEta(secs: number | null): string {
-  if (!secs || secs <= 0) return ''
-  if (secs < 60)   return `${secs}s`
-  if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`
-  return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`
-}
-
 function TransferProgress({ r }: { r: Recording }) {
   if (!r.bytes_transferred && !r.transfer_speed) return null
-
-  const isCopy     = r.state === 'copying'
-  const hasTotal   = !!r.total_bytes
-  const pct        = (hasTotal && r.bytes_transferred)
-    ? Math.min(100, (r.bytes_transferred / r.total_bytes!) * 100)
-    : null
-
-  const barColor   = isCopy ? 'bg-blue-500/50' : 'bg-purple-500/60'
-
+  const isCopy   = r.state === 'copying'
+  const hasTotal = !!r.total_bytes
+  const pct      = (hasTotal && r.bytes_transferred)
+    ? Math.min(100, (r.bytes_transferred / r.total_bytes!) * 100) : null
+  const barColor = isCopy ? 'bg-blue-500/50' : 'bg-purple-500/60'
   return (
     <div className="mt-1.5 space-y-1">
-      {/* Progress bar — shown for upload (has total_bytes), indeterminate stripe for copy */}
       {pct !== null ? (
         <div className="h-1 w-full rounded-full bg-th/[0.08] overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-            style={{ width: `${pct}%` }}
-          />
+          <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${pct}%` }} />
         </div>
       ) : (
         <div className="h-1 w-full rounded-full bg-th/[0.08] overflow-hidden">
           <div className={`h-full w-1/3 rounded-full ${barColor} animate-pulse`} />
         </div>
       )}
-      {/* Stats line */}
       <div className="flex items-center gap-2 text-[10px]">
         {r.bytes_transferred != null && (
           <span className="text-th/50">{formatBytes(r.bytes_transferred)}{hasTotal ? ` / ${formatBytes(r.total_bytes)}` : ' copied'}</span>
         )}
-        {r.transfer_speed && (
-          <span className="text-th/35">· {r.transfer_speed}</span>
-        )}
+        {r.transfer_speed && <span className="text-th/35">· {r.transfer_speed}</span>}
         {r.eta_seconds != null && r.eta_seconds > 0 && (
           <span className="text-th/35">· ETA {formatEta(r.eta_seconds)}</span>
         )}
@@ -140,9 +123,16 @@ function TransferProgress({ r }: { r: Recording }) {
 
 function formatBytes(bytes: number | null): string {
   if (!bytes) return '—'
-  if (bytes < 1_048_576)    return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1_048_576)     return `${(bytes / 1024).toFixed(1)} KB`
   if (bytes < 1_073_741_824) return `${(bytes / 1_048_576).toFixed(1)} MB`
   return `${(bytes / 1_073_741_824).toFixed(2)} GB`
+}
+
+function formatEta(secs: number | null): string {
+  if (!secs || secs <= 0) return ''
+  if (secs < 60)   return `${secs}s`
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`
+  return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`
 }
 
 function timeAgo(ts: string | null): string {
@@ -162,8 +152,12 @@ function elapsed(ts: string | null): string {
   return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`
 }
 
-const STUDIOS    = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4']
-const MAX_RETRIES = 5
+function formatDate(ts: string | null): string {
+  if (!ts) return '—'
+  return new Date(ts).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+  })
+}
 
 export default function PCMDashboard({
   initialRecordings,
@@ -175,7 +169,8 @@ export default function PCMDashboard({
   const [recordings,  setRecordings]  = useState<Recording[]>(initialRecordings)
   const [studioStats, setStudioStats] = useState<StudioStat[]>(initialStudioStats)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
-  const [tick,        setTick]        = useState(0)
+  const [showAllCompleted, setShowAllCompleted] = useState(false)
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 1000)
@@ -219,23 +214,26 @@ export default function PCMDashboard({
     }
   }, [])
 
-  const studioCards = STUDIOS.map(studio => {
-    const studioRows = recordings.filter(r => r.studio === studio)
-    const active     = studioRows.find(r => ['copying', 'uploading'].includes(r.state))
-    const latest     = active ?? studioRows[0] ?? null
-    const stat       = studioStats.find(s => s.studio === studio)
-    return { studio, latest, active, stat }
-  })
+  const inProgress = recordings
+    .filter(r => IN_PROGRESS_STATES.has(r.state))
+    .sort((a, b) => (STATE_SORT[a.state] ?? 9) - (STATE_SORT[b.state] ?? 9))
+
+  const completed = recordings
+    .filter(r => r.state === 'archived')
+    .sort((a, b) => new Date(b.upload_completed_at ?? b.updated_at).getTime()
+                  - new Date(a.upload_completed_at ?? a.updated_at).getTime())
+
+  const completedVisible = showAllCompleted ? completed : completed.slice(0, COMPLETED_PAGE)
 
   const activeCount  = recordings.filter(r => ['copying', 'uploading'].includes(r.state)).length
-  const failingCount = recordings.filter(r => r.state === 'failed').length
-  const gaveUpCount  = recordings.filter(r => r.state === 'gave_up').length
+  const failingCount = inProgress.filter(r => r.state === 'failed').length
+  const gaveUpCount  = inProgress.filter(r => r.state === 'gave_up').length
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-th/90">ATEM Backup</h1>
           <p className="mt-1 text-sm text-th/40">Synology NAS → Google Drive · Live</p>
@@ -255,118 +253,158 @@ export default function PCMDashboard({
       </div>
 
       {/* Studio cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        {studioCards.map(({ studio, latest, active, stat }) => (
-          <div
-            key={studio}
-            className={`rounded-lg border bg-brand-surface p-4 transition-colors ${
-              active ? 'border-blue-500/30' : 'border-th/[0.08]'
-            }`}
-          >
-            <p className="text-sm font-semibold text-th/80">{studio}</p>
-            {latest ? (
-              <>
-                <p className="text-xs text-th/35 mt-0.5 truncate font-mono">{latest.recording}</p>
-                <div className="mt-2">
-                  <Badge state={latest.state} retryCount={latest.retry_count} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {STUDIOS.map(studio => {
+          const stat      = studioStats.find(s => s.studio === studio)
+          const isOnline  = stat
+            ? (Date.now() - new Date(stat.updated_at).getTime()) < ONLINE_THRESHOLD_MS
+            : false
+          const ssdName   = stat?.ssd_root?.replace(/^\//, '') ?? null
+
+          return (
+            <div key={studio} className="rounded-lg border border-th/[0.08] bg-brand-surface p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-th/80">{studio}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-400' : stat ? 'bg-red-400/60' : 'bg-gray-600'}`} />
+                  <span className={`text-[10px] ${isOnline ? 'text-green-400/70' : 'text-th/25'}`}>
+                    {isOnline ? 'Online' : stat ? 'Offline' : 'Unknown'}
+                  </span>
                 </div>
-                {active ? (
-                  <>
-                    <p className="text-xs text-blue-400/70 mt-1">
-                      {active.state === 'copying' ? '⬇ ' : '⬆ '}
-                      {elapsed(active.state === 'copying' ? active.copy_started_at : active.upload_started_at)}
-                    </p>
-                    <TransferProgress r={active} />
-                  </>
-                ) : (
-                  <p className="text-xs text-th/25 mt-1">{timeAgo(latest.updated_at)}</p>
-                )}
-              </>
-            ) : (
-              <p className="text-xs text-th/30 mt-2">No recordings yet</p>
-            )}
-            <SsdBar stat={stat} />
-          </div>
-        ))}
+              </div>
+              {ssdName && (
+                <p className="text-[10px] text-th/25 mt-0.5 font-mono truncate">{ssdName}</p>
+              )}
+              <SsdBar stat={stat} />
+              {stat && (
+                <p className="text-[10px] text-th/20 mt-1.5">Last seen {timeAgo(stat.updated_at)}</p>
+              )}
+              {!stat && (
+                <p className="text-xs text-th/20 mt-3">No data yet</p>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* Alert banners */}
       {gaveUpCount > 0 && (
-        <div className="mb-3 rounded-lg border border-red-700/30 bg-red-900/20 px-4 py-3">
+        <div className="rounded-lg border border-red-700/30 bg-red-900/20 px-4 py-3">
           <p className="text-sm font-medium text-red-300">
             ✕ {gaveUpCount} recording{gaveUpCount > 1 ? 's' : ''} permanently failed after {MAX_RETRIES} attempts — manual intervention required.
           </p>
         </div>
       )}
       {failingCount > 0 && (
-        <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3">
           <p className="text-sm font-medium text-red-400">
             ⚠ {failingCount} recording{failingCount > 1 ? 's' : ''} failed — will auto-retry next scan.
           </p>
         </div>
       )}
 
-      {/* Recordings table */}
+      {/* In Progress */}
+      {inProgress.length > 0 && (
+        <div className="rounded-lg border border-th/[0.08] bg-brand-surface overflow-hidden">
+          <div className="px-4 py-3 border-b border-th/[0.06] flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-th/70">In Progress</h2>
+            <span className="text-xs text-th/30">{inProgress.length} recording{inProgress.length > 1 ? 's' : ''}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-th/[0.05] text-sm">
+              <thead className="bg-th/[0.02]">
+                <tr>
+                  {['Studio', 'Recording', 'State', 'Size', 'Updated', 'Error'].map(h => (
+                    <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-th/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-th/[0.04]">
+                {inProgress.map(r => {
+                  const isActive = ['copying', 'uploading'].includes(r.state)
+                  return (
+                    <tr key={r.id} className={`transition-colors ${isActive ? 'bg-blue-500/[0.03]' : 'hover:bg-th/[0.02]'}`}>
+                      <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
+                      <td className="px-4 py-3 min-w-[200px]">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge state={r.state} retryCount={r.retry_count} />
+                          {isActive && (
+                            <span className="text-xs text-th/30">
+                              {elapsed(r.state === 'copying' ? r.copy_started_at : r.upload_started_at)}
+                            </span>
+                          )}
+                        </div>
+                        {isActive && <TransferProgress r={r} />}
+                      </td>
+                      <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
+                      <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{timeAgo(r.updated_at)}</td>
+                      <td className="px-4 py-3 text-red-400 text-xs max-w-xs truncate">{r.error ?? ''}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Completed */}
       <div className="rounded-lg border border-th/[0.08] bg-brand-surface overflow-hidden">
         <div className="px-4 py-3 border-b border-th/[0.06] flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-th/70">All Recordings</h2>
-          <span className="text-xs text-th/30">{recordings.length} total</span>
+          <h2 className="text-sm font-semibold text-th/70">Completed</h2>
+          <span className="text-xs text-th/30">{completed.length} total</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-th/[0.05] text-sm">
-            <thead className="bg-th/[0.02]">
-              <tr>
-                {['Studio', 'Recording', 'State', 'Size', 'Files', 'Updated', 'Drive', 'Error'].map(h => (
-                  <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-th/40 uppercase tracking-wider whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-th/[0.04]">
-              {recordings.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-th/30">
-                    No recordings yet. Run PCM on the NAS to start.
-                  </td>
-                </tr>
-              )}
-              {recordings.map(r => {
-                const isActive = ['copying', 'uploading'].includes(r.state)
-                return (
-                  <tr key={r.id} className={`transition-colors ${isActive ? 'bg-blue-500/[0.03]' : 'hover:bg-th/[0.02]'}`}>
-                    <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
-                    <td className="px-4 py-3 min-w-[180px]">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge state={r.state} retryCount={r.retry_count} />
-                        {isActive && (
-                          <span className="text-xs text-th/30">
-                            {elapsed(r.state === 'copying' ? r.copy_started_at : r.upload_started_at)}
-                          </span>
-                        )}
-                      </div>
-                      {isActive && <TransferProgress r={r} />}
-                    </td>
-                    <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
-                    <td className="px-4 py-3 text-th/50">{r.file_count ?? '—'}</td>
-                    <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{timeAgo(r.updated_at)}</td>
-                    <td className="px-4 py-3">
-                      {r.drive_url ? (
-                        <a href={r.drive_url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-blue-400/70 hover:text-blue-400 underline underline-offset-2 decoration-dotted">
-                          View →
-                        </a>
-                      ) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-red-400 text-xs max-w-xs truncate">{r.error ?? ''}</td>
+        {completed.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm text-th/30">No archived recordings yet.</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-th/[0.05] text-sm">
+                <thead className="bg-th/[0.02]">
+                  <tr>
+                    {['Studio', 'Recording', 'Size', 'Files', 'Completed', 'Drive'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-th/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    ))}
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-th/[0.04]">
+                  {completedVisible.map(r => (
+                    <tr key={r.id} className="hover:bg-th/[0.02] transition-colors">
+                      <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
+                      <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
+                      <td className="px-4 py-3 text-th/50">{r.file_count ?? '—'}</td>
+                      <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.upload_completed_at)}</td>
+                      <td className="px-4 py-3">
+                        {r.drive_url ? (
+                          <a href={r.drive_url} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-blue-400/70 hover:text-blue-400 underline underline-offset-2 decoration-dotted">
+                            View →
+                          </a>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {completed.length > COMPLETED_PAGE && (
+              <div className="px-4 py-3 border-t border-th/[0.06] text-center">
+                <button
+                  onClick={() => setShowAllCompleted(v => !v)}
+                  className="text-xs text-th/40 hover:text-th/70 transition-colors"
+                >
+                  {showAllCompleted
+                    ? 'Show less'
+                    : `Show all ${completed.length} recordings`}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
+
     </div>
   )
 }

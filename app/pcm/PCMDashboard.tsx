@@ -326,115 +326,121 @@ export default function PCMDashboard({
         </div>
       </div>
 
-      {/* NAS card */}
-      {(() => {
-        const nasStat  = studioStats.find(s => s.studio === 'NAS')
-        const nasOnline = nasStat
-          ? (Date.now() - new Date(nasStat.updated_at).getTime()) < ONLINE_THRESHOLD_MS
-          : false
-        const nasName  = nasStat?.ssd_root ?? 'Synology NAS'
-        return (
-          <div className="rounded-lg border border-th/[0.08] bg-brand-surface p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-th/80">Synology NAS</p>
-                <p className="text-[10px] text-th/25 mt-0.5 font-mono">{nasName}</p>
+      {/* NAS + Drive status row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+        {/* Synology NAS card */}
+        {(() => {
+          const nasStat   = studioStats.find(s => s.studio === 'NAS')
+          const nasOnline = nasStat
+            ? (Date.now() - new Date(nasStat.updated_at).getTime()) < ONLINE_THRESHOLD_MS
+            : false
+          const nasName   = nasStat?.ssd_root ?? 'Synology NAS'
+          return (
+            <div className="rounded-lg border border-th/[0.08] bg-brand-surface p-4 flex flex-col">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-th/80">Synology NAS</p>
+                  <p className="text-[10px] text-th/25 mt-0.5 font-mono">{nasName}</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`h-2 w-2 rounded-full ${nasOnline ? 'bg-green-400' : nasStat ? 'bg-red-400/60' : 'bg-gray-600'}`} />
+                  <span className={`text-[10px] ${nasOnline ? 'text-green-400/70' : 'text-th/25'}`}>
+                    {nasOnline ? 'Online' : nasStat ? 'Offline' : 'No data yet'}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className={`h-2 w-2 rounded-full ${nasOnline ? 'bg-green-400' : nasStat ? 'bg-red-400/60' : 'bg-gray-600'}`} />
-                <span className={`text-[10px] ${nasOnline ? 'text-green-400/70' : 'text-th/25'}`}>
-                  {nasOnline ? 'Online' : nasStat ? 'Offline' : 'No data yet'}
-                </span>
-              </div>
+              <SsdBar stat={nasStat} />
+              {nasStat && (
+                <p className="text-[10px] text-th/20 mt-1.5">Last seen {timeAgo(nasStat.updated_at)}</p>
+              )}
+              {/* Recordings sitting on NAS awaiting upload */}
+              {pendingUpload.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-th/[0.05]">
+                  <p className="text-[10px] text-th/30">
+                    {pendingUpload.length} recording{pendingUpload.length > 1 ? 's' : ''} on NAS · {(pendingBytes / 1e9).toFixed(1)} GB pending upload
+                  </p>
+                </div>
+              )}
             </div>
-            <SsdBar stat={nasStat} />
-            {nasStat && (
-              <p className="text-[10px] text-th/20 mt-1.5">Last seen {timeAgo(nasStat.updated_at)}</p>
-            )}
-          </div>
-        )
-      })()}
+          )
+        })()}
 
-      {/* Drive Quota Panel */}
-      <div className="rounded-lg border border-th/[0.08] bg-brand-surface p-4 space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-th/80">Google Drive Upload Quota</p>
-            <p className="text-[10px] text-th/25 mt-0.5">{todayDate} (SGT) · 750 GB / 24 h limit</p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className={`text-sm font-semibold ${quotaExhausted ? 'text-red-400' : quotaPct >= 75 ? 'text-yellow-400' : 'text-green-400'}`}>
-              {(todayUploaded / 1e9).toFixed(1)} <span className="text-th/30 font-normal text-xs">/ 750 GB</span>
-            </p>
-            <p className="text-[10px] text-th/30 mt-0.5">
-              {quotaExhausted ? 'Quota exhausted — resumes midnight SGT' : `${(quotaRemaining / 1e9).toFixed(1)} GB remaining tonight`}
-            </p>
-          </div>
-        </div>
-
-        {/* Quota bar */}
-        <div>
-          <div className="h-2 w-full rounded-full bg-th/[0.08] overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                quotaExhausted ? 'bg-red-500' : quotaPct >= 75 ? 'bg-yellow-400' : 'bg-green-500/70'
-              }`}
-              style={{ width: `${quotaPct}%` }}
-            />
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-[10px] text-th/20">0 GB</span>
-            <span className="text-[10px] text-th/20">750 GB</span>
-          </div>
-        </div>
-
-        {/* Backlog row */}
-        {pendingUpload.length > 0 && (
-          <div className={`rounded-md px-3 py-2 flex items-center justify-between gap-4 ${
-            quotaExhausted ? 'bg-red-500/10 border border-red-500/20' : 'bg-th/[0.04]'
-          }`}>
+        {/* Google Drive quota card */}
+        <div className="rounded-lg border border-th/[0.08] bg-brand-surface p-4 flex flex-col space-y-3">
+          <div className="flex items-start justify-between gap-2">
             <div>
-              <p className={`text-xs font-medium ${quotaExhausted ? 'text-red-300' : 'text-th/60'}`}>
-                {pendingUpload.length} recording{pendingUpload.length > 1 ? 's' : ''} waiting to upload
+              <p className="text-sm font-semibold text-th/80">Google Drive</p>
+              <p className="text-[10px] text-th/25 mt-0.5">{todayDate} · 750 GB / 24 h limit</p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className={`text-sm font-semibold ${quotaExhausted ? 'text-red-400' : quotaPct >= 75 ? 'text-yellow-400' : 'text-green-400'}`}>
+                {(todayUploaded / 1e9).toFixed(1)} <span className="text-th/30 font-normal text-xs">/ 750 GB</span>
               </p>
-              <p className="text-[10px] text-th/25 mt-0.5">
-                {(pendingBytes / 1e9).toFixed(1)} GB total
-                {pendingNightsEst > 1 && ` · est. ${pendingNightsEst} nights to clear backlog`}
+              <p className="text-[10px] text-th/30 mt-0.5">
+                {quotaExhausted
+                  ? 'Exhausted — resets midnight SGT'
+                  : `${(quotaRemaining / 1e9).toFixed(1)} GB left tonight`}
               </p>
             </div>
-            {pendingNightsEst > 1 && (
-              <span className="text-xs text-yellow-400/80 shrink-0">
-                ~{pendingNightsEst}× upload windows
-              </span>
-            )}
           </div>
-        )}
 
-        {/* Recent quota history */}
-        {quotaRows.length > 1 && (
-          <div className="pt-1 border-t border-th/[0.05]">
-            <p className="text-[10px] text-th/25 mb-2">Recent upload history</p>
-            <div className="space-y-1.5">
+          {/* Quota bar */}
+          <div>
+            <div className="h-2 w-full rounded-full bg-th/[0.08] overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  quotaExhausted ? 'bg-red-500' : quotaPct >= 75 ? 'bg-yellow-400' : 'bg-green-500/70'
+                }`}
+                style={{ width: `${quotaPct}%` }}
+              />
+            </div>
+            <div className="flex justify-between mt-1">
+              <span className="text-[10px] text-th/20">0 GB</span>
+              <span className="text-[10px] text-th/20">750 GB</span>
+            </div>
+          </div>
+
+          {/* Backlog / nights-to-clear */}
+          {pendingUpload.length > 0 && (
+            <div className={`rounded-md px-3 py-2 flex items-center justify-between gap-2 ${
+              quotaExhausted ? 'bg-red-500/10 border border-red-500/20' : 'bg-th/[0.04]'
+            }`}>
+              <p className={`text-xs font-medium ${quotaExhausted ? 'text-red-300' : 'text-th/55'}`}>
+                {pendingUpload.length} recording{pendingUpload.length > 1 ? 's' : ''} queued
+              </p>
+              {pendingNightsEst > 1 ? (
+                <span className="text-[10px] text-yellow-400/80 shrink-0">~{pendingNightsEst} nights to clear</span>
+              ) : (
+                <span className="text-[10px] text-th/25 shrink-0">clears tonight</span>
+              )}
+            </div>
+          )}
+
+          {/* Recent history mini-bars */}
+          {quotaRows.length > 0 && (
+            <div className="pt-1 border-t border-th/[0.05] space-y-1.5">
+              <p className="text-[10px] text-th/25">Upload history</p>
               {quotaRows.slice(0, 5).map(q => {
                 const pct = Math.min(100, (q.bytes_uploaded / DRIVE_QUOTA_BYTES) * 100)
                 return (
-                  <div key={q.date} className="flex items-center gap-3">
-                    <span className="text-[10px] text-th/30 w-20 shrink-0">{q.date}</span>
+                  <div key={q.date} className="flex items-center gap-2">
+                    <span className="text-[10px] text-th/25 w-[72px] shrink-0">{q.date.slice(5)}</span>
                     <div className="flex-1 h-1 rounded-full bg-th/[0.06] overflow-hidden">
                       <div
                         className={`h-full rounded-full ${pct >= 95 ? 'bg-red-500/60' : pct >= 75 ? 'bg-yellow-400/50' : 'bg-green-500/40'}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-th/30 w-16 text-right shrink-0">
+                    <span className="text-[10px] text-th/25 w-14 text-right shrink-0">
                       {(q.bytes_uploaded / 1e9).toFixed(1)} GB
                     </span>
                   </div>
                 )
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Studio cards */}

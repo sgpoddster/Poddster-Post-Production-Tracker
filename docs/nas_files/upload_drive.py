@@ -161,9 +161,12 @@ def _parse_rclone_stats(msg):
     )
     if not m:
         return None
-    bytes_done = _to_bytes(m.group(1), m.group(2))
-    speed_str  = f"{m.group(3)} {m.group(4)}"
-    eta_secs   = _parse_eta(m.group(5))
+    bytes_done  = _to_bytes(m.group(1), m.group(2))
+    speed_unit  = m.group(4).split('/')[0]  # "MiB/s" → "MiB"
+    speed_bps   = _to_bytes(m.group(3), speed_unit)
+    speed_mbps  = speed_bps * 8 / 1_000_000
+    speed_str   = f"{speed_mbps:.0f} Mbps"
+    eta_secs    = _parse_eta(m.group(5))
     return bytes_done, speed_str, eta_secs
 
 

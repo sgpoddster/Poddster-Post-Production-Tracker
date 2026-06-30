@@ -43,11 +43,8 @@ def _dir_bytes(path):
 def _fmt_speed(bps):
     if bps <= 0:
         return None
-    if bps >= 1_048_576:
-        return f"{bps / 1_048_576:.1f} MB/s"
-    if bps >= 1024:
-        return f"{bps / 1024:.0f} KB/s"
-    return f"{bps:.0f} B/s"
+    mbps = bps * 8 / 1_000_000
+    return f"{mbps:.0f} Mbps"
 
 
 def _monitor_copy(studio, recording, local_dir, stop_event):

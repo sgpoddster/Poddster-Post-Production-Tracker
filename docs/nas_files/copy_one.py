@@ -7,18 +7,79 @@ Copies one named ATEM recording folder to the NAS and reports status to the dash
 import argparse
 import json
 import sys
+import threading
+import time
 from pathlib import Path
 
 sys.path.insert(0, "/volume1/PCM/app")
 
 from core.ftp_copy import copy_recording
-from core.reporter import report
+from core.reporter import _post, report
 
-CONFIG = Path("/volume1/PCM/config/settings.json")
+CONFIG   = Path("/volume1/PCM/config/settings.json")
+INTERVAL = 10  # seconds between progress reports during copy
 
 
 def load_config():
     return json.load(open(CONFIG))
+
+
+def _dir_bytes(path):
+    """Sum bytes of all non-partial, non-manifest files in path."""
+    total = 0
+    try:
+        for f in Path(path).rglob("*"):
+            if f.is_file() and not f.name.endswith(".partial") and f.name != "pcm_manifest.json":
+                try:
+                    total += f.stat().st_size
+                except OSError:
+                    pass
+    except Exception:
+        pass
+    return total
+
+
+def _fmt_speed(bps):
+    if bps <= 0:
+        return None
+    if bps >= 1_048_576:
+        return f"{bps / 1_048_576:.1f} MB/s"
+    if bps >= 1024:
+        return f"{bps / 1024:.0f} KB/s"
+    return f"{bps:.0f} B/s"
+
+
+def _monitor_copy(studio, recording, local_dir, stop_event):
+    """
+    Background thread: monitors local_dir growth every INTERVAL seconds
+    and pushes bytes_transferred + speed to the dashboard.
+    """
+    prev_bytes = 0
+    prev_time  = time.time()
+
+    while not stop_event.is_set():
+        stop_event.wait(INTERVAL)
+        now       = time.time()
+        cur_bytes = _dir_bytes(local_dir)
+        delta     = cur_bytes - prev_bytes
+        dt        = now - prev_time
+
+        speed_bps = delta / dt if dt > 0 else 0
+        speed_str = _fmt_speed(speed_bps)
+
+        try:
+            _post("/api/pcm/progress", {
+                "studio":            studio,
+                "recording":         recording,
+                "bytes_transferred": cur_bytes,
+                "transfer_speed":    speed_str,
+                "eta_seconds":       None,
+            })
+        except Exception as e:
+            print(f"[copy] progress report failed: {e}")
+
+        prev_bytes = cur_bytes
+        prev_time  = now
 
 
 def main():
@@ -41,8 +102,15 @@ def main():
     print(f"Remote:    {remote_dir}")
     print(f"Local:     {local_dir}")
 
-    # Report copy starting
     report(args.studio, args.recording, "copying", nas_path=str(local_dir))
+
+    stop_event = threading.Event()
+    monitor    = threading.Thread(
+        target=_monitor_copy,
+        args=(args.studio, args.recording, local_dir, stop_event),
+        daemon=True,
+    )
+    monitor.start()
 
     try:
         result = copy_recording(
@@ -52,11 +120,10 @@ def main():
             local_dir=str(local_dir),
         )
 
-        # Report success with file stats from manifest
         manifest_path = local_dir / "pcm_manifest.json"
         file_count, total_bytes = None, None
         if manifest_path.exists():
-            manifest = json.loads(manifest_path.read_text())
+            manifest    = json.loads(manifest_path.read_text())
             file_count  = manifest.get("file_count")
             total_bytes = manifest.get("total_bytes")
 
@@ -70,6 +137,10 @@ def main():
     except Exception as e:
         report(args.studio, args.recording, "failed", error=str(e))
         raise
+
+    finally:
+        stop_event.set()
+        monitor.join(timeout=5)
 
 
 if __name__ == "__main__":

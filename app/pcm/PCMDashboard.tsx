@@ -10,6 +10,9 @@ type Recording = {
   state: string
   file_count: number | null
   total_bytes: number | null
+  bytes_transferred: number | null
+  transfer_speed: string | null
+  eta_seconds: number | null
   error: string | null
   discovered_at: string | null
   copy_started_at: string | null
@@ -81,6 +84,55 @@ function SsdBar({ stat }: { stat: StudioStat | undefined }) {
           className={`h-full rounded-full transition-all duration-700 ${barColor}`}
           style={{ width: `${pct}%` }}
         />
+      </div>
+    </div>
+  )
+}
+
+function formatEta(secs: number | null): string {
+  if (!secs || secs <= 0) return ''
+  if (secs < 60)   return `${secs}s`
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`
+  return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`
+}
+
+function TransferProgress({ r }: { r: Recording }) {
+  if (!r.bytes_transferred && !r.transfer_speed) return null
+
+  const isCopy     = r.state === 'copying'
+  const hasTotal   = !!r.total_bytes
+  const pct        = (hasTotal && r.bytes_transferred)
+    ? Math.min(100, (r.bytes_transferred / r.total_bytes!) * 100)
+    : null
+
+  const barColor   = isCopy ? 'bg-blue-500/50' : 'bg-purple-500/60'
+
+  return (
+    <div className="mt-1.5 space-y-1">
+      {/* Progress bar — shown for upload (has total_bytes), indeterminate stripe for copy */}
+      {pct !== null ? (
+        <div className="h-1 w-full rounded-full bg-th/[0.08] overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      ) : (
+        <div className="h-1 w-full rounded-full bg-th/[0.08] overflow-hidden">
+          <div className={`h-full w-1/3 rounded-full ${barColor} animate-pulse`} />
+        </div>
+      )}
+      {/* Stats line */}
+      <div className="flex items-center gap-2 text-[10px]">
+        {r.bytes_transferred != null && (
+          <span className="text-th/50">{formatBytes(r.bytes_transferred)}{hasTotal ? ` / ${formatBytes(r.total_bytes)}` : ' copied'}</span>
+        )}
+        {r.transfer_speed && (
+          <span className="text-th/35">· {r.transfer_speed}</span>
+        )}
+        {r.eta_seconds != null && r.eta_seconds > 0 && (
+          <span className="text-th/35">· ETA {formatEta(r.eta_seconds)}</span>
+        )}
       </div>
     </div>
   )
@@ -219,10 +271,13 @@ export default function PCMDashboard({
                   <Badge state={latest.state} retryCount={latest.retry_count} />
                 </div>
                 {active ? (
-                  <p className="text-xs text-blue-400/70 mt-1">
-                    {active.state === 'copying' ? '⬇ ' : '⬆ '}
-                    {elapsed(active.state === 'copying' ? active.copy_started_at : active.upload_started_at)}
-                  </p>
+                  <>
+                    <p className="text-xs text-blue-400/70 mt-1">
+                      {active.state === 'copying' ? '⬇ ' : '⬆ '}
+                      {elapsed(active.state === 'copying' ? active.copy_started_at : active.upload_started_at)}
+                    </p>
+                    <TransferProgress r={active} />
+                  </>
                 ) : (
                   <p className="text-xs text-th/25 mt-1">{timeAgo(latest.updated_at)}</p>
                 )}
@@ -282,13 +337,16 @@ export default function PCMDashboard({
                   <tr key={r.id} className={`transition-colors ${isActive ? 'bg-blue-500/[0.03]' : 'hover:bg-th/[0.02]'}`}>
                     <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
                     <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Badge state={r.state} retryCount={r.retry_count} />
-                      {isActive && (
-                        <span className="ml-2 text-xs text-th/30">
-                          {elapsed(r.state === 'copying' ? r.copy_started_at : r.upload_started_at)}
-                        </span>
-                      )}
+                    <td className="px-4 py-3 min-w-[180px]">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge state={r.state} retryCount={r.retry_count} />
+                        {isActive && (
+                          <span className="text-xs text-th/30">
+                            {elapsed(r.state === 'copying' ? r.copy_started_at : r.upload_started_at)}
+                          </span>
+                        )}
+                      </div>
+                      {isActive && <TransferProgress r={r} />}
                     </td>
                     <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
                     <td className="px-4 py-3 text-th/50">{r.file_count ?? '—'}</td>

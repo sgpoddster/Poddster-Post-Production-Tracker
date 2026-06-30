@@ -3,8 +3,8 @@ import { createSign } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { parseCalendarEvent, RawCalendarEvent } from '@/lib/calendarParser'
 
-// Daily cron: scan all 3 Poddster calendars for footage-only bookings and
-// upsert into footage_deliveries. Reads the calendar directly — no GAS needed.
+// Daily cron: scan all 3 Poddster calendars for all recordings (including PP)
+// and upsert into footage_deliveries. Reads the calendar directly — no GAS needed.
 //
 // Auth: Vercel CRON_SECRET header (automatic) or ?key=INGEST_API_KEY (manual).
 //
@@ -214,7 +214,7 @@ export async function GET(req: NextRequest) {
       const parsed = parseCalendarEvent(ev)
       if (!parsed.filmingDate) continue
 
-      if (isHasPP(parsed)) { hasPPCount++; continue }
+      if (isHasPP(parsed)) hasPPCount++  // still counted but no longer skipped
 
       const startISO    = ev.start.dateTime ?? ''
       const endISO      = ev.end.dateTime   ?? ''

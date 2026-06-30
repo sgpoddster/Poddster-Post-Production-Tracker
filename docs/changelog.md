@@ -4,6 +4,28 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-30 — Footage ingest: include PP bookings
+
+### Changed
+- **`app/api/cron/footage-ingest/route.ts`** — removed the `hasPP` skip. All calendar recordings (including sessions with post-production services) are now ingested into `footage_deliveries`. PP bookings are still counted separately in the cron response for visibility. Footage can now be delivered to any client regardless of whether they also have editing work.
+
+---
+
+## 2026-06-30 — PCM live transfer progress on dashboard
+
+### Added
+- **Live transfer progress** — both the ATEM→NAS copy phase and the NAS→Drive upload phase now report real-time progress to the dashboard every 10 seconds.
+- **Progress bar on dashboard** — active `copying` rows show an animated indeterminate bar + bytes copied + speed. Active `uploading` rows show a percentage progress bar (bytes_transferred / total_bytes) + speed + ETA countdown.
+- **`supabase/pcm_progress_columns.sql`** — migration adding `bytes_transferred bigint`, `transfer_speed text`, `eta_seconds integer` columns to `pcm_recordings`.
+- **`app/api/pcm/progress/route.ts`** — new `POST /api/pcm/progress` endpoint: updates only the three progress columns, does not change state or set timestamps.
+- **`TransferProgress` component** — in `PCMDashboard.tsx`. Shows in both the studio cards (active recording) and the All Recordings table.
+
+### Changed
+- **`docs/nas_files/copy_one.py`** — starts a background `_monitor_copy` thread before calling `copy_recording()`. Thread polls local dir bytes every 10s, computes speed from the delta, and POSTs to `/api/pcm/progress`. Thread is cleanly stopped in a `finally` block.
+- **`docs/nas_files/upload_drive.py`** — replaces the `rclone("copy", ...)` call with `rclone_with_progress()`, which runs rclone with `--use-json-log --log-level INFO --stats 10s` and streams stdout line-by-line. Each stats log entry is parsed for bytes transferred, speed, and ETA (parsed from rclone's "Transferred: X / Y, N%, speed, ETA" format), then POSTed to `/api/pcm/progress`.
+
+---
+
 ## 2026-06-30 — Frame.io token rotation + modal scroll fix
 
 ### Fixed

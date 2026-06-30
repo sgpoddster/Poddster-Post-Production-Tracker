@@ -24,8 +24,11 @@ Usage:
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
+import threading
+import time
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -101,7 +104,96 @@ def build_drive_folder_name(studio, recording, client_name, booking_time, rec_dt
     date_str   = rec_dt.strftime("%Y-%m-%d") if rec_dt else "unknown-date"
     time_str   = booking_time or (rec_dt.strftime("%H:%M") if rec_dt else "")
     client_str = client_name or "Unknown"
-    return f"{studio} {recording} — {date_str} {time_str} — {client_str}"
+    # Avoid doubling the studio name if recording already starts with it
+    if recording.lower().startswith(studio.lower()):
+        prefix = recording
+    else:
+        prefix = f"{studio} {recording}"
+    return f"{prefix} — {date_str} {time_str} — {client_str}"
+
+
+def _to_bytes(val, unit):
+    unit = unit.upper().replace("IB", "IB")
+    mapping = {
+        "B": 1, "KIB": 1024, "MIB": 1024**2, "GIB": 1024**3, "TIB": 1024**4,
+        "KB": 1000, "MB": 1000**2, "GB": 1000**3, "TB": 1000**4,
+    }
+    return int(float(val) * mapping.get(unit, 1))
+
+
+def _parse_eta(eta_str):
+    """Convert rclone ETA like '8m17s' or '1h30m' to seconds."""
+    total = 0
+    for val, unit in re.findall(r'(\d+)([hms])', eta_str):
+        if unit == 'h':   total += int(val) * 3600
+        elif unit == 'm': total += int(val) * 60
+        elif unit == 's': total += int(val)
+    return total or None
+
+
+def _parse_rclone_stats(msg):
+    """
+    Parse the first 'Transferred:' line from a rclone stats block.
+    Returns (bytes_done, speed_str, eta_secs) or None.
+    """
+    m = re.search(
+        r'Transferred:\s+([\d.]+)\s+(\w+)\s*/\s*[\d.]+\s*\w+,\s*\d+%,\s*([\d.]+)\s*([\w/]+),\s*ETA\s*(\S+)',
+        msg
+    )
+    if not m:
+        return None
+    bytes_done = _to_bytes(m.group(1), m.group(2))
+    speed_str  = f"{m.group(3)} {m.group(4)}"
+    eta_secs   = _parse_eta(m.group(5))
+    return bytes_done, speed_str, eta_secs
+
+
+def _report_progress(studio, recording, bytes_transferred, transfer_speed, eta_seconds):
+    """Fire-and-forget progress update (does not change state)."""
+    from core.reporter import _post
+    try:
+        _post("/api/pcm/progress", {
+            "studio":            studio,
+            "recording":         recording,
+            "bytes_transferred": bytes_transferred,
+            "transfer_speed":    transfer_speed,
+            "eta_seconds":       eta_seconds,
+        })
+    except Exception as e:
+        print(f"[upload] progress report failed: {e}")
+
+
+def rclone_with_progress(studio, recording, *args):
+    """Run rclone with JSON log output, parse stats every 10s and push to dashboard."""
+    cmd = [
+        str(RCLONE), "--config", str(RCLONE_CONFIG),
+        "--use-json-log", "--log-level", "INFO",
+        "--stats", "10s", "--stats-log-level", "INFO",
+        *args,
+    ]
+    print(f"[rclone] {' '.join(str(a) for a in args)}")
+
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    for line in proc.stdout:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+            msg  = data.get("msg", "")
+            if "Transferred:" in msg:
+                parsed = _parse_rclone_stats(msg)
+                if parsed:
+                    bytes_done, speed_str, eta_secs = parsed
+                    print(f"[rclone] progress: {speed_str}, ETA {eta_secs}s, {bytes_done:,} bytes")
+                    _report_progress(studio, recording, bytes_done, speed_str, eta_secs)
+        except (json.JSONDecodeError, KeyError):
+            # Non-JSON line — print as-is (rclone --progress fallback)
+            print(line)
+
+    proc.wait()
+    if proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd)
 
 
 def rclone(*args):
@@ -166,14 +258,14 @@ def main():
     report(args.studio, args.recording, "uploading")
 
     try:
-        rclone(
+        rclone_with_progress(
+            args.studio, args.recording,
             "copy",
             str(local_dir),
             drive_dest,
             "--checksum",
             "--exclude", "pcm_manifest.json",
             "--exclude", ".pcm_copy_complete",
-            "--progress",
             "--transfers", "4",
         )
     except subprocess.CalledProcessError as e:

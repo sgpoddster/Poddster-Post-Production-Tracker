@@ -74,8 +74,8 @@ function Badge({ state, retryCount }: { state: string; retryCount?: number | nul
 function SsdBar({ stat }: { stat: StudioStat | undefined }) {
   if (!stat?.total_bytes || !stat?.used_bytes) return null
   const pct     = Math.min(100, (stat.used_bytes / stat.total_bytes) * 100)
-  const usedGB  = (stat.used_bytes  / 1_073_741_824).toFixed(1)
-  const totalGB = (stat.total_bytes / 1_073_741_824).toFixed(1)
+  const usedGB  = (stat.used_bytes  / 1_000_000_000).toFixed(1)
+  const totalGB = (stat.total_bytes / 1_000_000_000).toFixed(1)
   const barColor = pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-yellow-400' : 'bg-blue-500/60'
   return (
     <div className="mt-3">
@@ -123,9 +123,10 @@ function TransferProgress({ r }: { r: Recording }) {
 
 function formatBytes(bytes: number | null): string {
   if (!bytes) return '—'
-  if (bytes < 1_048_576)     return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1_073_741_824) return `${(bytes / 1_048_576).toFixed(1)} MB`
-  return `${(bytes / 1_073_741_824).toFixed(2)} GB`
+  if (bytes < 1_000_000)       return `${(bytes / 1_000).toFixed(1)} KB`
+  if (bytes < 1_000_000_000)   return `${(bytes / 1_000_000).toFixed(1)} MB`
+  if (bytes < 1_000_000_000_000) return `${(bytes / 1_000_000_000).toFixed(2)} GB`
+  return `${(bytes / 1_000_000_000_000).toFixed(2)} TB`
 }
 
 function formatEta(secs: number | null): string {

@@ -20,6 +20,7 @@ Run manually:        python3 /volume1/PCM/app/discover.py
 Run via cron:        Add to Synology Task Scheduler (every 15 mins)
 """
 
+import fcntl
 import json
 import subprocess
 import sys
@@ -54,6 +55,11 @@ EXIT_QUOTA = 3  # upload_drive.py exits with this when daily Drive quota is exha
 
 # Thread lock for shared state dict + counters
 _state_lock = threading.Lock()
+
+# Serialises Drive uploads across studio threads. FTP copies (ATEM → NAS) still
+# run in parallel — that's LAN traffic — but only ONE rclone upload to Drive runs
+# at a time so it gets the full upstream pipe instead of 4 uploads splitting it.
+_upload_lock = threading.Lock()
 
 
 def ignore(name):
@@ -261,11 +267,19 @@ def run_upload(name, folder, retries, state, key):
         print(f"[{name}]   upload_drive.py not found — skipping")
         return False
 
-    print(f"[{name}]   uploading to Drive: {folder}")
-    result = subprocess.run(
-        [sys.executable, str(upload_bin), "--studio", name, "--recording", folder],
-        capture_output=False,
-    )
+    # Serialise the actual Drive transfer: only one rclone upload runs at a time
+    # so it gets the full upstream bandwidth instead of N studios splitting it.
+    with _upload_lock:
+        # Another studio thread may have exhausted the quota while we waited.
+        if QUOTA_EXHAUSTED:
+            print(f"[{name}]   Drive quota exhausted (hit while waiting) — deferring {folder}")
+            return 'quota'
+
+        print(f"[{name}]   uploading to Drive: {folder}")
+        result = subprocess.run(
+            [sys.executable, str(upload_bin), "--studio", name, "--recording", folder],
+            capture_output=False,
+        )
 
     if result.returncode == 0:
         with _state_lock:
@@ -577,7 +591,32 @@ def cleanup_drive():
 # Main
 # ---------------------------------------------------------------------------
 
+# Held open for the lifetime of the process so the lock is released on exit.
+_SINGLETON_LOCK_PATH = "/volume1/PCM/discover.lock"
+_singleton_fh = None
+
+def acquire_singleton_lock():
+    """
+    Ensure only one discover.py runs at a time. The Task Scheduler fires every
+    ~15 min; without this guard a slow run (uploads can take hours) would overlap
+    the next launch, stacking up N concurrent discover.py processes — each
+    spawning its own parallel uploads that fight for the upstream pipe and can
+    even upload the same recording twice. flock is released automatically if the
+    process dies, so a crash won't leave us permanently locked out.
+    """
+    global _singleton_fh
+    _singleton_fh = open(_SINGLETON_LOCK_PATH, "w")
+    try:
+        fcntl.flock(_singleton_fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("[discover] Another discover.py is already running — exiting.")
+        sys.exit(0)
+    _singleton_fh.write(f"{os.getpid()}\n")
+    _singleton_fh.flush()
+
+
 def main():
+    acquire_singleton_lock()
     cfg       = load_config()
     state     = load_state()
     in_window = in_upload_window(cfg)

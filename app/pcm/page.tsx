@@ -14,9 +14,7 @@ export default async function PCMPage() {
 
   const serviceClient = createServiceClient()
 
-  const sgtDate = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
-
-  const [{ data: recordings }, { data: studioStats }, { data: quotaRows }] = await Promise.all([
+  const [{ data: recordings }, { data: studioStats }, { data: events }] = await Promise.all([
     serviceClient
       .from('pcm_recordings')
       .select('*')
@@ -25,19 +23,20 @@ export default async function PCMPage() {
     serviceClient
       .from('pcm_studio_stats')
       .select('*'),
+    // Upload events for the last 7 days — enough for the rolling-24h sum and the
+    // per-day history bars. Google's limit is a sliding window, not a calendar day.
     serviceClient
-      .from('pcm_upload_quota')
-      .select('*')
-      .gte('date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
-      .order('date', { ascending: false }),
+      .from('pcm_upload_events')
+      .select('id, uploaded_at, bytes, studio, recording')
+      .gte('uploaded_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+      .order('uploaded_at', { ascending: false }),
   ])
 
   return (
     <PCMDashboard
       initialRecordings={recordings ?? []}
       initialStudioStats={studioStats ?? []}
-      initialQuotaRows={quotaRows ?? []}
-      todayDate={sgtDate}
+      initialEvents={events ?? []}
     />
   )
 }

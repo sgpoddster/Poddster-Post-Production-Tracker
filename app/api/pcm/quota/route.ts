@@ -6,43 +6,52 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const QUOTA_LIMIT_BYTES = 750_000_000_000 // 750 GB Google Drive daily limit
+const QUOTA_LIMIT_BYTES = 750_000_000_000 // 750 GB Google Drive rolling-24h limit
+const WINDOW_MS = 24 * 60 * 60 * 1000
 
 function authenticate(request: Request) {
   const secret = request.headers.get('x-pcm-secret')
   return secret && secret === process.env.PCM_SECRET
 }
 
-// GET /api/pcm/quota?date=YYYY-MM-DD
-// Returns today's usage and remaining quota.
+// GET /api/pcm/quota
+// Sums bytes uploaded in the trailing 24h (Google's limit is a rolling window,
+// not a calendar day). Also returns when the oldest in-window upload ages out.
 export async function GET(request: Request) {
   if (!authenticate(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { searchParams } = new URL(request.url)
-  const date = searchParams.get('date')
-  if (!date) {
-    return NextResponse.json({ error: 'date required' }, { status: 400 })
+  const since = new Date(Date.now() - WINDOW_MS).toISOString()
+  const { data, error } = await supabase
+    .from('pcm_upload_events')
+    .select('uploaded_at, bytes')
+    .gte('uploaded_at', since)
+    .order('uploaded_at', { ascending: true })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const { data } = await supabase
-    .from('pcm_upload_quota')
-    .select('bytes_uploaded, updated_at')
-    .eq('date', date)
-    .maybeSingle()
+  const rows = data ?? []
+  const bytes_uploaded = rows.reduce((sum, r) => sum + Number(r.bytes), 0)
+  // The oldest upload still inside the window frees its bytes 24h after it landed.
+  const oldest = rows[0]?.uploaded_at
+  const frees_at = oldest
+    ? new Date(new Date(oldest).getTime() + WINDOW_MS).toISOString()
+    : null
 
-  const bytes_uploaded = data?.bytes_uploaded ?? 0
   return NextResponse.json({
-    date,
     bytes_uploaded,
     limit_bytes:     QUOTA_LIMIT_BYTES,
     remaining_bytes: Math.max(0, QUOTA_LIMIT_BYTES - bytes_uploaded),
+    window_hours:    24,
+    frees_at,
   })
 }
 
-// POST /api/pcm/quota  { date: "YYYY-MM-DD", bytes_add: N }
-// Atomically increments the quota counter for the given date.
+// POST /api/pcm/quota  { bytes_add: N, studio?, recording? }
+// Records one upload event. bytes_add is the ACTUAL bytes sent to Drive.
 export async function POST(request: Request) {
   if (!authenticate(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -55,32 +64,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { date, bytes_add } = body
-  if (!date || typeof bytes_add !== 'number') {
-    return NextResponse.json({ error: 'date and bytes_add required' }, { status: 400 })
+  const { bytes_add, studio, recording } = body
+  if (typeof bytes_add !== 'number' || bytes_add <= 0) {
+    return NextResponse.json({ error: 'bytes_add (positive number) required' }, { status: 400 })
   }
 
-  // Fetch current value then upsert — single NAS writer so race conditions are negligible
-  const { data: existing } = await supabase
-    .from('pcm_upload_quota')
-    .select('bytes_uploaded')
-    .eq('date', date)
-    .maybeSingle()
-
-  const current      = existing?.bytes_uploaded ?? 0
-  const new_total    = current + (bytes_add as number)
   const { error: dbError } = await supabase
-    .from('pcm_upload_quota')
-    .upsert({ date, bytes_uploaded: new_total, updated_at: new Date().toISOString() })
+    .from('pcm_upload_events')
+    .insert({
+      bytes:     bytes_add,
+      studio:    typeof studio === 'string' ? studio : null,
+      recording: typeof recording === 'string' ? recording : null,
+    })
 
   if (dbError) {
     return NextResponse.json({ error: dbError.message }, { status: 500 })
   }
 
+  // Return the updated rolling-24h total.
+  const since = new Date(Date.now() - WINDOW_MS).toISOString()
+  const { data } = await supabase
+    .from('pcm_upload_events')
+    .select('bytes')
+    .gte('uploaded_at', since)
+
+  const bytes_uploaded = (data ?? []).reduce((sum, r) => sum + Number(r.bytes), 0)
   return NextResponse.json({
-    date,
-    bytes_uploaded:  new_total,
+    bytes_uploaded,
     limit_bytes:     QUOTA_LIMIT_BYTES,
-    remaining_bytes: Math.max(0, QUOTA_LIMIT_BYTES - new_total),
+    remaining_bytes: Math.max(0, QUOTA_LIMIT_BYTES - bytes_uploaded),
   })
 }

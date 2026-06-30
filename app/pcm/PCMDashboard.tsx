@@ -38,14 +38,17 @@ type StudioStat = {
   updated_at: string
 }
 
-type QuotaRow = {
-  date: string
-  bytes_uploaded: number
-  updated_at: string
+type UploadEvent = {
+  id?: number
+  uploaded_at: string
+  bytes: number
+  studio?: string | null
+  recording?: string | null
 }
 
 const DRIVE_QUOTA_BYTES = 750_000_000_000
 const DRIVE_QUOTA_SAFE  = DRIVE_QUOTA_BYTES * 0.95
+const ROLLING_WINDOW_MS = 24 * 60 * 60 * 1000
 
 const STATE_META: Record<string, { label: string; classes: string; active?: boolean }> = {
   discovered:    { label: 'Discovered',  classes: 'bg-gray-500/15 text-gray-400' },
@@ -198,17 +201,15 @@ function DaysCountdown({ due, deleted }: { due: Date | null; deleted?: boolean }
 export default function PCMDashboard({
   initialRecordings,
   initialStudioStats,
-  initialQuotaRows,
-  todayDate,
+  initialEvents,
 }: {
   initialRecordings: Recording[]
   initialStudioStats: StudioStat[]
-  initialQuotaRows: QuotaRow[]
-  todayDate: string
+  initialEvents: UploadEvent[]
 }) {
   const [recordings,  setRecordings]  = useState<Recording[]>(initialRecordings)
   const [studioStats, setStudioStats] = useState<StudioStat[]>(initialStudioStats)
-  const [quotaRows,   setQuotaRows]   = useState<QuotaRow[]>(initialQuotaRows)
+  const [events,      setEvents]      = useState<UploadEvent[]>(initialEvents)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [showAllCompleted, setShowAllCompleted] = useState(false)
   const [tick, setTick] = useState(0)
@@ -251,14 +252,8 @@ export default function PCMDashboard({
 
     const quotaChannel = supabase
       .channel('pcm_quota_live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pcm_upload_quota' }, (payload) => {
-        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          const updated = payload.new as QuotaRow
-          setQuotaRows(prev => {
-            const exists = prev.find(q => q.date === updated.date)
-            return exists ? prev.map(q => q.date === updated.date ? updated : q) : [updated, ...prev]
-          })
-        }
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pcm_upload_events' }, (payload) => {
+        setEvents(prev => [payload.new as UploadEvent, ...prev])
       })
       .subscribe()
 
@@ -269,12 +264,37 @@ export default function PCMDashboard({
     }
   }, [])
 
-  // Quota for today + recent history
-  const todayQuota    = quotaRows.find(q => q.date === todayDate)
-  const todayUploaded = todayQuota?.bytes_uploaded ?? 0
+  // Rolling 24h quota — Google's 750 GB limit is a sliding window, not a calendar
+  // day. Sum bytes from events in the trailing 24h (recomputed each tick, so bytes
+  // visibly age out as their uploads pass the 24h mark).
+  void tick
+  const windowStart   = Date.now() - ROLLING_WINDOW_MS
+  const inWindow      = events.filter(e => new Date(e.uploaded_at).getTime() >= windowStart)
+  const todayUploaded = inWindow.reduce((s, e) => s + Number(e.bytes), 0)
   const quotaPct      = Math.min(100, (todayUploaded / DRIVE_QUOTA_BYTES) * 100)
   const quotaRemaining = Math.max(0, DRIVE_QUOTA_SAFE - todayUploaded)
   const quotaExhausted = todayUploaded >= DRIVE_QUOTA_SAFE
+  // When the oldest in-window upload ages out, that capacity frees up.
+  const oldestInWindow = inWindow.reduce<UploadEvent | null>(
+    (oldest, e) => (!oldest || new Date(e.uploaded_at) < new Date(oldest.uploaded_at)) ? e : oldest,
+    null,
+  )
+  const freesAt = oldestInWindow
+    ? new Date(new Date(oldestInWindow.uploaded_at).getTime() + ROLLING_WINDOW_MS)
+    : null
+
+  // Per-day history (SGT calendar buckets) for the mini-bars — context only.
+  const historyByDay = (() => {
+    const buckets = new Map<string, number>()
+    for (const e of events) {
+      const day = new Date(new Date(e.uploaded_at).getTime() + 8 * 60 * 60 * 1000)
+        .toISOString().slice(0, 10)
+      buckets.set(day, (buckets.get(day) ?? 0) + Number(e.bytes))
+    }
+    return Array.from(buckets.entries())
+      .map(([day, bytes]) => ({ day, bytes }))
+      .sort((a, b) => b.day.localeCompare(a.day))
+  })()
 
   // Recordings waiting to upload (on NAS, not yet sent to Drive)
   const pendingUpload    = recordings.filter(r => r.state === 'copy_complete')
@@ -370,7 +390,7 @@ export default function PCMDashboard({
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-base font-bold text-th/90">Google Drive</p>
-              <p className="text-xs text-th/50 mt-0.5">{todayDate} · 750 GB / 24 h limit</p>
+              <p className="text-xs text-th/50 mt-0.5">750 GB / rolling 24 h window</p>
             </div>
             <div className="text-right shrink-0">
               <p className={`text-sm font-bold ${quotaExhausted ? 'text-red-400' : quotaPct >= 75 ? 'text-yellow-400' : 'text-green-400'}`}>
@@ -378,8 +398,10 @@ export default function PCMDashboard({
               </p>
               <p className="text-xs text-th/50 mt-0.5">
                 {quotaExhausted
-                  ? 'Exhausted — resets midnight SGT'
-                  : `${(quotaRemaining / 1e9).toFixed(1)} GB left tonight`}
+                  ? (freesAt
+                      ? `Exhausted — frees ${freesAt.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Singapore' })}`
+                      : 'Exhausted')
+                  : `${(quotaRemaining / 1e9).toFixed(1)} GB free now`}
               </p>
             </div>
           </div>
@@ -416,15 +438,15 @@ export default function PCMDashboard({
             </div>
           )}
 
-          {/* Recent history mini-bars */}
-          {quotaRows.length > 0 && (
+          {/* Recent history mini-bars (per SGT day, context only) */}
+          {historyByDay.length > 0 && (
             <div className="pt-1 border-t border-th/[0.08] space-y-1.5">
-              <p className="text-xs font-medium text-th/50">Upload history</p>
-              {quotaRows.slice(0, 5).map(q => {
-                const pct = Math.min(100, (q.bytes_uploaded / DRIVE_QUOTA_BYTES) * 100)
+              <p className="text-xs font-medium text-th/50">Upload history (per day)</p>
+              {historyByDay.slice(0, 5).map(h => {
+                const pct = Math.min(100, (h.bytes / DRIVE_QUOTA_BYTES) * 100)
                 return (
-                  <div key={q.date} className="flex items-center gap-2">
-                    <span className="text-xs text-th/50 w-[72px] shrink-0">{q.date.slice(5)}</span>
+                  <div key={h.day} className="flex items-center gap-2">
+                    <span className="text-xs text-th/50 w-[72px] shrink-0">{h.day.slice(5)}</span>
                     <div className="flex-1 h-1.5 rounded-full bg-th/[0.08] overflow-hidden">
                       <div
                         className={`h-full rounded-full ${pct >= 95 ? 'bg-red-500/70' : pct >= 75 ? 'bg-yellow-400/60' : 'bg-green-500/50'}`}
@@ -432,7 +454,7 @@ export default function PCMDashboard({
                       />
                     </div>
                     <span className="text-xs text-th/60 w-14 text-right shrink-0 font-medium">
-                      {(q.bytes_uploaded / 1e9).toFixed(1)} GB
+                      {(h.bytes / 1e9).toFixed(1)} GB
                     </span>
                   </div>
                 )

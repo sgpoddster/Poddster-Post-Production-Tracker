@@ -69,29 +69,37 @@ def _quota_base():
     return base, secret
 
 
-def get_quota_today():
-    """Return (bytes_used_today, sgt_date_str). Returns (0, date) on error."""
+def get_quota_used():
+    """
+    Return bytes uploaded to Drive in the trailing 24 hours. Returns 0 on error.
+
+    Google's 750 GB limit is a ROLLING 24-hour window, not a calendar day, so the
+    API sums upload events over the last 24h rather than a per-date counter.
+    """
     base, secret = _quota_base()
-    sgt_date = datetime.now(SGT).strftime("%Y-%m-%d")
     if not base:
-        return 0, sgt_date
-    url = f"{base}/api/pcm/quota?date={sgt_date}"
+        return 0
+    url = f"{base}/api/pcm/quota"
     req = urllib.request.Request(url, headers={"x-pcm-secret": secret})
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
-            return data.get("bytes_uploaded", 0), sgt_date
+            return data.get("bytes_uploaded", 0)
     except Exception as e:
         print(f"[upload] WARNING: could not fetch quota: {e}")
-        return 0, sgt_date
+        return 0
 
 
-def report_quota(date, bytes_add):
-    """Increment the daily upload quota counter."""
+def report_quota(bytes_add, studio=None, recording=None):
+    """Record one upload event (actual bytes sent to Drive) in the rolling window."""
     base, secret = _quota_base()
     if not base or bytes_add <= 0:
         return
-    payload = json.dumps({"date": date, "bytes_add": bytes_add}).encode()
+    payload = json.dumps({
+        "bytes_add": bytes_add,
+        "studio":    studio,
+        "recording": recording,
+    }).encode()
     req = urllib.request.Request(
         f"{base}/api/pcm/quota",
         data=payload,
@@ -102,7 +110,7 @@ def report_quota(date, bytes_add):
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
             used = data.get("bytes_uploaded", 0)
-            print(f"[upload] Quota updated: {used/1e9:.1f} GB / {QUOTA_LIMIT_BYTES/1e9:.0f} GB used today")
+            print(f"[upload] Quota updated: {used/1e9:.1f} GB / {QUOTA_LIMIT_BYTES/1e9:.0f} GB used (rolling 24h)")
     except Exception as e:
         print(f"[upload] WARNING: could not report quota: {e}")
 
@@ -291,7 +299,12 @@ def _report_progress(studio, recording, bytes_transferred, transfer_speed, eta_s
 
 
 def rclone_with_progress(studio, recording, *args):
-    """Run rclone with JSON log output, parse stats every 10s and push to dashboard."""
+    """
+    Run rclone with JSON log output, parse stats every 10s and push to dashboard.
+    Returns the actual bytes transferred (last cumulative 'Transferred:' figure).
+    Files skipped by --checksum count as ~0, so duplicate uploads don't inflate
+    the Drive quota counter.
+    """
     cmd = [
         str(RCLONE), "--config", str(RCLONE_CONFIG),
         "--use-json-log", "--log-level", "INFO",
@@ -300,6 +313,7 @@ def rclone_with_progress(studio, recording, *args):
     ]
     print(f"[rclone] {' '.join(str(a) for a in args)}")
 
+    last_bytes_done = 0
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     for line in proc.stdout:
         line = line.strip()
@@ -312,6 +326,7 @@ def rclone_with_progress(studio, recording, *args):
                 parsed = _parse_rclone_stats(msg)
                 if parsed:
                     bytes_done, speed_str, eta_secs = parsed
+                    last_bytes_done = bytes_done
                     print(f"[rclone] progress: {speed_str}, ETA {eta_secs}s, {bytes_done:,} bytes")
                     _report_progress(studio, recording, bytes_done, speed_str, eta_secs)
         except (json.JSONDecodeError, KeyError):
@@ -320,6 +335,7 @@ def rclone_with_progress(studio, recording, *args):
     proc.wait()
     if proc.returncode != 0:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
+    return last_bytes_done
 
 
 def main():
@@ -343,10 +359,10 @@ def main():
     total_bytes    = manifest.get("total_bytes", 0)
     expected_files = manifest.get("file_count", 0)
 
-    # --- Quota check ---
-    bytes_used, quota_date = get_quota_today()
+    # --- Quota check (rolling 24h window) ---
+    bytes_used = get_quota_used()
     remaining = QUOTA_SAFE_BYTES - bytes_used
-    print(f"[upload] Drive quota ({quota_date}): {bytes_used/1e9:.1f} / {QUOTA_LIMIT_BYTES/1e9:.0f} GB used, "
+    print(f"[upload] Drive quota (rolling 24h): {bytes_used/1e9:.1f} / {QUOTA_LIMIT_BYTES/1e9:.0f} GB used, "
           f"{remaining/1e9:.1f} GB remaining (safe limit)")
     if total_bytes > 0 and total_bytes > remaining:
         print(f"[upload] QUOTA EXCEEDED: need {total_bytes/1e9:.1f} GB but only {remaining/1e9:.1f} GB remaining — deferring")
@@ -366,6 +382,7 @@ def main():
 
     first_drive_url    = None
     first_drive_folder = None
+    actual_uploaded_bytes = 0  # real bytes sent to Drive (0 for checksum-skipped files)
 
     for suffix in sessions:
         session_end_dt = get_session_end_time(manifest, suffix, local_dir)
@@ -387,17 +404,28 @@ def main():
         # Upload only files for this session suffix + shared .drp project file.
         # rclone --include implicitly excludes everything else (no --exclude needed).
         try:
-            rclone_with_progress(
+            actual_uploaded_bytes += rclone_with_progress(
                 args.studio, args.recording,
                 "copy",
                 str(local_dir),
                 drive_dest,
                 "--checksum",
+                # Ground truth: stop hard the moment Google returns the real 750 GB
+                # rolling-limit error, instead of retrying into a wall. rclone exits 8.
+                "--drive-stop-on-upload-limit",
                 "--include", f"* {suffix}.*",
                 "--include", "*.drp",
                 "--transfers", "4",
             )
         except subprocess.CalledProcessError as e:
+            # rclone exit code 8 = transfer/upload limit reached. Record whatever we
+            # actually managed to send, then defer like our own pre-flight quota check.
+            if e.returncode == 8:
+                print(f"[upload] Google reported the 750 GB rolling limit (rclone exit 8) — deferring {args.recording}")
+                report(args.studio, args.recording, "copy_complete")
+                if actual_uploaded_bytes > 0:
+                    report_quota(actual_uploaded_bytes, studio=args.studio, recording=args.recording)
+                sys.exit(EXIT_QUOTA)
             report(args.studio, args.recording, "failed",
                    error=f"rclone failed (session {suffix}): {e}")
             raise SystemExit(f"Upload failed: {e}")
@@ -413,7 +441,9 @@ def main():
         file_count=expected_files,
         total_bytes=total_bytes,
     )
-    report_quota(quota_date, total_bytes)
+    # Report ACTUAL bytes sent to Drive, not the expected size — files skipped by
+    # --checksum (re-runs / duplicates) transfer ~0 bytes and must not inflate the quota.
+    report_quota(actual_uploaded_bytes, studio=args.studio, recording=args.recording)
     print(f"\n[upload] Archived: {n} session(s) uploaded to Drive")
     print(f"[upload] NAS copy retained at {local_dir} — discover.py will delete after 10 days")
 

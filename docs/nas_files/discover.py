@@ -2,16 +2,16 @@
 """
 PCM Discovery Worker — /volume1/PCM/app/discover.py
 
-Scans all enabled ATEM studios via FTP, finds recording folders that are:
+Scans all enabled ATEM studios via FTP in parallel (one thread per studio),
+finds recording folders that are:
   - Not system/hidden folders
   - At least min_age_minutes old (so the ATEM has finished writing)
+  - On or after min_date (to skip old backlog recordings)
   - Not already tracked in the PCM state file
 
 Copy (ATEM → NAS) happens immediately on discovery.
 Upload (NAS → Drive) only runs inside the configured upload window
 (default 00:00–08:00) so Drive transfers don't compete with daytime bandwidth.
-Recordings that are copy_complete but outside the window are left on NAS
-and uploaded on the next scan that falls inside the window.
 
 Failed recordings are auto-retried up to MAX_RETRIES times; after that
 they become 'gave_up' and require manual intervention.
@@ -23,6 +23,7 @@ Run via cron:        Add to Synology Task Scheduler (every 15 mins)
 import json
 import subprocess
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,13 +43,14 @@ IGNORE_EXACT = {
 }
 IGNORE_PREFIXES = (".", "._", "@", "#", "$")
 
-# States where nothing further should happen
 DONE_STATES   = {"archived", "gave_up"}
-# States currently in-flight (shouldn't persist across runs, but skip if seen)
 ACTIVE_STATES = {"copying", "uploading", "discovered"}
 
+# Thread lock for shared state dict + counters
+_state_lock = threading.Lock()
 
-def ignore(name: str) -> bool:
+
+def ignore(name):
     return (
         name in IGNORE_EXACT
         or name.startswith(IGNORE_PREFIXES)
@@ -61,19 +63,18 @@ def load_config():
     return json.load(open(CONFIG))
 
 
-def load_state() -> dict:
+def load_state():
     if STATE_FILE.exists():
         return json.loads(STATE_FILE.read_text())
     return {}
 
 
-def save_state(state: dict):
+def save_state(state):
     STATE_FILE.write_text(json.dumps(state, indent=2))
 
 
 # ---------------------------------------------------------------------------
-# State entries are stored as {status, retries} dicts.
-# Existing string-format entries (from older versions) are migrated on read.
+# State helpers — always call under _state_lock
 # ---------------------------------------------------------------------------
 
 def _entry(state, key):
@@ -98,44 +99,55 @@ def get_retries(state, key):
 def set_status(state, key, status, retries=None):
     current_retries = get_retries(state, key)
     state[key] = {
-        "status": status,
+        "status":  status,
         "retries": retries if retries is not None else current_retries,
     }
 
 
 # ---------------------------------------------------------------------------
-# Upload window helpers
+# Upload window
 # ---------------------------------------------------------------------------
 
-def in_upload_window(cfg: dict) -> bool:
-    """Return True if the current local hour falls within the upload window."""
+def in_upload_window(cfg):
     window = cfg.get("upload_window", {})
-    start  = window.get("start_hour", 0)   # default midnight
-    end    = window.get("end_hour",   8)    # default 08:00
+    start  = window.get("start_hour", 0)
+    end    = window.get("end_hour",   8)
     now_h  = datetime.now().hour
     if start <= end:
         return start <= now_h < end
-    # Wraps midnight (e.g. 22–06)
     return now_h >= start or now_h < end
 
 
 # ---------------------------------------------------------------------------
-# SSD capacity helpers
+# Min-date filter
+# ---------------------------------------------------------------------------
+
+def recording_is_too_old(ftp, root, folder, min_date_str):
+    """Return True if the recording's MDTM date is before min_date."""
+    if not min_date_str:
+        return False
+    try:
+        min_date = datetime.strptime(min_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        path = root.rstrip("/") + "/" + folder
+        resp = ftp.sendcmd(f"MDTM {path}")
+        ts_str = resp.split()[-1]
+        ts = datetime.strptime(ts_str, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+        return ts < min_date
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# SSD capacity
 # ---------------------------------------------------------------------------
 
 def get_ssd_stats(ftp, root):
-    """
-    Best-effort SSD capacity probe via FTP.
-    Returns {used_bytes, free_bytes, total_bytes} or None if unsupported.
-    """
     free_bytes = None
     used_bytes = None
 
-    # Try SITE AVAIL (returns free bytes on some FTP servers)
     for cmd in ("SITE AVAIL", "SITE DISKFREE", "SITE FREE"):
         try:
-            resp = ftp.sendcmd(cmd)
-            # Response is typically "200 <bytes>" or just "<bytes>"
+            resp   = ftp.sendcmd(cmd)
             digits = "".join(c for c in resp if c.isdigit())
             if digits:
                 free_bytes = int(digits)
@@ -143,7 +155,6 @@ def get_ssd_stats(ftp, root):
         except Exception:
             continue
 
-    # Sum file sizes for used bytes (walk top-level only to keep it fast)
     try:
         total_size = 0
         lines = []
@@ -166,18 +177,13 @@ def get_ssd_stats(ftp, root):
     if free_bytes is not None and used_bytes is not None:
         total_bytes = free_bytes + used_bytes
 
-    return {
-        "used_bytes":  used_bytes,
-        "free_bytes":  free_bytes,
-        "total_bytes": total_bytes,
-    }
+    return {"used_bytes": used_bytes, "free_bytes": free_bytes, "total_bytes": total_bytes}
 
 
 def report_studio_stats(name, stats):
-    """Push SSD capacity to the dashboard via a separate endpoint."""
     if not stats:
         return
-    from core.reporter import _post  # reuse the same HTTP helper
+    from core.reporter import _post
     try:
         _post("/api/pcm/studio-status", {
             "studio":      name,
@@ -186,12 +192,12 @@ def report_studio_stats(name, stats):
             "total_bytes": stats.get("total_bytes"),
         })
     except Exception as e:
-        print(f"[discover] WARNING: could not report SSD stats for {name}: {e}")
+        print(f"[{name}] WARNING: could not report SSD stats: {e}")
 
 
 # ---------------------------------------------------------------------------
 
-def find_ssd_root(ftp, studio_cfg: dict) -> str:
+def find_ssd_root(ftp, studio_cfg):
     if studio_cfg.get("ssd_root"):
         return studio_cfg["ssd_root"]
 
@@ -210,7 +216,7 @@ def find_ssd_root(ftp, studio_cfg: dict) -> str:
     return "/"
 
 
-def recording_looks_complete(ftp, root: str, folder: str, min_age_minutes: int) -> bool:
+def recording_looks_complete(ftp, root, folder, min_age_minutes):
     path = root.rstrip("/") + "/" + folder
     try:
         resp = ftp.sendcmd(f"MDTM {path}")
@@ -222,173 +228,205 @@ def recording_looks_complete(ftp, root: str, folder: str, min_age_minutes: int) 
         return True
 
 
-def run_upload(name: str, folder: str, retries: int, state: dict, key: str):
-    """Run upload_drive.py and update state. Returns True on success."""
+def run_upload(name, folder, retries, state, key):
     upload_bin = Path("/volume1/PCM/app/upload_drive.py")
     if not upload_bin.exists():
-        print(f"[discover]   upload_drive.py not found — skipping upload step")
+        print(f"[{name}]   upload_drive.py not found — skipping")
         return False
 
-    print(f"[discover]   starting upload to Drive: {folder}")
+    print(f"[{name}]   uploading to Drive: {folder}")
     result = subprocess.run(
         [sys.executable, str(upload_bin), "--studio", name, "--recording", folder],
         capture_output=False,
     )
 
     if result.returncode == 0:
-        set_status(state, key, "archived", 0)
+        with _state_lock:
+            set_status(state, key, "archived", 0)
+            save_state(state)
         return True
 
     new_retries = retries + 1
-    if new_retries >= MAX_RETRIES:
-        set_status(state, key, "gave_up", new_retries)
-        report(name, folder, "gave_up",
-               error=f"Upload gave up after {new_retries} attempts — manual intervention required",
-               retry_count=new_retries)
-    else:
-        set_status(state, key, "failed", new_retries)
-        report(name, folder, "failed",
-               error=f"Upload failed — will auto-retry (attempt {new_retries}/{MAX_RETRIES})",
-               retry_count=new_retries)
+    with _state_lock:
+        if new_retries >= MAX_RETRIES:
+            set_status(state, key, "gave_up", new_retries)
+            save_state(state)
+            report(name, folder, "gave_up",
+                   error=f"Upload gave up after {new_retries} attempts — manual intervention required",
+                   retry_count=new_retries)
+        else:
+            set_status(state, key, "failed", new_retries)
+            save_state(state)
+            report(name, folder, "failed",
+                   error=f"Upload failed — will auto-retry (attempt {new_retries}/{MAX_RETRIES})",
+                   retry_count=new_retries)
     return False
 
 
-def main():
-    cfg       = load_config()
-    ftp_cfg   = cfg["ftp"]
-    min_age   = cfg.get("min_age_minutes", 15)
-    state     = load_state()
-    new_found = 0
-    uploading_deferred = 0
-    in_window = in_upload_window(cfg)
+# ---------------------------------------------------------------------------
+# Per-studio worker (runs in its own thread)
+# ---------------------------------------------------------------------------
 
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    window   = cfg.get("upload_window", {})
-    print(f"[discover] PCM v{cfg['version']} — {now_str}")
-    print(f"[discover] Upload window: {window.get('start_hour', 0):02d}:00–{window.get('end_hour', 8):02d}:00 "
-          f"({'ACTIVE' if in_window else 'outside window — uploads deferred'})")
+def scan_studio(studio_cfg, cfg, state, in_window, counters):
+    name     = studio_cfg["name"]
+    ip       = studio_cfg["ip"]
+    ftp_cfg  = cfg["ftp"]
+    min_age  = cfg.get("min_age_minutes", 15)
+    min_date = cfg.get("min_date", "")
 
-    for studio_cfg in cfg["studios"]:
-        if not studio_cfg.get("enabled", True):
-            print(f"[discover] {studio_cfg['name']} — disabled, skipping")
-            continue
+    print(f"\n[{name}] Scanning ({ip})…")
 
-        name = studio_cfg["name"]
-        ip   = studio_cfg["ip"]
-        print(f"\n[discover] Scanning {name} ({ip})…")
+    try:
+        ftp  = connect(ip, ftp_cfg["username"], ftp_cfg["password"], ftp_cfg["timeout_seconds"])
+        root = find_ssd_root(ftp, studio_cfg)
+        print(f"[{name}] SSD root: {root}")
 
-        try:
-            ftp  = connect(ip, ftp_cfg["username"], ftp_cfg["password"], ftp_cfg["timeout_seconds"])
-            root = find_ssd_root(ftp, studio_cfg)
-            print(f"[discover] SSD root: {root}")
+        stats = get_ssd_stats(ftp, root)
+        if stats:
+            print(f"[{name}] SSD used={stats.get('used_bytes')}, free={stats.get('free_bytes')}")
+            report_studio_stats(name, stats)
 
-            # Probe SSD capacity and push to dashboard
-            stats = get_ssd_stats(ftp, root)
-            if stats:
-                print(f"[discover] SSD: used={stats.get('used_bytes')}, "
-                      f"free={stats.get('free_bytes')}, total={stats.get('total_bytes')}")
-                report_studio_stats(name, stats)
+        for folder in list_names(ftp, root):
+            if ignore(folder):
+                continue
 
-            for folder in list_names(ftp, root):
-                if ignore(folder):
-                    continue
+            full_path = root.rstrip("/") + "/" + folder
+            if not is_dir(ftp, full_path):
+                continue
 
-                full_path = root.rstrip("/") + "/" + folder
-                if not is_dir(ftp, full_path):
-                    continue
+            key = f"{name}|{folder}"
 
-                key     = f"{name}|{folder}"
+            with _state_lock:
                 status  = get_status(state, key)
                 retries = get_retries(state, key)
 
-                # ── Already done or in-flight ────────────────────────────────
-                if status in DONE_STATES or status in ACTIVE_STATES:
-                    print(f"[discover]   skip: {folder} ({status})")
-                    continue
+            # ── Already done or in-flight ────────────────────────────────
+            if status in DONE_STATES or status in ACTIVE_STATES:
+                print(f"[{name}]   skip: {folder} ({status})")
+                continue
 
-                # ── copy_complete: ready to upload, respect window ───────────
-                if status == "copy_complete":
-                    if in_window:
-                        if run_upload(name, folder, retries, state, key):
-                            save_state(state)
-                        else:
-                            save_state(state)
-                    else:
-                        uploading_deferred += 1
-                        print(f"[discover]   deferred (outside upload window): {folder}")
-                    continue
+            # ── Min-date filter ──────────────────────────────────────────
+            if recording_is_too_old(ftp, root, folder, min_date):
+                print(f"[{name}]   too old, skipping: {folder}")
+                continue
 
-                # ── failed: retry with backoff ───────────────────────────────
-                if status == "failed":
-                    if retries >= MAX_RETRIES:
-                        print(f"[discover]   gave up ({retries} retries): {folder}")
+            # ── copy_complete: upload if in window ───────────────────────
+            if status == "copy_complete":
+                if in_window:
+                    run_upload(name, folder, retries, state, key)
+                else:
+                    counters["deferred"] += 1
+                    print(f"[{name}]   deferred (outside upload window): {folder}")
+                continue
+
+            # ── failed: retry ────────────────────────────────────────────
+            if status == "failed":
+                if retries >= MAX_RETRIES:
+                    print(f"[{name}]   gave up ({retries} retries): {folder}")
+                    with _state_lock:
                         set_status(state, key, "gave_up", retries)
                         save_state(state)
-                        report(name, folder, "gave_up",
-                               error=f"Gave up after {retries} attempts — manual intervention required",
-                               retry_count=retries)
-                        continue
-                    print(f"[discover]   retry {retries + 1}/{MAX_RETRIES}: {folder}")
-
-                # ── Age check (new recordings and retries) ───────────────────
-                if not recording_looks_complete(ftp, root, folder, min_age):
-                    print(f"[discover]   too recent, skipping: {folder}")
+                    report(name, folder, "gave_up",
+                           error=f"Gave up after {retries} attempts — manual intervention required",
+                           retry_count=retries)
                     continue
+                print(f"[{name}]   retry {retries + 1}/{MAX_RETRIES}: {folder}")
 
-                # ── New recording ────────────────────────────────────────────
-                if status is None:
-                    print(f"[discover]   NEW: {folder}")
-                    report(name, folder, "discovered")
+            # ── Age check ────────────────────────────────────────────────
+            if not recording_looks_complete(ftp, root, folder, min_age):
+                print(f"[{name}]   too recent, skipping: {folder}")
+                continue
+
+            # ── New recording ────────────────────────────────────────────
+            if status is None:
+                print(f"[{name}]   NEW: {folder}")
+                report(name, folder, "discovered")
+                with _state_lock:
                     set_status(state, key, "discovered", 0)
                     save_state(state)
-                    new_found += 1
+                counters["found"] += 1
 
-                # ── Step 1: Copy ATEM → NAS (always immediate) ───────────────
-                print(f"[discover]   copying: {folder}")
-                copy_result = subprocess.run(
-                    [sys.executable, "/volume1/PCM/app/copy_one.py",
-                     "--studio", name, "--root", root, "--recording", folder],
-                    capture_output=False,
-                )
+            # ── Copy ATEM → NAS ──────────────────────────────────────────
+            print(f"[{name}]   copying: {folder}")
+            copy_result = subprocess.run(
+                [sys.executable, "/volume1/PCM/app/copy_one.py",
+                 "--studio", name, "--root", root, "--recording", folder],
+                capture_output=False,
+            )
 
-                if copy_result.returncode != 0:
-                    new_retries = retries + 1
+            if copy_result.returncode != 0:
+                new_retries = retries + 1
+                with _state_lock:
                     if new_retries >= MAX_RETRIES:
-                        print(f"[discover]   giving up after {new_retries} failures: {folder}")
                         set_status(state, key, "gave_up", new_retries)
                         save_state(state)
                         report(name, folder, "gave_up",
                                error=f"Gave up after {new_retries} attempts — manual intervention required",
                                retry_count=new_retries)
                     else:
-                        print(f"[discover]   copy failed (attempt {new_retries}/{MAX_RETRIES}): {folder}")
                         set_status(state, key, "failed", new_retries)
                         save_state(state)
                         report(name, folder, "failed",
                                error=f"Copy failed — will auto-retry (attempt {new_retries}/{MAX_RETRIES})",
                                retry_count=new_retries)
-                    continue
+                continue
 
+            with _state_lock:
                 set_status(state, key, "copy_complete", 0)
                 save_state(state)
 
-                # ── Step 2: Upload NAS → Drive (window-gated) ────────────────
-                if in_window:
-                    if run_upload(name, folder, 0, state, key):
-                        save_state(state)
-                    else:
-                        save_state(state)
-                else:
-                    uploading_deferred += 1
-                    print(f"[discover]   on NAS, upload deferred until upload window: {folder}")
+            # ── Upload NAS → Drive (window-gated) ────────────────────────
+            if in_window:
+                run_upload(name, folder, 0, state, key)
+            else:
+                counters["deferred"] += 1
+                print(f"[{name}]   on NAS, upload deferred until upload window: {folder}")
 
-            ftp.quit()
+        ftp.quit()
 
-        except Exception as e:
-            print(f"[discover] FAILED to scan {name}: {e}")
-            report(name, "—", "failed", error=f"Scan failed: {e}")
+    except Exception as e:
+        print(f"[{name}] FAILED: {e}")
+        report(name, "—", "failed", error=f"Scan failed: {e}")
 
-    print(f"\n[discover] Done. {new_found} new, {uploading_deferred} deferred for upload window.")
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main():
+    cfg       = load_config()
+    state     = load_state()
+    in_window = in_upload_window(cfg)
+    min_date  = cfg.get("min_date", "")
+
+    window  = cfg.get("upload_window", {})
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print(f"[discover] PCM v{cfg['version']} — {now_str}")
+    print(f"[discover] Upload window: {window.get('start_hour', 0):02d}:00–"
+          f"{window.get('end_hour', 8):02d}:00 "
+          f"({'ACTIVE' if in_window else 'outside window — uploads deferred'})")
+    if min_date:
+        print(f"[discover] Min date filter: {min_date} (skipping older recordings)")
+
+    enabled = [s for s in cfg["studios"] if s.get("enabled", True)]
+    print(f"[discover] Scanning {len(enabled)} studio(s) in parallel…")
+
+    counters = {"found": 0, "deferred": 0}
+    threads  = []
+
+    for studio_cfg in enabled:
+        t = threading.Thread(
+            target=scan_studio,
+            args=(studio_cfg, cfg, state, in_window, counters),
+            name=studio_cfg["name"],
+        )
+        t.start()
+        threads.append(t)
+
+    for t in threads:
+        t.join()
+
+    print(f"\n[discover] Done. {counters['found']} new, {counters['deferred']} deferred for upload window.")
 
 
 if __name__ == "__main__":

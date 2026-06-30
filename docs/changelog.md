@@ -19,6 +19,28 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-06-30 — PCM parallel scanning + booking-named Drive folders + min_date filter
+
+### Added
+- **Parallel studio scanning** — discover.py now scans all enabled studios simultaneously using one thread per studio (Python stdlib `threading`). All 4 FTP connections run at once; state writes are protected by a lock.
+- **Booking-named Drive folders** — uploaded folders are renamed to `Studio 4 CORE — 2026-06-30 10:00 — Acme Podcast` using the `footage_deliveries` table to resolve client name. Matched by studio (via setup→studio mapping), date, and recording start time (earliest file mtime). Falls back to `Unknown` if no match.
+- **`app/api/pcm/resolve-booking/route.ts`** — `GET /api/pcm/resolve-booking?studio=&date=&time=`. Queries `footage_deliveries` where `setup` is not null, matches the correct booking slot, returns `client_name` and `booking_time`.
+- **`min_date` filter** — settings.json `"min_date": "YYYY-MM-DD"` skips recordings older than that date. Prevents backing up the entire SSD backlog on first run.
+
+### Changed
+- **`docs/nas_files/discover.py`** — refactored `main()` to spawn one thread per studio via `scan_studio()`. All state mutations use `_state_lock`. Log prefix changed from `[discover]` to `[Studio N]` per studio.
+- **`docs/nas_files/upload_drive.py`** — resolves recording start time from earliest file mtime, calls `/api/pcm/resolve-booking`, builds named Drive folder path.
+
+### Setup mapping
+| Setup | Studio |
+|-------|--------|
+| Nest, Exec | Studio 1 |
+| Iris, Club | Studio 2 |
+| Nova | Studio 3 |
+| Core | Studio 4 |
+
+---
+
 ## 2026-06-29 — PCM upload window + SSD capacity bars
 
 ### Added

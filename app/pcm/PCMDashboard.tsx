@@ -555,7 +555,7 @@ export default function PCMDashboard({
                         {isActive && <TransferProgress r={r} />}
                       </td>
                       <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
-                      <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{timeAgo(r.updated_at)}</td>
+                      <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.updated_at)}</td>
                       <td className="px-4 py-3 text-red-400 text-xs max-w-xs truncate">
                         {['failed', 'gave_up'].includes(r.state) ? (r.error ?? '') : ''}
                       </td>

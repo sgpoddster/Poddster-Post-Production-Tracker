@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-01 — PCM dashboard: date/time in Updated column
+
+### Changed
+- **`app/pcm/PCMDashboard.tsx`** — In Progress "Updated" column now shows full date + time (e.g. "30 Jun, 22:46") instead of relative "Xh ago", matching the Completed section style.
+
+---
+
 ## 2026-06-30 — Footage ingest: include PP bookings
 
 ### Changed

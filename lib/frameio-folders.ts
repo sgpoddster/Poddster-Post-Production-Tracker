@@ -3,6 +3,7 @@
 // Finds (or creates) the client project, then creates the shoot folder inside it.
 
 import { buildFolderName } from './utils'
+import { createServiceClient } from '@/lib/supabase/server'
 
 const ADOBE_CLIENT_ID = '73aff1fed325400292f5abc97ee331b8'
 const ADOBE_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3'
@@ -10,18 +11,45 @@ const ACCOUNT_ID      = 'c385b04f-c1b3-496b-93fd-70388b468756'
 const WORKSPACE_ID    = '35d53c79-6d1e-42a3-aae2-7aabf1260e48'
 
 async function getAccessToken(): Promise<string> {
+  const clientSecret = process.env.ADOBE_CLIENT_SECRET
+  if (!clientSecret) throw new Error('ADOBE_CLIENT_SECRET not set')
+
+  // Adobe IMS issues a new refresh token on every exchange (rotating tokens).
+  // Read the current token from app_config so we always use the latest one,
+  // then write the new one back after a successful exchange.
+  const supabase = createServiceClient()
+  const { data: stored } = await supabase
+    .from('app_config')
+    .select('value')
+    .eq('key', 'adobe_refresh_token')
+    .single()
+  const refreshToken = stored?.value ?? process.env.FRAMEIO_REFRESH_TOKEN
+  if (!refreshToken) throw new Error('No refresh token available')
+
   const res = await fetch(ADOBE_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type:    'refresh_token',
       client_id:     ADOBE_CLIENT_ID,
-      client_secret: process.env.ADOBE_CLIENT_SECRET!,
-      refresh_token: process.env.FRAMEIO_REFRESH_TOKEN!,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
     }),
   })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Adobe token exchange failed: ${res.status} — ${text}`)
+  }
   const json = await res.json()
   if (!json.access_token) throw new Error('Failed to get Adobe access token')
+
+  if (json.refresh_token) {
+    await supabase.from('app_config').upsert(
+      { key: 'adobe_refresh_token', value: json.refresh_token, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    )
+  }
+
   return json.access_token as string
 }
 

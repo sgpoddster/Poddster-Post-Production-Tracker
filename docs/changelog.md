@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-02 — Frame.io folder creation: rotating token fix
+
+### Fixed
+- **`lib/frameio-folders.ts`** — `getAccessToken()` now reads from `app_config` Supabase table (same as the webhook route) and writes the new refresh token back after each exchange. Previously used the static `FRAMEIO_REFRESH_TOKEN` env var which goes stale as soon as any other route rotates the token.
+
+---
+
 ## 2026-07-02 — PCM: Per-session NAS+Drive split
 
 ### Changed

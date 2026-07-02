@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-02 — PCM: SSD vs NAS audit tool
+
+### Added
+- **`docs/nas_files/audit_ssd_vs_nas.py`** — one-shot audit script that connects to all ATEM SSDs via FTP and compares every recording folder (no date filter) against `state.json` and the NAS backup directory. Reports: `✗ MISSING` (on SSD but never discovered), `⚠ STUCK` (in a non-done state like failed/uploading), `✓ DONE` (archived/split), `~ NAS ONLY` (in state.json but folder gone from SSD). Supports `--studio` and `--missing-only` flags.
+- Run: `source /volume1/PCM/config/env.sh && python3 /volume1/PCM/app/audit_ssd_vs_nas.py`
+
+---
+
 ## 2026-07-02 — Fix: re-triggered projects missing due date
 
 ### Fixed

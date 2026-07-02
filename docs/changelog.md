@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-02 — PCM: Drive link backfill tool
+
+### Added
+- **`app/api/pcm/backfill-links/route.ts`** — new GET endpoint (PCM-secret protected) returning all `state=archived` recordings where `drive_url IS NULL`. Used by the NAS backfill script.
+- **`docs/nas_files/backfill_links.py`** — one-shot NAS script that resolves missing Drive folder URLs via rclone and posts them back to the DB. Run with `source /volume1/PCM/config/env.sh && python3 /volume1/PCM/app/backfill_links.py`. Supports `--dry-run`.
+
+---
+
 ## 2026-07-02 — PCM: Recorded column in Completed + stale lock fix
 
 ### Added

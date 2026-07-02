@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-02 — Fix: re-triggered projects missing due date
+
+### Fixed
+- **`app/api/projects/trigger-batch/route.ts`** and **`app/api/projects/[id]/trigger/route.ts`** — version rows are now `upsert`ed instead of `insert`ed on trigger. Previously, if a project was reverted from V2+ to draft (`undo-to-draft` only removes the current version row, leaving V1 placeholder intact), re-triggering would silently fail the duplicate-key insert and leave the project with no due date. Upsert with `onConflict: 'project_id,version_number'` ensures the active version's `submitted_date` and `due_date` are always written. Placeholder rows use `ignoreDuplicates: true` to avoid overwriting already-completed earlier versions. Error logging added to the batch route's version upsert.
+
+---
+
 ## 2026-07-02 — Frame.io folder creation: rotating token fix
 
 ### Fixed

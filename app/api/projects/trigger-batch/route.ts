@@ -47,25 +47,27 @@ export async function POST(req: NextRequest) {
 
     await supabase.from('projects').update({ status: newStatus }).eq('id', project.id)
 
-    // Empty placeholders for any versions before the starting one
+    // Empty placeholders for any versions before the starting one.
+    // Upsert (ignoreDuplicates) so re-triggers don't fail on existing placeholder rows.
     if (startingVersion > 1) {
       const placeholders = Array.from({ length: startingVersion - 1 }, (_, i) => ({
         project_id:     project.id,
         version_number: i + 1,
         label:          versionLabel(i + 1),
       }))
-      await supabase.from('versions').insert(placeholders)
+      await supabase.from('versions').upsert(placeholders, { onConflict: 'project_id,version_number', ignoreDuplicates: true })
     }
 
     const dueStr = addWorkDays(today, workDaysForVersion(startingVersion), holidays).toISOString().split('T')[0]
     representativeDue = dueStr
-    await supabase.from('versions').insert({
+    const { error: versionError } = await supabase.from('versions').upsert({
       project_id:     project.id,
       version_number: startingVersion,
       label:          versionLabel(startingVersion),
       submitted_date: todayStr,
       due_date:       dueStr,
-    })
+    }, { onConflict: 'project_id,version_number' })
+    if (versionError) console.error(`[trigger-batch] version upsert error for ${project.id}:`, versionError)
   }
 
   // One consolidated email to the producer

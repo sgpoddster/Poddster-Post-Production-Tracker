@@ -51,7 +51,8 @@ export async function POST(
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
-  // Insert empty placeholder rows for any versions before the starting version
+  // Upsert empty placeholder rows for any versions before the starting version.
+  // ignoreDuplicates so re-triggers don't overwrite already-completed earlier versions.
   if (startingVersion > 1) {
     const placeholders = Array.from({ length: startingVersion - 1 }, (_, i) => ({
       project_id:     id,
@@ -61,23 +62,23 @@ export async function POST(
       due_date:       null,
       done_date:      null,
     }))
-    await supabase.from('versions').insert(placeholders)
+    await supabase.from('versions').upsert(placeholders, { onConflict: 'project_id,version_number', ignoreDuplicates: true })
   }
 
-  // Insert the active starting version with due date
+  // Upsert the active starting version with due date (handles re-triggers cleanly)
   const holidays   = await getHolidayDates()
   const dueDate    = addWorkDays(submittedDate, workDaysForVersion(startingVersion), holidays)
   const dueDateStr = dueDate.toISOString().split('T')[0]
 
   const { error: versionError } = await supabase
     .from('versions')
-    .insert({
+    .upsert({
       project_id:     id,
       version_number: startingVersion,
       label:          versionLabel(startingVersion),
       submitted_date: submittedDateStr,
       due_date:       dueDateStr,
-    })
+    }, { onConflict: 'project_id,version_number' })
 
   if (versionError) {
     console.error('Version insert error:', versionError)

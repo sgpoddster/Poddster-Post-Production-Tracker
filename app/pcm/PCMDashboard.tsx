@@ -582,7 +582,7 @@ export default function PCMDashboard({
               <table className="min-w-full divide-y divide-th/[0.05] text-sm">
                 <thead className="bg-th/[0.02]">
                   <tr>
-                    {['Studio', 'Recording', 'Size', 'Files', 'Completed', 'NAS Delete', 'NAS Days', 'Drive Delete', 'Drive Days', 'Drive'].map(h => (
+                    {['Studio', 'Recording', 'Recorded', 'Size', 'Files', 'Completed', 'NAS Delete', 'NAS Days', 'Drive Delete', 'Drive Days', 'Drive'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-th/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -595,6 +595,7 @@ export default function PCMDashboard({
                       <tr key={r.id} className="hover:bg-th/[0.02] transition-colors">
                         <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
                         <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
+                        <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.copy_started_at)}</td>
                         <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
                         <td className="px-4 py-3 text-th/50">{r.file_count ?? '—'}</td>
                         <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.upload_completed_at)}</td>

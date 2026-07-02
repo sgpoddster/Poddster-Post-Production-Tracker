@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-02 — PCM: mark_legacy tool
+
+### Added
+- **`docs/nas_files/mark_legacy.py`** — one-shot NAS script that marks all SSD recording folders with no state.json entry as `gave_up` (pre-PCM legacy recordings that don't need backing up). Safe to re-run; only touches genuinely absent entries. Supports `--dry-run`.
+
+---
+
 ## 2026-07-02 — PCM: SSD vs NAS audit tool
 
 ### Added

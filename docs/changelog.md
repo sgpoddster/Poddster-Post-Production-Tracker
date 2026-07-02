@@ -4,6 +4,16 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-02 — PCM: stale lock detection + footage ingest includes PP bookings
+
+### Fixed
+- **`docs/nas_files/discover.py`** — stale lock file detection: if `discover.lock` exists but the recorded PID is no longer running, the lock is removed before attempting to acquire it. Prevents overnight scheduled runs being silently blocked when a previous run exited uncleanly without releasing the flock (observed on Synology DSM kernel).
+
+### Changed
+- **`app/api/cron/footage-ingest/route.ts`** — CalendarPicker (Import from Calendar) now filters to PP-only bookings; footage cron ingests all bookings including PP sessions.
+
+---
+
 ## 2026-07-01 — PCM dashboard: date/time in Updated column
 
 ### Changed

@@ -605,6 +605,20 @@ def acquire_singleton_lock():
     process dies, so a crash won't leave us permanently locked out.
     """
     global _singleton_fh
+
+    # If the lock file exists, check whether the recorded PID is still alive.
+    # On some Synology kernels flock isn't released reliably on unclean exit,
+    # so we use PID presence as an additional stale-lock guard.
+    if os.path.exists(_SINGLETON_LOCK_PATH):
+        try:
+            with open(_SINGLETON_LOCK_PATH) as f:
+                pid = int(f.read().strip())
+            os.kill(pid, 0)  # signal 0 = just check existence
+        except (ValueError, ProcessLookupError, PermissionError):
+            # PID is gone or unreadable — lock is stale, remove it
+            print(f"[discover] Removing stale lock (PID {pid if 'pid' in dir() else '?'} no longer running)")
+            os.remove(_SINGLETON_LOCK_PATH)
+
     _singleton_fh = open(_SINGLETON_LOCK_PATH, "w")
     try:
         fcntl.flock(_singleton_fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)

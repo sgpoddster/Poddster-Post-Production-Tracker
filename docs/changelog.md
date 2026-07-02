@@ -4,7 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
-## 2026-07-02 — PCM: stale lock detection + footage ingest includes PP bookings
+## 2026-07-02 — PCM: Recorded column in Completed + stale lock fix
+
+### Added
+- **`app/pcm/PCMDashboard.tsx`** — "Recorded" column in the Completed table showing `copy_started_at` (when the ATEM SSD copy began, i.e. approximate session time).
+
+### Fixed
+- **`docs/nas_files/discover.py`** — stale lock file detection: removes `discover.lock` if the recorded PID is no longer running, preventing silent blocking of overnight scheduled runs on Synology DSM.
 
 ### Fixed
 - **`docs/nas_files/discover.py`** — stale lock file detection: if `discover.lock` exists but the recorded PID is no longer running, the lock is removed before attempting to acquire it. Prevents overnight scheduled runs being silently blocked when a previous run exited uncleanly without releasing the flock (observed on Synology DSM kernel).

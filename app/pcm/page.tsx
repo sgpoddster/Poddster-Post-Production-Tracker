@@ -18,6 +18,7 @@ export default async function PCMPage() {
     serviceClient
       .from('pcm_recordings')
       .select('*')
+      .neq('state', 'split')
       .order('created_at', { ascending: false })
       .limit(200),
     serviceClient

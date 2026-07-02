@@ -231,10 +231,16 @@ export default function PCMDashboard({
       .channel('pcm_recordings_live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pcm_recordings' }, (payload) => {
         setLastUpdated(new Date())
-        if (payload.eventType === 'INSERT')
-          setRecordings(prev => [payload.new as Recording, ...prev])
-        else if (payload.eventType === 'UPDATE')
-          setRecordings(prev => prev.map(r => r.id === payload.new.id ? payload.new as Recording : r))
+        if (payload.eventType === 'INSERT') {
+          if ((payload.new as Recording).state !== 'split')
+            setRecordings(prev => [payload.new as Recording, ...prev])
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = payload.new as Recording
+          if (updated.state === 'split')
+            setRecordings(prev => prev.filter(r => r.id !== updated.id))
+          else
+            setRecordings(prev => prev.map(r => r.id === updated.id ? updated : r))
+        }
         else if (payload.eventType === 'DELETE')
           setRecordings(prev => prev.filter(r => r.id !== payload.old.id))
       })

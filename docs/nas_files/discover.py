@@ -48,7 +48,7 @@ IGNORE_EXACT = {
 }
 IGNORE_PREFIXES = (".", "._", "@", "#", "$")
 
-DONE_STATES   = {"archived", "gave_up"}
+DONE_STATES   = {"archived", "gave_up", "split"}
 ACTIVE_STATES = {"copying", "uploading", "discovered"}
 
 EXIT_QUOTA = 3  # upload_drive.py exits with this when daily Drive quota is exhausted
@@ -108,12 +108,23 @@ def get_retries(state, key):
     return e.get("retries", 0) if e else 0
 
 
-def set_status(state, key, status, retries=None):
+def get_file_count(state, key):
+    e = _entry(state, key)
+    return e.get("file_count") if e else None
+
+
+def set_status(state, key, status, retries=None, file_count=None):
     current_retries = get_retries(state, key)
-    state[key] = {
+    existing = _entry(state, key)
+    entry = {
         "status":  status,
         "retries": retries if retries is not None else current_retries,
     }
+    if file_count is not None:
+        entry["file_count"] = file_count
+    elif existing and "file_count" in existing:
+        entry["file_count"] = existing["file_count"]
+    state[key] = entry
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +163,31 @@ def recording_is_too_old(ftp, root, folder, min_date_str):
 # ---------------------------------------------------------------------------
 # SSD capacity
 # ---------------------------------------------------------------------------
+
+def _count_ssd_files(ftp, path, depth=0):
+    """Recursively count non-ignored files on the SSD (max 4 levels)."""
+    if depth > 4:
+        return 0
+    total = 0
+    try:
+        lines = []
+        ftp.dir(path, lines.append)
+        for line in lines:
+            parts = line.split(None, 8)
+            if len(parts) < 9:
+                continue
+            name = parts[8]
+            if name in ('.', '..') or ignore(name):
+                continue
+            child = path.rstrip('/') + '/' + name
+            if line.startswith('d'):
+                total += _count_ssd_files(ftp, child, depth + 1)
+            else:
+                total += 1
+    except Exception:
+        pass
+    return total
+
 
 def _ftp_dir_size(ftp, path, depth=0):
     """Recursively sum file sizes via FTP DIR listings (max 4 levels deep)."""
@@ -255,7 +291,7 @@ def recording_looks_complete(ftp, root, folder, min_age_minutes):
 QUOTA_EXHAUSTED = False  # module-level flag: stop all uploads once quota is hit
 
 
-def run_upload(name, folder, retries, state, key):
+def run_upload(name, folder, retries, state, key, backup_root):
     """
     Run upload_drive.py for one recording.
     Returns: True = archived, False = failed/retrying, 'quota' = quota exhausted (caller should stop).
@@ -266,6 +302,16 @@ def run_upload(name, folder, retries, state, key):
     if not upload_bin.exists():
         print(f"[{name}]   upload_drive.py not found — skipping")
         return False
+
+    # Read file_count from manifest NOW (before upload) because upload_drive.py
+    # deletes the staging folder as part of the session-splitting process.
+    file_count = None
+    try:
+        manifest_path = Path(backup_root) / name / folder / "pcm_manifest.json"
+        if manifest_path.exists():
+            file_count = json.load(open(manifest_path)).get("file_count")
+    except Exception:
+        pass
 
     # Serialise the actual Drive transfer: only one rclone upload runs at a time
     # so it gets the full upstream bandwidth instead of N studios splitting it.
@@ -282,8 +328,10 @@ def run_upload(name, folder, retries, state, key):
         )
 
     if result.returncode == 0:
+        # Staging folder is now "split" — session-named DB rows were created by
+        # upload_drive.py. Store file_count so future runs can detect new sessions.
         with _state_lock:
-            set_status(state, key, "archived", 0)
+            set_status(state, key, "split", 0, file_count=file_count)
             save_state(state)
         return True
 
@@ -314,11 +362,12 @@ def run_upload(name, folder, retries, state, key):
 # ---------------------------------------------------------------------------
 
 def scan_studio(studio_cfg, cfg, state, in_window, counters):
-    name     = studio_cfg["name"]
-    ip       = studio_cfg["ip"]
-    ftp_cfg  = cfg["ftp"]
-    min_age  = cfg.get("min_age_minutes", 15)
-    min_date = cfg.get("min_date", "")
+    name        = studio_cfg["name"]
+    ip          = studio_cfg["ip"]
+    ftp_cfg     = cfg["ftp"]
+    min_age     = cfg.get("min_age_minutes", 15)
+    min_date    = cfg.get("min_date", "")
+    backup_root = cfg.get("backup_root", "/volume1/Atem Backup")
 
     print(f"\n[{name}] Scanning ({ip})…")
 
@@ -348,9 +397,39 @@ def scan_studio(studio_cfg, cfg, state, in_window, counters):
                 retries = get_retries(state, key)
 
             # ── Already done or in-flight ────────────────────────────────
-            if status in DONE_STATES or status in ACTIVE_STATES:
+            if status in ACTIVE_STATES:
                 print(f"[{name}]   skip: {folder} ({status})")
                 continue
+
+            if status == "gave_up":
+                print(f"[{name}]   skip: {folder} (gave_up)")
+                continue
+
+            if status in ("archived", "split"):
+                # Check whether new ATEM sessions were appended to this folder
+                # (happens when the ATEM is left on between bookings — the ATEM
+                # keeps the same folder number until power-cycled or SSD removed).
+                known_count = get_file_count(state, key)
+                if known_count is not None:
+                    ssd_path  = root.rstrip("/") + "/" + folder
+                    ssd_count = _count_ssd_files(ftp, ssd_path)
+                    if ssd_count > known_count:
+                        print(f"[{name}]   {folder}: {ssd_count} SSD files vs {known_count} previously "
+                              f"— new sessions detected, re-queuing")
+                        with _state_lock:
+                            state.pop(key, None)
+                            save_state(state)
+                        # Reset locals so normal copy → upload pipeline runs below
+                        status  = None
+                        retries = 0
+                    else:
+                        print(f"[{name}]   skip: {folder} ({status}, {ssd_count} files unchanged)")
+                        continue
+                else:
+                    # No file_count stored (pre-existing entry from before this feature).
+                    # Skip; file_count will be stored next time through the pipeline.
+                    print(f"[{name}]   skip: {folder} ({status})")
+                    continue
 
             # ── Min-date filter ──────────────────────────────────────────
             if recording_is_too_old(ftp, root, folder, min_date):
@@ -364,7 +443,7 @@ def scan_studio(studio_cfg, cfg, state, in_window, counters):
                         counters["quota_held"] += 1
                         print(f"[{name}]   quota exhausted — deferring: {folder}")
                     else:
-                        result = run_upload(name, folder, retries, state, key)
+                        result = run_upload(name, folder, retries, state, key, backup_root)
                         if result == 'quota':
                             counters["quota_held"] += 1
                 else:
@@ -434,7 +513,7 @@ def scan_studio(studio_cfg, cfg, state, in_window, counters):
                     counters["quota_held"] += 1
                     print(f"[{name}]   quota exhausted — deferring: {folder}")
                 else:
-                    result = run_upload(name, folder, 0, state, key)
+                    result = run_upload(name, folder, 0, state, key, backup_root)
                     if result == 'quota':
                         counters["quota_held"] += 1
             else:

@@ -26,6 +26,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -216,7 +217,7 @@ def build_drive_folder_name(studio, recording, client_name, booking_time, sessio
     sgt        = session_end_dt.astimezone(SGT) if session_end_dt else None
     date_str   = sgt.strftime("%Y-%m-%d") if sgt else "unknown-date"
     time_str   = booking_time or (sgt.strftime("%H:%M") if sgt else "")
-    client_str = client_name or "Unknown"
+    client_str = client_name or "Uncategorised"
     if recording.lower().startswith(studio.lower()):
         prefix = recording
     else:
@@ -242,6 +243,44 @@ def get_drive_folder_url(studio, drive_folder):
     except Exception:
         pass
     return None
+
+
+def _move_session_files(src_dir: Path, dst_dir: Path, suffix: str):
+    """
+    Move files for `suffix` from staging src_dir to session dst_dir (a sibling folder).
+    Also copies the .drp project file (shared across sessions, deleted from staging later).
+    Maintains subdirectory structure.
+    """
+    suffix_pattern = re.compile(rf' {re.escape(suffix)}\.[a-zA-Z0-9]+$', re.IGNORECASE)
+    skip = {'pcm_manifest.json', '.pcm_copy_complete'}
+    dst_dir.mkdir(parents=True, exist_ok=True)
+
+    for src in sorted(src_dir.rglob('*')):
+        if not src.is_file():
+            continue
+        name = src.name
+        if name.startswith('.') or name in skip:
+            continue
+        rel = src.relative_to(src_dir)
+        dst = dst_dir / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if suffix_pattern.search(name):
+            shutil.move(str(src), str(dst))
+        elif name.lower().endswith('.drp') and not dst.exists():
+            shutil.copy2(str(src), str(dst))
+
+
+def _count_and_size(path: Path):
+    """Return (file_count, total_bytes) for all files under path."""
+    count, size = 0, 0
+    for f in path.rglob('*'):
+        if f.is_file():
+            count += 1
+            try:
+                size += f.stat().st_size
+            except OSError:
+                pass
+    return count, size
 
 
 def _to_bytes(val, unit):
@@ -380,9 +419,9 @@ def main():
 
     report(args.studio, args.recording, "uploading")
 
-    first_drive_url    = None
-    first_drive_folder = None
+    backup_root           = Path(cfg["backup_root"])
     actual_uploaded_bytes = 0  # real bytes sent to Drive (0 for checksum-skipped files)
+    new_sessions          = 0
 
     for suffix in sessions:
         session_end_dt = get_session_end_time(manifest, suffix, local_dir)
@@ -393,12 +432,20 @@ def main():
             client_name, booking_time = resolve_booking(args.studio, session_end_dt)
         else:
             client_name, booking_time = None, None
-        print(f"[upload] Booking: {client_name or 'Unknown'} at {booking_time or '?'}")
+        print(f"[upload] Booking: {client_name or 'Uncategorised'} at {booking_time or '?'}")
 
-        drive_folder = build_drive_folder_name(
+        drive_folder     = build_drive_folder_name(
             args.studio, args.recording, client_name, booking_time, session_end_dt
         )
-        drive_dest = f"{DRIVE_REMOTE}:{args.studio}/{drive_folder}"
+        drive_dest       = f"{DRIVE_REMOTE}:{args.studio}/{drive_folder}"
+        session_nas_dir  = backup_root / args.studio / drive_folder
+
+        # If we've already organised this session (from a previous run of this
+        # recording), skip upload + file-move but still continue to the next session.
+        if session_nas_dir.exists():
+            print(f"[upload] Session {suffix} already organised → {drive_folder} (skipping)")
+            continue
+
         print(f"[upload] Drive: {drive_dest}")
 
         # Upload only files for this session suffix + shared .drp project file.
@@ -418,8 +465,6 @@ def main():
                 "--transfers", "4",
             )
         except subprocess.CalledProcessError as e:
-            # rclone exit code 8 = transfer/upload limit reached. Record whatever we
-            # actually managed to send, then defer like our own pre-flight quota check.
             if e.returncode == 8:
                 print(f"[upload] Google reported the 750 GB rolling limit (rclone exit 8) — deferring {args.recording}")
                 report(args.studio, args.recording, "copy_complete")
@@ -431,26 +476,39 @@ def main():
                    error=f"rclone failed (session {suffix}): {e}")
             raise SystemExit(f"Upload failed: {e}")
 
-        if first_drive_url is None:
-            first_drive_url    = get_drive_folder_url(args.studio, drive_folder)
-            first_drive_folder = drive_folder
+        # Move session files from staging to their permanent named NAS folder.
+        _move_session_files(local_dir, session_nas_dir, suffix)
+        session_file_count, session_bytes = _count_and_size(session_nas_dir)
 
-    report(
-        args.studio, args.recording, "archived",
-        drive_url=first_drive_url,
-        drive_folder=first_drive_folder,
-        file_count=expected_files,
-        total_bytes=total_bytes,
-    )
-    # Report bytes sent to Drive, capped at the recording's real size:
-    #  - checksum-skipped re-runs transfer ~0 → counts ~0 (no dup inflation)
-    #  - rclone's "Transferred" counter includes RETRIED chunks, so on a flaky/
-    #    rate-limited link it can exceed the file size — cap so retries don't
-    #    inflate the quota (Google counts stored data, not wire retries).
+        session_drive_url = get_drive_folder_url(args.studio, drive_folder)
+
+        # Report this session as its own DB row (recording = session folder name).
+        report(
+            args.studio, drive_folder, "archived",
+            drive_url=session_drive_url,
+            drive_folder=drive_folder,
+            nas_path=str(session_nas_dir),
+            file_count=session_file_count,
+            total_bytes=session_bytes,
+        )
+        new_sessions += 1
+        print(f"[upload] Session {suffix} → {drive_folder}")
+
+    # Delete the staging folder — all session files have been moved to named sibling
+    # folders (or were already there from a previous run).
+    try:
+        shutil.rmtree(str(local_dir))
+        print(f"[upload] Removed staging dir: {local_dir.name}")
+    except Exception as e:
+        print(f"[upload] WARNING: could not remove staging dir: {e}")
+
+    # Mark the original staging row as 'split' so it disappears from the dashboard.
+    report(args.studio, args.recording, "split")
+
+    # Report bytes sent to Drive, capped at the recording's real size.
     quota_bytes = min(actual_uploaded_bytes, total_bytes) if total_bytes > 0 else actual_uploaded_bytes
     report_quota(quota_bytes, studio=args.studio, recording=args.recording)
-    print(f"\n[upload] Archived: {n} session(s) uploaded to Drive")
-    print(f"[upload] NAS copy retained at {local_dir} — discover.py will delete after 10 days")
+    print(f"\n[upload] Done: {new_sessions} new session(s) uploaded, {n - new_sessions} already organised.")
 
 
 if __name__ == "__main__":

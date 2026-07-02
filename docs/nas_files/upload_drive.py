@@ -196,7 +196,16 @@ def resolve_booking(studio, session_end_dt):
     base = endpoint.rsplit("/api/pcm/", 1)[0]
     sgt  = session_end_dt.astimezone(SGT)
 
-    for delta in (0, -1, 1):
+    hour = sgt.hour
+    # Only try adjacent days when the recording end time is near midnight — the
+    # ±1 day fallback exists solely for ATEM MDTM drift that can push a recording
+    # that ended late at night just past midnight (or vice-versa). Applying it at
+    # noon would match tomorrow's bookings, which is always wrong.
+    deltas = [0]
+    if hour <= 3:    deltas.append(-1)   # just past midnight → try previous day
+    if hour >= 21:   deltas.append(+1)   # late night → might drift to next day
+
+    for delta in deltas:
         candidate  = sgt + timedelta(days=delta)
         date_str   = candidate.strftime("%Y-%m-%d")
         end_time   = candidate.strftime("%H:%M")

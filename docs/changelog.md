@@ -7,7 +7,7 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 ## 2026-07-02 — PCM: Per-session NAS+Drive split
 
 ### Changed
-- **`docs/nas_files/upload_drive.py`** — sessions within a single ATEM folder now each get their own permanent NAS folder (`Studio 2 43 — 2026-07-01 14:00 — Janine Stein/`) and their own DB row with individual drive_url, nas_path, file_count, and total_bytes. The original staging folder is deleted after all sessions are moved. "Unknown" client label changed to "Uncategorised".
+- **`docs/nas_files/upload_drive.py`** — booking date ±1-day fallback now only fires when session end time is near midnight (≤03:00 or ≥21:00 SGT), preventing false matches against tomorrow's bookings for daytime sessions. Sessions within a single ATEM folder now each get their own permanent NAS folder (`Studio 2 43 — 2026-07-01 14:00 — Janine Stein/`) and their own DB row with individual drive_url, nas_path, file_count, and total_bytes. The original staging folder is deleted after all sessions are moved. "Unknown" client label changed to "Uncategorised".
 - **`docs/nas_files/discover.py`** — staging folders are now marked `split` (not `archived`) after upload. `split` is treated as a DONE state. File-count new-session detection covers both `archived` and `split`. Manifest file_count is now read *before* the upload subprocess (since the staging folder is deleted during upload).
 - **`app/pcm/page.tsx`** — excludes `state = 'split'` from initial recordings query so staging placeholder rows don't appear in the dashboard.
 - **`app/pcm/PCMDashboard.tsx`** — realtime handler ignores inserts with `state = 'split'`; removes a row from state if it transitions to `split` via update.

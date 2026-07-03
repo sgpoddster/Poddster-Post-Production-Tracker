@@ -19,6 +19,20 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-03 — PCM: Manual retry button for failed recordings
+
+### Added
+- **`supabase/pcm_retry_requested.sql`** — migration adding `retry_requested boolean DEFAULT false` column to `pcm_recordings`. Run in Supabase SQL Editor.
+- **`app/api/pcm/recordings/[id]/retry/route.ts`** — user-auth POST endpoint (admin only) that sets `retry_requested = true` on a `failed` or `gave_up` recording.
+- **`app/api/pcm/pending-retries/route.ts`** — PCM-secret GET endpoint returning all recordings where `retry_requested = true`; polled by discover.py at the start of each scan.
+- **`app/pcm/PCMDashboard.tsx`** — `↻ Retry` button on all `failed`/`gave_up` rows. Shows "Queued ↻" immediately on click; discover.py resets the recording on next scan (within 15 min), giving it a fresh retry_count.
+
+### Changed
+- **`app/api/pcm/update/route.ts`** — accepts `retry_requested` field so discover.py can clear the flag after processing.
+- **`docs/nas_files/discover.py`** — `process_retry_requests()` runs at the start of `main()`: fetches pending retries, pops their state.json entries, resets retry_count to 0 in DB, clears `retry_requested` flag.
+
+---
+
 ## 2026-07-03 — Fix: PCM dashboard falsely shows ATEMs as Offline during long uploads
 
 ### Fixed

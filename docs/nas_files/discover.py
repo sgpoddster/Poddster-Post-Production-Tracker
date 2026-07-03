@@ -708,12 +708,72 @@ def acquire_singleton_lock():
     _singleton_fh.flush()
 
 
+def process_retry_requests(state):
+    """
+    Check the dashboard for manual retry requests. For each flagged recording,
+    pop its state.json entry so discover.py re-processes it from scratch, then
+    clear the flag in the DB via the update API.
+    """
+    endpoint = os.environ.get("PCM_ENDPOINT", "")
+    secret   = os.environ.get("PCM_SECRET", "")
+    if not endpoint or not secret:
+        return
+
+    base = endpoint.rsplit("/api/pcm/", 1)[0]
+    url  = f"{base}/api/pcm/pending-retries"
+    req  = urllib.request.Request(url, headers={"x-pcm-secret": secret})
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            pending = json.loads(resp.read().decode())
+    except Exception as e:
+        print(f"[discover] WARNING: could not fetch retry requests: {e}")
+        return
+
+    if not pending:
+        return
+
+    changed = False
+    for rec in pending:
+        studio    = rec["studio"]
+        recording = rec["recording"]
+        key       = f"{studio}|{recording}"
+        if key in state:
+            print(f"[discover] Manual retry: {studio}/{recording} — resetting state")
+            del state[key]
+            changed = True
+        # Clear flag + reset retry_count in DB so it gets a fresh set of attempts
+        payload = json.dumps({
+            "studio":          studio,
+            "recording":       recording,
+            "state":           "discovered",
+            "retry_count":     0,
+            "retry_requested": False,
+        }).encode()
+        clear_req = urllib.request.Request(
+            f"{base}/api/pcm/update",
+            data=payload,
+            headers={"x-pcm-secret": secret, "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(clear_req, timeout=10):
+                pass
+        except Exception as e:
+            print(f"[discover] WARNING: could not clear retry flag for {studio}/{recording}: {e}")
+
+    if changed:
+        save_state(state)
+
+
 def main():
     acquire_singleton_lock()
     cfg       = load_config()
     state     = load_state()
     in_window = in_upload_window(cfg)
     min_date  = cfg.get("min_date", "")
+
+    process_retry_requests(state)
 
     window  = cfg.get("upload_window", {})
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

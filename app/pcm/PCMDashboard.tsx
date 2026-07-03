@@ -23,6 +23,7 @@ type Recording = {
   drive_url: string | null
   drive_folder: string | null
   retry_count: number | null
+  retry_requested: boolean | null
   nas_deleted_at: string | null
   deleted_at: string | null
   created_at: string
@@ -201,6 +202,31 @@ function DaysCountdown({ due, deleted }: { due: Date | null; deleted?: boolean }
                :                  'text-th/35'
   const label = daysLeft <= 0 ? 'Today' : `${daysLeft}d`
   return <span className={`text-xs ${colour}`}>{label}</span>
+}
+
+function RetryButton({ recordingId, queued, onQueued }: { recordingId: string; queued: boolean; onQueued: () => void }) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleRetry() {
+    if (queued || loading) return
+    setLoading(true)
+    await fetch(`/api/pcm/recordings/${recordingId}/retry`, { method: 'POST' })
+    setLoading(false)
+    onQueued()
+  }
+
+  if (queued) {
+    return <span className="text-xs text-amber-400/70 font-medium">Queued ↻</span>
+  }
+  return (
+    <button
+      onClick={handleRetry}
+      disabled={loading}
+      className="px-2.5 py-1 text-xs font-medium rounded bg-th/[0.07] hover:bg-th/[0.13] border border-th/20 text-th/55 hover:text-th/80 disabled:opacity-40 transition-colors whitespace-nowrap"
+    >
+      {loading ? '…' : '↻ Retry'}
+    </button>
+  )
 }
 
 export default function PCMDashboard({
@@ -537,14 +563,15 @@ export default function PCMDashboard({
             <table className="min-w-full divide-y divide-th/[0.05] text-sm">
               <thead className="bg-th/[0.02]">
                 <tr>
-                  {['Studio', 'Recording', 'State', 'Size', 'Updated', 'Error'].map(h => (
+                  {['Studio', 'Recording', 'State', 'Size', 'Updated', 'Error', ''].map(h => (
                     <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-th/40 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-th/[0.04]">
                 {inProgress.map(r => {
-                  const isActive = ['copying', 'uploading'].includes(r.state)
+                  const isActive   = ['copying', 'uploading'].includes(r.state)
+                  const canRetry   = ['failed', 'gave_up'].includes(r.state)
                   return (
                     <tr key={r.id} className={`transition-colors ${isActive ? 'bg-blue-500/[0.03]' : 'hover:bg-th/[0.02]'}`}>
                       <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
@@ -563,7 +590,14 @@ export default function PCMDashboard({
                       <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
                       <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.updated_at)}</td>
                       <td className="px-4 py-3 text-red-400 text-xs max-w-xs truncate">
-                        {['failed', 'gave_up'].includes(r.state) ? (r.error ?? '') : ''}
+                        {canRetry ? (r.error ?? '') : ''}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {canRetry && (
+                          <RetryButton recordingId={r.id} queued={!!r.retry_requested}
+                            onQueued={() => setRecordings(prev => prev.map(x => x.id === r.id ? { ...x, retry_requested: true } : x))}
+                          />
+                        )}
                       </td>
                     </tr>
                   )

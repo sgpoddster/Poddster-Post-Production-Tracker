@@ -131,9 +131,15 @@ def audit_studio(studio_cfg, cfg, state, backup_root, missing_only, results):
                 else:
                     note += " (NAS copy deleted — Drive only)"
             elif status == "gave_up":
-                tag = "✗ GAVE UP"
-                retries = entry.get("retries", "?")
-                note = f"gave_up after {retries} retries — needs manual attention"
+                retries = entry.get("retries", 0)
+                if retries == 0:
+                    # Marked by mark_legacy.py — intentionally skipped pre-PCM recording
+                    tag = "- LEGACY "
+                    note = "intentionally skipped (pre-PCM)"
+                    needs_attention = False
+                else:
+                    tag = "✗ GAVE UP"
+                    note = f"gave_up after {retries} retries — needs manual attention"
             else:
                 tag = "⚠ STUCK  "
                 retries = entry.get("retries", 0)

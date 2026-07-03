@@ -29,7 +29,9 @@ from pathlib import Path
 DRY_RUN = "--dry-run" in sys.argv
 
 STUDIO        = "Studio 3"
-RECORDING     = "Studio 3 27"
+# upload_drive.py uses the session folder name (not the plain SSD name) as the
+# recording key in pcm_recordings when reporting per-session uploads.
+RECORDING     = "Studio 3 27 — 2026-07-03 10:00 — Ram V"  # corrected key
 OLD_FOLDER    = "Studio 3 27 — 2026-07-03 11:30 — Uncategorised"
 NEW_FOLDER    = "Studio 3 27 — 2026-07-03 10:00 — Ram V"
 BACKUP_ROOT   = Path("/volume1/Atem Backup")

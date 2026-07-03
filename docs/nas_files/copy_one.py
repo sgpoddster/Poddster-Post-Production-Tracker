@@ -157,7 +157,10 @@ def main():
                                         resp = ftp.sendcmd(f"MDTM {path}")
                                         ts   = datetime.strptime(resp.split()[-1], "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
                                         prev = session_times.get(suffix)
-                                        if prev is None or ts > datetime.fromisoformat(prev):
+                                        # Keep EARLIEST MDTM per suffix: ISO camera files
+                                        # end at the actual recording end time; the main
+                                        # composite recording is finalised by the ATEM later.
+                                        if prev is None or ts < datetime.fromisoformat(prev):
                                             session_times[suffix] = ts.isoformat()
                                     except Exception:
                                         pass

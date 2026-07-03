@@ -25,7 +25,7 @@ Output key:
     ✓ CORRECT    Already named with a client — mtime confirms same booking
     ✗ WRONG      Already named with a client — mtime says different booking
     ? MTIME MISS Already named with a client — mtime outside booking window
-                 (may be a long copy, or the NAS mtime was reset — not necessarily wrong)
+                 (may be a long copy, or the NAS mtime was reset)
     - NO FILES   Session folder contains no video files to check
 """
 
@@ -47,10 +47,11 @@ SETTINGS     = Path("/volume1/PCM/config/settings.json")
 SGT = timezone(timedelta(hours=8))
 VIDEO_EXT = {".mp4", ".mov", ".mts", ".m2ts", ".mkv"}
 
-# Matches: "Studio 3 27 — 2026-07-03 11:30 — Uncategorised 01"
-#          "Studio 1 5 — 2026-06-15 10:00 — Poddster Media 01"
+# Session folders sit directly under the studio dir:
+#   "Studio 3 27 — 2026-07-03 11:30 — Uncategorised"
+#   "Studio 1 5 — 2026-06-15 10:00 — Poddster Media"
 SESSION_RE = re.compile(
-    r"^(.+?) — (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) — (.+) (\d{2})$"
+    r"^(.+?) — (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) — (.+)$"
 )
 
 
@@ -60,18 +61,25 @@ def base_url():
     return PCM_ENDPOINT.rsplit("/api/pcm/", 1)[0]
 
 
-def get_nas_mtime(session_dir: Path):
-    """Return the latest mtime of video files inside this session folder (UTC)."""
-    latest = None
-    for f in session_dir.rglob("*"):
+def get_nas_mtime(session_dir):
+    """
+    Return the EARLIEST mtime of video files inside this session folder (UTC).
+
+    The ISO camera files (.mp4 in Video ISO Files/) are copied first and reflect
+    the actual recording end time. The main composite recording is the largest file,
+    copied last, and its mtime reflects ATEM finalisation — not recording end.
+    Taking the minimum gives the best proxy for when recording actually stopped.
+    """
+    earliest = None
+    for f in Path(session_dir).rglob("*"):
         if f.is_file() and f.suffix.lower() in VIDEO_EXT:
             mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
-            if latest is None or mtime > latest:
-                latest = mtime
-    return latest
+            if earliest is None or mtime < earliest:
+                earliest = mtime
+    return earliest
 
 
-def resolve_booking(base: str, studio: str, date: str, end_time_sgt: str):
+def resolve_booking(base, studio, date, end_time_sgt):
     """Call resolve-booking API; return (client_name, booking_time) or (None, None)."""
     params = urllib.parse.urlencode(
         {"studio": studio, "date": date, "end_time": end_time_sgt}
@@ -98,9 +106,9 @@ def main():
         )
         sys.exit(1)
 
-    filter_studio       = None
-    uncategorised_only  = False
-    verbose             = False
+    filter_studio      = None
+    uncategorised_only = False
+    verbose            = False
 
     args = sys.argv[1:]
     i = 0
@@ -117,7 +125,6 @@ def main():
         else:
             i += 1
 
-    # Read backup_root from settings
     backup_root = Path("/volume1/Atem Backup")
     if SETTINGS.exists():
         try:
@@ -142,74 +149,68 @@ def main():
         print("No studio directories found (check backup_root or --studio name).")
         sys.exit(0)
 
-    counts = {"fixed": 0, "unresolved": 0, "correct": 0, "wrong": 0,
-              "mtime_miss": 0, "no_files": 0, "total": 0}
+    counts = {
+        "fixed": 0, "unresolved": 0, "correct": 0, "wrong": 0,
+        "mtime_miss": 0, "no_files": 0, "total": 0,
+    }
 
     for studio_dir in studios:
         studio = studio_dir.name
         header_printed = False
 
-        recordings = sorted(d for d in studio_dir.iterdir() if d.is_dir())
-        for rec_dir in recordings:
-            session_dirs = sorted(d for d in rec_dir.iterdir() if d.is_dir())
-            for sess_dir in session_dirs:
-                m = SESSION_RE.match(sess_dir.name)
-                if not m:
-                    continue
+        for sess_dir in sorted(d for d in studio_dir.iterdir() if d.is_dir()):
+            m = SESSION_RE.match(sess_dir.name)
+            if not m:
+                continue
 
-                date           = m.group(2)
-                time_in_name   = m.group(3)
-                client_in_name = m.group(4)
-                is_uncat       = client_in_name.strip().lower() == "uncategorised"
+            date           = m.group(2)
+            time_in_name   = m.group(3)
+            client_in_name = m.group(4).strip()
+            is_uncat       = client_in_name.lower() == "uncategorised"
 
-                if uncategorised_only and not is_uncat:
-                    continue
+            if uncategorised_only and not is_uncat:
+                continue
 
-                counts["total"] += 1
+            counts["total"] += 1
 
-                if not header_printed:
-                    print(f"{'='*64}")
-                    print(f"  {studio}")
-                    print(f"{'='*64}")
-                    header_printed = True
+            if not header_printed:
+                print(f"{'='*64}")
+                print(f"  {studio}")
+                print(f"{'='*64}")
+                header_printed = True
 
-                mtime_utc = get_nas_mtime(sess_dir)
-                if mtime_utc is None:
-                    print(f"  - NO FILES   {sess_dir.name}")
-                    counts["no_files"] += 1
-                    continue
+            mtime_utc = get_nas_mtime(sess_dir)
+            if mtime_utc is None:
+                print(f"  - NO FILES   {sess_dir.name}")
+                counts["no_files"] += 1
+                continue
 
-                mtime_sgt    = mtime_utc.astimezone(SGT)
-                end_time_sgt = mtime_sgt.strftime("%H:%M")
+            mtime_sgt    = mtime_utc.astimezone(SGT)
+            end_time_sgt = mtime_sgt.strftime("%H:%M")
 
-                new_client, new_booking_time = resolve_booking(
-                    base, studio, date, end_time_sgt
-                )
+            new_client, new_booking_time = resolve_booking(base, studio, date, end_time_sgt)
 
-                if is_uncat:
-                    if new_client:
-                        print(f"  ★ FIXED      {sess_dir.name}")
-                        print(f"               → {new_booking_time} — {new_client}  (mtime {end_time_sgt})")
-                        counts["fixed"] += 1
-                    else:
-                        print(f"  ~ UNRESOLVED {sess_dir.name}  (mtime {end_time_sgt})")
-                        counts["unresolved"] += 1
+            if is_uncat:
+                if new_client:
+                    print(f"  ★ FIXED      {sess_dir.name}")
+                    print(f"               → {new_booking_time} — {new_client}  (mtime {end_time_sgt})")
+                    counts["fixed"] += 1
                 else:
-                    if new_client and new_client.strip().lower() != client_in_name.strip().lower():
-                        print(f"  ✗ WRONG      {sess_dir.name}")
-                        print(f"               → {new_booking_time} — {new_client}  (mtime {end_time_sgt})")
-                        counts["wrong"] += 1
-                    elif not new_client:
-                        # Named correctly but mtime falls outside booking window —
-                        # most likely the copy took a while or NAS mtime was touched.
-                        # Not necessarily an error but worth flagging.
-                        if verbose:
-                            print(f"  ? MTIME MISS {sess_dir.name}  (mtime {end_time_sgt}, name says {time_in_name})")
-                        counts["mtime_miss"] += 1
-                    else:
-                        if verbose:
-                            print(f"  ✓ CORRECT    {sess_dir.name}  (mtime {end_time_sgt})")
-                        counts["correct"] += 1
+                    print(f"  ~ UNRESOLVED {sess_dir.name}  (mtime {end_time_sgt})")
+                    counts["unresolved"] += 1
+            else:
+                if new_client and new_client.strip().lower() != client_in_name.lower():
+                    print(f"  ✗ WRONG      {sess_dir.name}")
+                    print(f"               → {new_booking_time} — {new_client}  (mtime {end_time_sgt})")
+                    counts["wrong"] += 1
+                elif not new_client:
+                    if verbose:
+                        print(f"  ? MTIME MISS {sess_dir.name}  (mtime {end_time_sgt}, name says {time_in_name})")
+                    counts["mtime_miss"] += 1
+                else:
+                    if verbose:
+                        print(f"  ✓ CORRECT    {sess_dir.name}  (mtime {end_time_sgt})")
+                    counts["correct"] += 1
 
     print()
     print(f"{'='*64}")

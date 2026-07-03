@@ -147,30 +147,33 @@ def get_session_end_time(manifest, suffix, local_dir):
     """
     Return the end time (UTC datetime) for a session suffix.
 
-    Prefer NAS file mtime (when copy_one.py wrote the file = shortly after
-    recording ended) over SSD FTP MDTM (when the ATEM closed/finalized the
-    file = can be 10-20 min later than actual recording end, causing the
-    booking match to miss its window).
-    """
-    # Primary: NAS file mtime — best proxy for actual recording end time
-    pattern = re.compile(rf' {re.escape(suffix)}\.[a-zA-Z0-9]+$', re.IGNORECASE)
-    latest  = None
-    for f in Path(local_dir).rglob('*'):
-        if f.is_file() and pattern.search(f.name):
-            mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
-            if latest is None or mtime > latest:
-                latest = mtime
-    if latest:
-        return latest
+    Primary: session_times from manifest — the EARLIEST ATEM FTP MDTM across
+    all files for this suffix, as recorded by copy_one.py. The ISO camera files
+    (.mp4 in Video ISO Files/) end at the actual recording end time. The main
+    composite recording (.mp4 in the root) is finalised by the ATEM later, so
+    copy_one.py keeps the minimum MDTM to avoid the late finalisation timestamp.
 
-    # Fallback: SSD FTP MDTM from manifest (ATEM file-close time, less accurate)
+    Fallback: minimum NAS file mtime for files matching this suffix. These are
+    set when copy_one.py copies files from SSD, so they're a reasonable proxy
+    when the manifest has no session_times.
+    """
+    # Primary: SSD FTP MDTM captured by copy_one.py (earliest across files)
     times = manifest.get("session_times", {})
     if suffix in times:
         try:
             return datetime.fromisoformat(times[suffix])
         except Exception:
             pass
-    return None
+
+    # Fallback: earliest NAS file mtime for files matching this suffix
+    pattern  = re.compile(rf' {re.escape(suffix)}\.[a-zA-Z0-9]+$', re.IGNORECASE)
+    earliest = None
+    for f in Path(local_dir).rglob('*'):
+        if f.is_file() and pattern.search(f.name):
+            mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
+            if earliest is None or mtime < earliest:
+                earliest = mtime
+    return earliest
 
 
 def _call_resolve_api(base, secret, studio, date, end_time):

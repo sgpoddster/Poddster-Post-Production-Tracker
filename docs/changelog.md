@@ -47,10 +47,12 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
-## 2026-07-03 — Fix: PCM booking match fails due to ATEM file-close timestamp
+## 2026-07-03 — Fix: PCM session end time uses ATEM file-close timestamp instead of actual recording end
 
 ### Fixed
-- **`docs/nas_files/upload_drive.py`** — `get_session_end_time()` now prefers NAS file mtime over SSD FTP MDTM when NAS files are present. The ATEM updates a recording file's MDTM when it *closes/finalises* the session (which can be 15-20 minutes after the last video frame), causing `resolve_booking()` to miss the correct booking window and label the session "Uncategorised". The NAS file mtime (set when copy_one.py wrote the file, shortly after recording ended) is a much better proxy for actual recording end time. SSD FTP MDTM is now the fallback only when NAS files are not found.
+- **`docs/nas_files/copy_one.py`** — when reading per-file FTP MDTMs from the SSD to populate `session_times` in the manifest, now keeps the **earliest** MDTM per suffix (was: latest). The ISO camera files in `Video ISO Files/` end at the actual recording end time; the main composite recording (`Studio N NN.mp4` in the root) is finalised by the ATEM later (sometimes 15-20 min after recording stops), so keeping the latest was producing the ATEM close time rather than the recording end time.
+- **`docs/nas_files/upload_drive.py`** — `get_session_end_time()` restored to use `session_times` from manifest as primary (now accurate after the copy_one.py fix), with earliest NAS file mtime as fallback. Previous change (preferring NAS mtime) was reverted because NAS mtimes for ISO files were still ~10 min after actual recording end (set when copy_one.py wrote them), whereas the FTP MDTM of ISO files directly from the SSD is the most accurate source.
+- **`docs/nas_files/relink_sessions.py`** — audit tool now uses **minimum** NAS file mtime (was: maximum) when checking existing session folders. Minimum gives the earliest ISO camera file mtime, which is the best proxy available without re-reading from the SSD. Studio 3 27 (11:30 → Uncategorised) now correctly resolves to `10:00 — Ram V`.
 
 ---
 

@@ -146,17 +146,13 @@ def detect_sessions(local_dir, manifest):
 def get_session_end_time(manifest, suffix, local_dir):
     """
     Return the end time (UTC datetime) for a session suffix.
-    Uses ATEM MDTM from manifest if available (accurate recording end time).
-    Falls back to latest local file mtime for that suffix (less accurate).
-    """
-    times = manifest.get("session_times", {})
-    if suffix in times:
-        try:
-            return datetime.fromisoformat(times[suffix])
-        except Exception:
-            pass
 
-    # Fallback: latest mtime of NAS files matching this suffix
+    Prefer NAS file mtime (when copy_one.py wrote the file = shortly after
+    recording ended) over SSD FTP MDTM (when the ATEM closed/finalized the
+    file = can be 10-20 min later than actual recording end, causing the
+    booking match to miss its window).
+    """
+    # Primary: NAS file mtime — best proxy for actual recording end time
     pattern = re.compile(rf' {re.escape(suffix)}\.[a-zA-Z0-9]+$', re.IGNORECASE)
     latest  = None
     for f in Path(local_dir).rglob('*'):
@@ -164,7 +160,17 @@ def get_session_end_time(manifest, suffix, local_dir):
             mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
             if latest is None or mtime > latest:
                 latest = mtime
-    return latest
+    if latest:
+        return latest
+
+    # Fallback: SSD FTP MDTM from manifest (ATEM file-close time, less accurate)
+    times = manifest.get("session_times", {})
+    if suffix in times:
+        try:
+            return datetime.fromisoformat(times[suffix])
+        except Exception:
+            pass
+    return None
 
 
 def _call_resolve_api(base, secret, studio, date, end_time):

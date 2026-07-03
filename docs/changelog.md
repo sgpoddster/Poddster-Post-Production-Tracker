@@ -40,6 +40,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-03 — Fix: PCM booking match fails due to ATEM file-close timestamp
+
+### Fixed
+- **`docs/nas_files/upload_drive.py`** — `get_session_end_time()` now prefers NAS file mtime over SSD FTP MDTM when NAS files are present. The ATEM updates a recording file's MDTM when it *closes/finalises* the session (which can be 15-20 minutes after the last video frame), causing `resolve_booking()` to miss the correct booking window and label the session "Uncategorised". The NAS file mtime (set when copy_one.py wrote the file, shortly after recording ended) is a much better proxy for actual recording end time. SSD FTP MDTM is now the fallback only when NAS files are not found.
+
+---
+
 ## 2026-07-03 — Fix: Due Date Override ignored when current_version is null
 
 ### Fixed

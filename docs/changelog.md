@@ -40,6 +40,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-03 — PCM: retroactive fix for Studio 3 27 Uncategorised session
+
+### Fixed
+- **`docs/nas_files/fix_studio3_27.py`** — one-off script that corrected Studio 3 27 (mislabelled due to ATEM file-close timestamp bug): renamed NAS folder, renamed Drive folder via rclone moveto (no re-upload), and updated `drive_folder` in `pcm_recordings` DB. New name: `Studio 3 27 — 2026-07-03 10:00 — Ram V`.
+
+---
+
 ## 2026-07-03 — PCM: one-time session relink audit tool
 
 ### Added

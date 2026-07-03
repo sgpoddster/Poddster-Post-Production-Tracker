@@ -182,6 +182,16 @@ function formatDate(ts: string | null): string {
   })
 }
 
+// "Studio 3 27 — 2026-07-03 10:00 — Ram V" → "03 Jul, 10:00"
+// Used as RECORDED fallback when copy_started_at is null (session-named rows).
+function recordedFromFolder(drive_folder: string | null): string {
+  if (!drive_folder) return '—'
+  const m = drive_folder.match(/— (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) —/)
+  if (!m) return '—'
+  const d = new Date(`${m[1]}T${m[2]}:00+08:00`)
+  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
 const NAS_RETENTION_DAYS   = 10
 const DRIVE_RETENTION_DAYS = 30
 
@@ -635,7 +645,7 @@ export default function PCMDashboard({
                       <tr key={r.id} className="hover:bg-th/[0.02] transition-colors">
                         <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
                         <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
-                        <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.copy_started_at)}</td>
+                        <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.copy_started_at) !== '—' ? formatDate(r.copy_started_at) : recordedFromFolder(r.drive_folder)}</td>
                         <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
                         <td className="px-4 py-3 text-th/50">{r.file_count ?? '—'}</td>
                         <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.upload_completed_at)}</td>

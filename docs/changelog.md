@@ -40,6 +40,19 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-03 — PCM: RECORDED column now shows actual recording end time
+
+### Added
+- **`supabase/pcm_session_end_at.sql`** — migration adding `session_end_at timestamptz` column to `pcm_recordings`. Run in Supabase SQL Editor.
+- **`docs/nas_files/backfill_session_end.py`** — one-off NAS script that walks all existing session folders, gets the earliest video file mtime (ISO camera files = actual recording end time), and writes it to `session_end_at`. Run after migration: `source /volume1/PCM/config/env.sh && python3 /volume1/PCM/app/backfill_session_end.py`
+
+### Changed
+- **`docs/nas_files/upload_drive.py`** — archive report now includes `session_end_at` (the `session_end_dt` already in scope, from the earliest ISO camera file MDTM).
+- **`app/api/pcm/update/route.ts`** — accepts and persists `session_end_at` field.
+- **`app/pcm/PCMDashboard.tsx`** — RECORDED column now uses `session_end_at` (actual recording end time) as primary, falling back to booking time parsed from `drive_folder` when not yet set.
+
+---
+
 ## 2026-07-03 — PCM: retroactive fix for Studio 3 27 Uncategorised session
 
 ### Fixed

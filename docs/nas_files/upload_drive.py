@@ -508,6 +508,7 @@ def main():
             nas_path=str(session_nas_dir),
             file_count=session_file_count,
             total_bytes=session_bytes,
+            session_end_at=session_end_dt.isoformat() if session_end_dt else None,
         )
         new_sessions += 1
         print(f"[upload] Session {suffix} → {drive_folder}")

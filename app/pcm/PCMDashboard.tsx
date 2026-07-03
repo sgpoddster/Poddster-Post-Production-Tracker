@@ -24,6 +24,7 @@ type Recording = {
   drive_folder: string | null
   retry_count: number | null
   retry_requested: boolean | null
+  session_end_at: string | null
   nas_deleted_at: string | null
   deleted_at: string | null
   created_at: string
@@ -645,7 +646,7 @@ export default function PCMDashboard({
                       <tr key={r.id} className="hover:bg-th/[0.02] transition-colors">
                         <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
                         <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
-                        <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.copy_started_at) !== '—' ? formatDate(r.copy_started_at) : recordedFromFolder(r.drive_folder)}</td>
+                        <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.session_end_at) !== '—' ? formatDate(r.session_end_at) : recordedFromFolder(r.drive_folder)}</td>
                         <td className="px-4 py-3 text-th/50 whitespace-nowrap">{formatBytes(r.total_bytes)}</td>
                         <td className="px-4 py-3 text-th/50">{r.file_count ?? '—'}</td>
                         <td className="px-4 py-3 text-th/40 text-xs whitespace-nowrap">{formatDate(r.upload_completed_at)}</td>

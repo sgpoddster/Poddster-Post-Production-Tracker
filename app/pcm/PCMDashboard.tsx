@@ -67,7 +67,7 @@ const STATE_SORT: Record<string, number> = {
 }
 const STUDIOS    = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4']
 const MAX_RETRIES = 5
-const ONLINE_THRESHOLD_MS = 20 * 60 * 1000 // 20 minutes — discover.py runs every 15 mins
+const ONLINE_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours — uploads can run for 60-90 min, blocking the next scan
 const COMPLETED_PAGE = 20
 
 function Badge({ state, retryCount }: { state: string; retryCount?: number | null }) {

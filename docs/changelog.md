@@ -19,6 +19,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-03 — Fix: PCM dashboard falsely shows ATEMs as Offline during long uploads
+
+### Fixed
+- **`app/pcm/PCMDashboard.tsx`** — `ONLINE_THRESHOLD_MS` increased from 20 minutes to 2 hours. The 20-minute threshold was fine for normal 15-minute scan cycles but fired spuriously during large uploads (76+ GB recordings can take 30-90 minutes), during which discover.py holds the singleton lock and no new status heartbeat is sent.
+
+---
+
 ## 2026-07-03 — Fix: Due Date Override ignored when current_version is null
 
 ### Fixed

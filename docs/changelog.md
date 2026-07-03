@@ -19,6 +19,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-03 — Fix: Due Date Override ignored when current_version is null
+
+### Fixed
+- **`app/api/projects/[id]/route.ts`** — the "Due Date Override" in the Edit modal was silently ignored when a project had `current_version = null` (trigger failed, no version row). The version-change handler would create the version row with today+5 working days, then the override handler re-fetched `current_version` from the DB (still null before the project update committed) and `.eq('version_number', null)` matched nothing. Fixed by deriving the target version number from `body.current_version` when it's present in the request, so the override always applies to the correct (already-created) version row.
+
+---
+
 ## 2026-07-02 — Fix: re-triggered projects missing due date
 
 ### Fixed

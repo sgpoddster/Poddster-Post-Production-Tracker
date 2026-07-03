@@ -89,17 +89,26 @@ export async function PATCH(
   }
 
   // ── Due date override (admin only) ─────────────────────────────────────────
+  // Use the effective version number from the request body if current_version is
+  // also being changed (project DB update hasn't committed yet at this point,
+  // so re-fetching current_version from DB would return the stale value).
   if ('due_date_override' in body && body.due_date_override) {
-    const { data: proj } = await supabase
-      .from('projects')
-      .select('current_version')
-      .eq('id', params.id)
-      .single()
-    if (proj) {
+    let verNum: number | null = null
+    if ('current_version' in body) {
+      verNum = Math.max(1, Math.min(10, Number(body.current_version) || 1))
+    } else {
+      const { data: proj } = await supabase
+        .from('projects')
+        .select('current_version')
+        .eq('id', params.id)
+        .single()
+      verNum = proj?.current_version ?? 1
+    }
+    if (verNum) {
       await supabase.from('versions')
         .update({ due_date: body.due_date_override })
         .eq('project_id', params.id)
-        .eq('version_number', proj.current_version)
+        .eq('version_number', verNum)
     }
   }
 

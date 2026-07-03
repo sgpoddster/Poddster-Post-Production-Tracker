@@ -40,6 +40,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-03 — PCM: one-time session relink audit tool
+
+### Added
+- **`docs/nas_files/relink_sessions.py`** — read-only audit script that walks all NAS session folders, grabs NAS file mtimes, calls the resolve-booking API, and reports whether the stored booking label is correct. Useful for identifying sessions that landed as "Uncategorised" due to the ATEM file-close timestamp bug. Flags: `--studio`, `--uncategorised-only`, `--verbose`. Run: `source /volume1/PCM/config/env.sh && python3 /volume1/PCM/app/relink_sessions.py`
+
+---
+
 ## 2026-07-03 — Fix: PCM booking match fails due to ATEM file-close timestamp
 
 ### Fixed

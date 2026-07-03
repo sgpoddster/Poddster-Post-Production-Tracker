@@ -227,7 +227,7 @@ def main():
             continue
 
         if not rows:
-            print(f"  (no folders found on SSD)\n")
+            print(f"  {'(no issues)' if missing_only else '(no folders found on SSD)'}\n")
             continue
 
         for tag, folder, note, needs_attention in rows:

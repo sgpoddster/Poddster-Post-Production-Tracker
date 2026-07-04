@@ -53,6 +53,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-04 — Fix: PCM upload_drive prevents re-processing a suffix already organised
+
+### Fixed
+- **`docs/nas_files/upload_drive.py`** — added `_suffix_in_sibling()` guard in the session loop. When discover.py re-queues a recording after detecting new SSD sessions, copy_one.py re-copies ALL files from the SSD to a fresh staging folder. If the ATEM has updated file MDTMs between sessions, an earlier suffix can resolve to a different booking name on the second run, causing upload_drive.py to create a new session folder with duplicated content from a previously-organised suffix. The guard scans sibling session folders (named `{recording} — …`) for any file matching the suffix pattern; if found, the suffix is skipped — the files were already organised on a prior run.
+
+---
+
 ## 2026-07-04 — Fix: PCM Studio 2 44 Cora Lee split mislabelled
 
 ### Fixed

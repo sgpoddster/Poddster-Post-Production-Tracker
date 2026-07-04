@@ -288,6 +288,34 @@ def _move_session_files(src_dir: Path, dst_dir: Path, suffix: str):
             shutil.copy2(str(src), str(dst))
 
 
+def _suffix_in_sibling(backup_root: Path, studio: str, recording: str, suffix: str):
+    """
+    Return the sibling session folder Path if it already contains files for
+    `suffix`, else None.
+
+    When discover.py re-queues a recording after detecting new SSD sessions,
+    copy_one.py re-copies ALL files from the SSD to a fresh staging folder.
+    The ATEM can update file MDTMs between sessions, so an earlier suffix may
+    resolve to a different booking name on the second run — and upload_drive.py
+    would create a new session folder with duplicated content.  This guard
+    prevents that by checking whether ANY existing sibling folder already holds
+    files for the suffix before proceeding.
+    """
+    suffix_pattern = re.compile(rf' {re.escape(suffix)}\.[a-zA-Z0-9]+$', re.IGNORECASE)
+    studio_dir = backup_root / studio
+    prefix = recording + " — "  # em dash separator used in session folder names
+    try:
+        for candidate in sorted(studio_dir.iterdir()):
+            if not candidate.is_dir() or not candidate.name.startswith(prefix):
+                continue
+            for f in candidate.rglob('*'):
+                if f.is_file() and suffix_pattern.search(f.name):
+                    return candidate
+    except OSError:
+        pass
+    return None
+
+
 def _count_and_size(path: Path):
     """Return (file_count, total_bytes) for all files under path."""
     count, size = 0, 0
@@ -457,6 +485,16 @@ def main():
         )
         drive_dest       = f"{DRIVE_REMOTE}:{args.studio}/{drive_folder}"
         session_nas_dir  = backup_root / args.studio / drive_folder
+
+        # Guard: if any sibling session folder already holds files for this suffix,
+        # skip — the files were organised on a prior run. This catches the case
+        # where discover.py re-queued the recording after new SSD sessions appeared
+        # and the SSD MDTM for an older suffix changed (causing it to resolve to a
+        # different booking name), which would otherwise create a duplicate folder.
+        existing_sibling = _suffix_in_sibling(backup_root, args.studio, args.recording, suffix)
+        if existing_sibling:
+            print(f"[upload] Suffix {suffix} already in '{existing_sibling.name}' — skipping")
+            continue
 
         # If we've already organised this session (from a previous run of this
         # recording), skip upload + file-move but still continue to the next session.

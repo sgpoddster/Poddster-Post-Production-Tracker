@@ -53,6 +53,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-04 — Fix: PCM Studio 1 6 Adam Carabetta split mislabelled
+
+### Fixed
+- **Manual DB/NAS/Drive fix** — Studio 1 6's second session was mislabelled. The "Adam Carabetta" session folder (on NAS and Drive) contained suffix-01 files (duplicates of Janine Stein's session), while the real Adam Carabetta recording (suffix-02, 62 GB) had been labelled "Uncategorised 16:05". Root cause: discover.py's new-session re-queue triggered a second upload_drive.py run; the second run found the "Uncategorised" session NAS folder already existed, skipped it, then processed suffix-01 files into a new "Adam Carabetta" folder. Fix: deleted the wrong "Adam Carabetta" NAS folder and Drive folder; renamed "Uncategorised 16:05" → "14:00 — Adam Carabetta" on both NAS and Drive (rclone moveto — no re-upload); updated the DB row to reflect the correct recording name, Drive URL, file count (62 GB), and cleared `session_end_at` (NAS mtime reflects file transfer time, not recording end).
+
+---
+
 ## 2026-07-03 — PCM: retroactive fix for Studio 3 27 Uncategorised session
 
 ### Fixed

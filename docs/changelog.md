@@ -53,6 +53,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-04 — Fix: PCM Studio 2 44 Cora Lee split mislabelled
+
+### Fixed
+- **Manual DB/NAS/Drive fix** — Studio 2 44's Cora Lee session (suffix-04, 63 GB) was labelled "Uncategorised 16:50" while a spurious "Cora Lee" session folder contained suffix-01 files (duplicates of Denodo Technologies' morning session). Same root cause as Studio 1 6 Adam: discover.py re-queued the recording when it detected new SSD files; second upload_drive.py run assigned suffix-01 content to the "Cora Lee" folder. Fix: deleted wrong Cora Lee NAS folder and Drive folder; renamed "Uncategorised 16:50" → "15:00 — Cora Lee" on NAS and Drive; updated DB row to correct file count (63 GB), drive URL, and cleared `session_end_at`.
+
+---
+
 ## 2026-07-04 — Fix: PCM Studio 1 6 Adam Carabetta split mislabelled
 
 ### Fixed

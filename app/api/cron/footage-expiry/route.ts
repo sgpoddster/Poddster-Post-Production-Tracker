@@ -68,6 +68,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // ?testTo=email  → send both email types to this address only; no DB changes, no deletions
+  // ?onlyId=uuid   → restrict to one delivery record (combine with testTo for safe previewing)
+  const params    = new URL(req.url).searchParams
+  const testTo    = params.get('testTo')
+  const onlyId    = params.get('onlyId')
+
   const supabase  = createServiceClient()
   const today     = new Date().toISOString().split('T')[0]
   const inTwoDays = new Date(Date.now() + 2 * 86_400_000).toISOString().split('T')[0]
@@ -75,66 +81,59 @@ export async function GET(req: NextRequest) {
   let reminders = 0, expired = 0, deleted = 0
 
   // ── Reminder: expires_at = today + 2 days, reminder not yet sent ─────────────
-  const { data: reminderRows } = await supabase
+  let reminderQuery = supabase
     .from('footage_deliveries')
     .select('id, email, client_name, drive_link')
     .eq('expires_at', inTwoDays)
-    .is('reminder_sent_at', null)
     .not('sent_at', 'is', null)
+  if (!testTo) reminderQuery = reminderQuery.is('reminder_sent_at', null)
+  if (onlyId)  reminderQuery = reminderQuery.eq('id', onlyId)
+  const { data: reminderRows } = await reminderQuery
 
   for (const row of reminderRows ?? []) {
-    if (!row.email || !row.drive_link) continue
-    await sendFootageReminderEmail({
-      toEmails:   [row.email],
-      clientName: row.client_name ?? '',
-      driveLink:  row.drive_link,
-    })
-    await supabase
-      .from('footage_deliveries')
-      .update({ reminder_sent_at: new Date().toISOString() })
-      .eq('id', row.id)
+    if (!row.drive_link) continue
+    const toEmails = testTo ? [testTo] : row.email ? [row.email] : []
+    if (!toEmails.length) continue
+    await sendFootageReminderEmail({ toEmails, clientName: row.client_name ?? '', driveLink: row.drive_link })
+    if (!testTo) {
+      await supabase.from('footage_deliveries').update({ reminder_sent_at: new Date().toISOString() }).eq('id', row.id)
+    }
     reminders++
   }
 
   // ── Expiry: expires_at <= today, expiry email not yet sent ───────────────────
-  const { data: expiredRows } = await supabase
+  let expiredQuery = supabase
     .from('footage_deliveries')
     .select('id, email, client_name, drive_link')
     .lte('expires_at', today)
-    .is('expired_sent_at', null)
     .not('sent_at', 'is', null)
+  if (!testTo) expiredQuery = expiredQuery.is('expired_sent_at', null)
+  if (onlyId)  expiredQuery = expiredQuery.eq('id', onlyId)
+  const { data: expiredRows } = await expiredQuery
 
-  const driveToken = expiredRows?.length ? await getDriveToken() : null
+  const driveToken = (!testTo && expiredRows?.length) ? await getDriveToken() : null
 
   for (const row of expiredRows ?? []) {
-    if (!row.email) continue
+    const toEmails = testTo ? [testTo] : row.email ? [row.email] : []
+    if (!toEmails.length) continue
 
-    await sendFootageExpiredEmail({
-      toEmails:   [row.email],
-      clientName: row.client_name ?? '',
-    })
+    await sendFootageExpiredEmail({ toEmails, clientName: row.client_name ?? '' })
 
-    // Trash the Drive folder
-    let trashed = false
-    if (driveToken) {
-      const folderId = extractFolderId(row.drive_link)
-      if (folderId) {
-        trashed = await trashFolder(folderId, driveToken)
-        if (trashed) deleted++
+    if (!testTo) {
+      let trashed = false
+      if (driveToken) {
+        const folderId = extractFolderId(row.drive_link)
+        if (folderId) { trashed = await trashFolder(folderId, driveToken); if (trashed) deleted++ }
       }
-    }
-
-    await supabase
-      .from('footage_deliveries')
-      .update({
+      await supabase.from('footage_deliveries').update({
         expired_sent_at: new Date().toISOString(),
         drive_link:      trashed ? null : row.drive_link,
-      })
-      .eq('id', row.id)
+      }).eq('id', row.id)
+    }
 
     expired++
   }
 
-  console.log(`[footage-expiry] reminders=${reminders} expired=${expired} deleted=${deleted}`)
-  return NextResponse.json({ ok: true, reminders, expired, deleted })
+  console.log(`[footage-expiry] reminders=${reminders} expired=${expired} deleted=${deleted}${testTo ? ' (test mode)' : ''}`)
+  return NextResponse.json({ ok: true, reminders, expired, deleted, testMode: !!testTo })
 }

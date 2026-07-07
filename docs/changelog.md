@@ -53,6 +53,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-07 — Fix: footage-expiry cron adds testTo + onlyId params
+
+### Changed
+- **`/api/cron/footage-expiry`** — added `?testTo=email` (redirect both reminder and expiry emails to a test address, no DB changes, no Drive folder deletion) and `?onlyId=uuid` (restrict to a single delivery record). Matches the pattern already used by `review-chase`. In test mode `reminder_sent_at` is not set so the same record can be tested multiple times.
+
+---
+
 ## 2026-07-07 — Add: browser-friendly admin trigger endpoints
 
 ### Added

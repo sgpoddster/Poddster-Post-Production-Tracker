@@ -53,6 +53,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-07 — Add: browser-friendly admin trigger endpoints
+
+### Added
+- **`/api/admin/trigger-projects`** — GET/POST, auth via `?key=INGEST_API_KEY`. Takes `?projectIds=id1,id2` (comma-separated). Triggers post-production assignment email + Frame.io folder creation for a batch of `pending_trigger` projects. Same logic as the dashboard trigger button but callable directly from a browser URL.
+- **`/api/admin/send-footage`** — GET/POST, auth via `?key=INGEST_API_KEY`. Takes `?deliveryId=<uuid>`. Sends the footage delivery email for a specific `footage_deliveries` record (requires `drive_link` and `email` to be set), marks it sent, and sets a 7-day expiry.
+
+---
+
 ## 2026-07-04 — Fix: PCM upload_drive prevents re-processing a suffix already organised
 
 ### Fixed

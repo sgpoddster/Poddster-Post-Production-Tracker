@@ -1,15 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { parseCalendarEvent, CalendarPrefill, RawCalendarEvent } from '@/lib/calendarParser'
-
-// Add secondary calendar ID here if needed, comma-separated
-const CALENDAR_IDS = [
-  'singapore@poddster.com',
-  'c_099180ae8058ae26042744b7d7b498279e6395bc1e597962b430313eb194aaaf@group.calendar.google.com',
-  'c_86fc0b239e875e6f748bf85a4df556be4cdd1721e5c3567b27354d60d25c9c40@group.calendar.google.com',
-]
 
 type RangeOption = { label: string; days: number }
 const RANGE_OPTIONS: RangeOption[] = [
@@ -50,74 +42,52 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
     setLoading(true)
     setError(null)
 
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.provider_token
+    const to   = new Date()
+    to.setDate(to.getDate() + 14)
+    const from = new Date()
+    from.setDate(from.getDate() - days)
 
-    if (!token) {
-      setError('Calendar access unavailable. Sign out and sign back in — the new login will request calendar permission.')
+    const params = new URLSearchParams({
+      timeMin: from.toISOString(),
+      timeMax: to.toISOString(),
+    })
+
+    let json: { events?: RawCalendarEvent[]; errors?: string[]; error?: string; setupNeeded?: boolean; serviceAccountEmail?: string }
+    try {
+      const res = await fetch(`/api/calendar/events?${params}`)
+      json = await res.json()
+    } catch {
+      setError('Could not reach the calendar API.')
       setLoading(false)
       return
     }
 
-    const to   = new Date()
-    to.setDate(to.getDate() + 14)                           // 2 weeks ahead
-    const from = new Date()
-    from.setDate(from.getDate() - days)
-
-    const baseParams = {
-      singleEvents: 'true',
-      orderBy:      'startTime',
-      timeMin:      from.toISOString(),
-      timeMax:      to.toISOString(),
-      maxResults:   '2500',                                   // Google's per-page max
+    if (json.error) {
+      if (json.setupNeeded && json.serviceAccountEmail) {
+        setError(`Calendar setup needed: share all three Poddster calendars with ${json.serviceAccountEmail} (viewer access).`)
+      } else {
+        setError(json.error)
+      }
+      setLoading(false)
+      return
     }
 
+    const rawItems = json.events ?? []
     const results: DisplayEvent[] = []
 
-    for (const calId of CALENDAR_IDS) {
-      try {
-        let pageToken: string | undefined = undefined
-        let guard = 0                                         // safety: cap pages
-        do {
-          const params = new URLSearchParams(baseParams)
-          if (pageToken) params.set('pageToken', pageToken)
-
-          const res = await fetch(
-            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?${params}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          )
-          if (res.status === 401) {
-            setError('Your Google session has expired. Sign out and sign back in to refresh it.')
-            setLoading(false)
-            return
-          }
-          if (!res.ok) break
-
-          const json = await res.json()
-          const items: RawCalendarEvent[] = json.items ?? []
-
-          for (const ev of items) {
-            if (!ev.start) continue
-            results.push({
-              id:          ev.id,
-              summary:     ev.summary ?? '(No title)',
-              startISO:    ev.start.dateTime ?? ev.start.date ?? '',
-              endISO:      ev.end?.dateTime  ?? ev.end?.date  ?? '',
-              description: ev.description ?? null,
-              parsed:      parseCalendarEvent(ev),
-            })
-          }
-          pageToken = json.nextPageToken                      // follow pagination
-        } while (pageToken && ++guard < 10)
-      } catch {
-        // silently skip a calendar that fails
-      }
+    for (const ev of rawItems) {
+      if (!ev.start) continue
+      results.push({
+        id:          ev.id,
+        summary:     ev.summary ?? '(No title)',
+        startISO:    ev.start.dateTime ?? ev.start.date ?? '',
+        endISO:      ev.end?.dateTime  ?? ev.end?.date  ?? '',
+        description: ev.description ?? null,
+        parsed:      parseCalendarEvent(ev),
+      })
     }
 
-    // Deduplicate — the same booking can appear on more than one calendar,
-    // which produces duplicate React keys and breaks list reconciliation
-    // (the filter appears to "lock" after the first search).
+    // Deduplicate — the same booking can appear on more than one calendar
     const seen = new Set<string>()
     const unique: DisplayEvent[] = []
     for (const ev of results) {
@@ -127,11 +97,9 @@ export default function CalendarPicker({ onSelect, onClose }: Props) {
       unique.push(ev)
     }
 
-    // Only show PP bookings (episodes or highlights) — footage-only sessions
-    // are handled via the Footage Delivery page, not the project creator.
+    // Only show PP bookings (episodes or highlights)
     const ppOnly = unique.filter(ev => ev.parsed.episodeCount > 0 || ev.parsed.highlightCount > 0)
 
-    // Newest first
     ppOnly.sort((a, b) => b.startISO.localeCompare(a.startISO))
     setEvents(ppOnly)
     setLoading(false)

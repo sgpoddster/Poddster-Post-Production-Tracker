@@ -4,6 +4,20 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-07 — CalendarPicker: move to server-side service account auth
+
+### Changed
+- **`app/api/calendar/events/route.ts`** (new) — server-side route that fetches events from all three Poddster calendars using the Google service account (`GOOGLE_SERVICE_ACCOUNT_JSON`). Requires the calendars to be shared with the service account email as a viewer. Returns `{ events, errors, serviceAccountEmail }`.
+- **`components/CalendarPicker.tsx`** — removed client-side `provider_token` usage entirely; now calls `/api/calendar/events`. Eliminates the "Calendar access unavailable" error that appeared every ~1 hour when the Google OAuth access token expired. If the calendars haven't been shared with the service account yet, the error message shows the exact email to use.
+
+### Why
+The Google OAuth `provider_token` stored in the Supabase session expires after 1 hour and Supabase does not automatically refresh it. Using the service account means calendar access is permanent and not tied to any user's OAuth session.
+
+### Setup required (one-time)
+Share all three calendars (`singapore@poddster.com` and both secondary calendars) with the service account email shown in the error banner, as a viewer.
+
+---
+
 ## 2026-07-07 — Manual fixes: Kevin Wong 13:30 session + Lindsay Rowntree (Studio 2 44)
 
 ### Fixed (DB / NAS / Drive)

@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-07 — Manual fixes: Kevin Wong 13:30 session + Lindsay Rowntree (Studio 2 44)
+
+### Fixed (DB / NAS / Drive)
+- **Studio 1 7 — Kevin Wong 13:30** — suffix-01 (64.49 GB, end time 14:50) was incorrectly labelled as `Kevin Wong (2)` (15:00 booking). Corrected to `Studio 1 7 — 2026-07-06 13:30 — Kevin Wong` on NAS, Drive, and in `pcm_recordings`.
+- **Studio 2 44 — Lindsay Rowntree** — suffix-05 (55.21 GB, end time 14:49) was listed as `Uncategorised`. Matched to Lindsay Rowntree's 14:00–15:00 Iris booking (6 Jul). Renamed on NAS and Drive, DB patched.
+
+---
+
 ## 2026-07-02 — PCM: mark_legacy tool
 
 ### Added

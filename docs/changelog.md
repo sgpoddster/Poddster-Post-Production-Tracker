@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-08 — PCM: resolve-booking fallback for disconnected-SSD sessions
+
+### Changed
+- **`app/api/pcm/resolve-booking/route.ts`** — added fallback match when end time is past all booking windows (e.g. SSD was physically removed mid-session and reconnected later, corrupting file MDTMs). Returns the most recent booking that clearly ended before the recorded timestamp. Response now includes `match_method` (`end_time` or `fallback_last_before`).
+- **`docs/nas_files/upload_drive.py`** — logs a NOTE when a fallback match is used, so it's visible in the upload logs.
+
+---
+
 ## 2026-07-08 — Fix: Frame.io Adobe token race condition + token refresh
 
 ### Fixed

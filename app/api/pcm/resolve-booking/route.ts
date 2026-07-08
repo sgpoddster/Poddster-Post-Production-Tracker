@@ -90,9 +90,10 @@ export async function GET(request: Request) {
   }
 
   let match = null
+  let matchMethod = 'none'
 
   if (end_time_str) {
-    // Match by session end time: booking_start <= end_minutes <= booking_end + buffer.
+    // Primary: booking_start <= end_minutes <= booking_end + buffer.
     // 25-min buffer handles overruns; 30-min gap between bookings keeps it unambiguous.
     const end_minutes = toMinutes(end_time_str)
     if (end_minutes !== null) {
@@ -101,6 +102,21 @@ export async function GET(request: Request) {
         if (!times) continue
         if (times.start <= end_minutes && end_minutes <= times.end + OVERRUN_BUFFER) {
           match = booking
+          matchMethod = 'end_time'
+        }
+      }
+
+      // Fallback: if the timestamp is well past all booking windows (e.g. SSD was
+      // physically disconnected and reconnected later, corrupting file MDTMs), return
+      // the most recent booking that clearly ended before the recorded time.
+      if (!match) {
+        for (const booking of data) {
+          const times = parseBookingTimes(booking.filming_time)
+          if (!times) continue
+          if (times.end + OVERRUN_BUFFER < end_minutes) {
+            match = booking   // sorted ascending — last qualifying booking wins
+            matchMethod = 'fallback_last_before'
+          }
         }
       }
     }
@@ -133,5 +149,6 @@ export async function GET(request: Request) {
   return NextResponse.json({
     client_name:  match.client_name,
     booking_time,
+    match_method: matchMethod,
   })
 }

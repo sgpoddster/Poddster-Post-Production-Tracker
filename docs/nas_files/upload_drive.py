@@ -184,6 +184,9 @@ def _call_resolve_api(base, secret, studio, date, end_time):
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
+            method = data.get("match_method", "")
+            if method == "fallback_last_before":
+                print(f"[upload] NOTE: booking matched via fallback (end time {end_time} past all windows) — SSD may have been disconnected mid-session")
             return data.get("client_name"), data.get("booking_time")
     except Exception as e:
         print(f"[upload] WARNING: resolve-booking API error: {e}")

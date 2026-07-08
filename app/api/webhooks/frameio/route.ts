@@ -14,16 +14,23 @@ import { getHolidayDates } from '@/lib/holidays'
 const ADOBE_CLIENT_ID = '73aff1fed325400292f5abc97ee331b8'
 const ADOBE_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3'
 
-// Exchange the current refresh token for a fresh access token.
-// Adobe returns a NEW refresh token on every exchange (rotating tokens) — we save
-// it back to Supabase so it stays current and never expires due to inactivity.
+// In-flight token exchange promise — concurrent webhook calls share one exchange
+// instead of each triggering their own, which would invalidate each other's
+// rotating refresh token and cause access_denied errors.
+let inflightTokenExchange: Promise<string> | null = null
+
 async function getAdobeAccessToken(): Promise<string> {
+  if (inflightTokenExchange) return inflightTokenExchange
+  inflightTokenExchange = _exchangeToken().finally(() => { inflightTokenExchange = null })
+  return inflightTokenExchange
+}
+
+async function _exchangeToken(): Promise<string> {
   const clientSecret = process.env.ADOBE_CLIENT_SECRET
   if (!clientSecret) throw new Error('ADOBE_CLIENT_SECRET not set')
 
   const supabase = createServiceClient()
 
-  // Read refresh token: prefer the latest one stored in Supabase, fall back to env var.
   const { data: stored } = await supabase
     .from('app_config')
     .select('value')
@@ -49,7 +56,6 @@ async function getAdobeAccessToken(): Promise<string> {
   const json = await res.json()
   if (!json.access_token) throw new Error('No access_token in Adobe IMS response')
 
-  // Persist the new refresh token so the next exchange uses the latest one.
   if (json.refresh_token) {
     await supabase.from('app_config').upsert(
       { key: 'adobe_refresh_token', value: json.refresh_token, updated_at: new Date().toISOString() },

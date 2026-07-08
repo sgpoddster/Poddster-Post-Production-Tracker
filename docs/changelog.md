@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-08 — Fix: Frame.io Adobe token race condition + token refresh
+
+### Fixed
+- **`app/api/webhooks/frameio/route.ts`** — Adobe IMS rotating refresh tokens were being invalidated when two webhook events fired simultaneously (both read the same token, both exchanged it, second got `access_denied`). Fixed by coalescing concurrent `getAdobeAccessToken()` calls into a single in-flight promise — parallel callers await the same exchange rather than each triggering their own.
+- Refreshed the Adobe IMS refresh token via a temporary one-shot OAuth callback endpoint (now removed).
+
+---
+
 ## 2026-07-07 — CalendarPicker: move to server-side service account auth
 
 ### Changed

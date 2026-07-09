@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-09 — PCM: fix copy attempts during active ATEM recording
+
+### Fixed
+- **`docs/nas_files/discover.py`** — `recording_looks_complete()` now checks individual file MDTMs in addition to the folder MDTM. The ATEM only updates the folder MDTM when a new file is created, not while an existing file is being written to, so the folder could appear idle while a recording was still in progress. The file-level scan catches this and prevents copy attempts on actively-recording sessions.
+
+---
+
 ## 2026-07-08 — PCM: resolve-booking fallback for disconnected-SSD sessions
 
 ### Changed

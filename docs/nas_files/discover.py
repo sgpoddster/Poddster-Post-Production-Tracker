@@ -278,14 +278,31 @@ def find_ssd_root(ftp, studio_cfg):
 
 def recording_looks_complete(ftp, root, folder, min_age_minutes):
     path = root.rstrip("/") + "/" + folder
+    now  = datetime.now(timezone.utc)
+
+    def _mdtm_age(p):
+        try:
+            resp = ftp.sendcmd(f"MDTM {p}")
+            ts   = datetime.strptime(resp.split()[-1], "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+            return (now - ts).total_seconds() / 60
+        except Exception:
+            return float("inf")
+
+    # Folder MDTM check (fast path — updated when files are created)
+    if _mdtm_age(path) < min_age_minutes:
+        return False
+
+    # File-level MDTM check: the ATEM only updates the folder MDTM when a new
+    # file is created, not while an existing file is being written to.  Scan
+    # files one level deep and bail out as soon as we find a recently-modified one.
     try:
-        resp = ftp.sendcmd(f"MDTM {path}")
-        ts_str = resp.split()[-1]
-        ts = datetime.strptime(ts_str, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
-        age_minutes = (datetime.now(timezone.utc) - ts).total_seconds() / 60
-        return age_minutes >= min_age_minutes
+        for entry in ftp.nlst(path):
+            if _mdtm_age(entry) < min_age_minutes:
+                return False
     except Exception:
-        return True
+        pass
+
+    return True
 
 
 QUOTA_EXHAUSTED = False  # module-level flag: stop all uploads once quota is hit

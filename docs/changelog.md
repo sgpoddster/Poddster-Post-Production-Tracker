@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-10 — PCM: resume interrupted FTP transfers instead of restarting
+
+### Fixed
+- **`docs/nas_files/core/ftp_copy.py`** — `copy_file()` was deleting any existing `.partial` file and restarting from zero on every copy attempt. Large ISO files (40+ GB) frequently exceed a single FTP session, so this caused an infinite retry cycle where ~38 GB was downloaded, the connection dropped, the partial was deleted, and the 38 GB was downloaded again. Fixed by resuming from the partial's current size using FTP `REST STREAM` (which the ATEM supports), so each retry continues where it left off.
+
+---
+
 ## 2026-07-09 — PCM: fix copy attempts during active ATEM recording
 
 ### Fixed

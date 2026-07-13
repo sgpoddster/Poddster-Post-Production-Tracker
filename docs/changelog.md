@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-13 — PCM: always refresh session_times from ATEM on copy completion
+
+### Fixed
+- **`docs/nas_files/copy_one.py`** — `session_times` in the manifest was only written if it was absent. On a re-run (e.g. recovery copy), the old `session_times` from the first attempt was kept — which only included suffixes that existed at that time. Any new sessions added after the first copy were left without ATEM MDTM data, so `upload_drive.py` fell back to NAS file mtime (the re-copy timestamp, not the recording time), causing those sessions to resolve to the wrong booking. Fixed by always re-querying the ATEM for per-file MDTMs on every copy completion, so `session_times` is always complete and accurate.
+
+---
+
 ## 2026-07-13 — PCM: fix detect_sessions missing new sessions added after first copy attempt
 
 ### Fixed

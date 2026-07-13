@@ -128,7 +128,11 @@ def main():
 
             # Get ATEM timestamps: folder MDTM (recording_time) + per-file MDTMs
             # (session_times) so upload_drive.py can split multi-session folders.
-            if not manifest.get("session_times"):
+            # Always refresh — a prior copy run may have written session_times with
+            # only the suffixes that existed at the time; new sessions added since
+            # then would be missing, causing upload_drive.py to use NAS file mtimes
+            # (the copy timestamp, not the recording time) as a fallback.
+            if True:
                 try:
                     ftp_cfg = cfg["ftp"]
                     ftp     = connect(studio["ip"], ftp_cfg["username"],

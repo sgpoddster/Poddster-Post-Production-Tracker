@@ -126,15 +126,18 @@ def load_manifest(local_dir):
 def detect_sessions(local_dir, manifest):
     """
     Find distinct numeric session suffixes (01, 02...) from ATEM media files.
-    Prefers manifest session_times (accurate ATEM MDTM) over local file scan.
+    Merges manifest session_times (accurate ATEM MDTMs) with a local file scan
+    so that suffixes added after the first copy attempt are never missed.
     Returns a sorted list of suffix strings, e.g. ['01', '02'].
     """
-    if manifest.get("session_times"):
-        return sorted(manifest["session_times"].keys())
+    # session_times provides accurate end-time data for booking resolution, but
+    # may be stale if new sessions appeared on the ATEM after the first copy run
+    # (e.g. two bookings in one ATEM power-on cycle).  Always scan local files
+    # too so those extra suffixes are included.
+    suffixes = set(manifest.get("session_times") or {})
 
-    pattern  = re.compile(r' (\d{2})\.[a-zA-Z0-9]+$', re.IGNORECASE)
-    suffixes = set()
-    skip     = {'pcm_manifest.json', '.pcm_copy_complete'}
+    pattern = re.compile(r' (\d{2})\.[a-zA-Z0-9]+$', re.IGNORECASE)
+    skip    = {'pcm_manifest.json', '.pcm_copy_complete'}
     for f in Path(local_dir).rglob('*'):
         if f.is_file() and f.name not in skip and not f.name.startswith('.'):
             m = pattern.search(f.name)

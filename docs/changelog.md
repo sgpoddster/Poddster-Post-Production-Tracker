@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-13 — PCM: fix detect_sessions missing new sessions added after first copy attempt
+
+### Fixed
+- **`docs/nas_files/upload_drive.py`** — `detect_sessions()` returned early from `session_times` in the manifest without checking local files. If the manifest's `session_times` was written during a first copy attempt when only one ATEM session existed, and additional sessions were recorded before the copy completed, those extra suffixes were never detected. Result: the staging folder was deleted with the extra sessions' files still in it. Fixed by always merging a local file scan into `detect_sessions` so any suffixes present on disk are included regardless of what `session_times` contains. `get_session_end_time()` already falls back to NAS file mtime for suffixes not in `session_times`, so booking resolution still works.
+
+---
+
 ## 2026-07-11 — Backup page: add Deleting/Deleted section
 
 ### Changed

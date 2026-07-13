@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-11 — Backup page: add Deleting/Deleted section
+
+### Changed
+- **`app/pcm/PCMDashboard.tsx`** — added "Deleting / Deleted" section below Completed. Shows archived recordings where NAS deletion has started (`nas_deleted_at` set) plus fully deleted recordings (`state = deleted`), sorted newest first. These rows are no longer shown in the Completed section. Columns: Studio, Recording, Size, Backed Up, NAS Deleted, Drive Deleted.
+
+---
+
 ## 2026-07-10 — PCM: resume interrupted FTP transfers instead of restarting
 
 ### Fixed

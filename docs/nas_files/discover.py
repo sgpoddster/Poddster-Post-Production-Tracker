@@ -302,6 +302,26 @@ def recording_looks_complete(ftp, root, folder, min_age_minutes):
     except Exception:
         pass
 
+    # Size-change check: ATEM file timestamps are set at creation, not at
+    # recording end — a 30-min recording looks 30 min old even while still
+    # being written.  Probe the composite MP4 size twice with a short gap;
+    # if it grew the ATEM is still recording.
+    import time as _time
+    import re as _re
+    composite_re = _re.compile(r' \d+\.mp4$', _re.IGNORECASE)
+    try:
+        entries = ftp.nlst(path)
+        composites = [e for e in entries if composite_re.search(e.split('/')[-1])]
+        if composites:
+            probe = composites[0]
+            size1 = ftp.size(probe)
+            _time.sleep(4)
+            size2 = ftp.size(probe)
+            if size1 is not None and size2 is not None and size2 != size1:
+                return False  # composite is still growing — recording in progress
+    except Exception:
+        pass
+
     return True
 
 

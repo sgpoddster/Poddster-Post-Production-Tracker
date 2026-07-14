@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-14 — PCM: detect active recordings via composite file size growth
+
+### Fixed
+- **`docs/nas_files/discover.py`** — `recording_looks_complete()` was relying solely on MDTM timestamps to detect active recordings, but the ATEM sets file MDTMs at **creation** (start of recording), not at completion. A recording in progress for 30+ minutes would pass the 15-minute age check and trigger a premature copy attempt. Fixed by adding a size-change probe: after MDTM checks pass, the composite MP4's FTP SIZE is measured twice with a 4-second gap — if it grew, the ATEM is still recording and the folder is skipped.
+
+---
+
 ## 2026-07-13 — PCM: always refresh session_times from ATEM on copy completion
 
 ### Fixed

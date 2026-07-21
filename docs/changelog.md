@@ -4,6 +4,15 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-21 — PCM: show total Google Drive storage in dashboard
+
+### Added
+- **`app/api/pcm/drive-stats/route.ts`** — New API endpoint (GET/POST) storing Drive total size in a `pcm_config` Supabase table (requires `CREATE TABLE pcm_config (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`).
+- **`docs/nas_files/discover.py`** — `report_drive_stats()` runs `rclone size gdrive:` once per day (timestamp gated in state.json) and POSTs the result to `/api/pcm/drive-stats`.
+- **`app/pcm/PCMDashboard.tsx`** — Google Drive card now shows total TB and file count below the "750 GB / rolling 24h window" subtitle, fetched from `pcm_config` via Supabase.
+
+---
+
 ## 2026-07-21 — PCM: fix FTP resume crash when partial file is larger than source
 
 ### Fixed

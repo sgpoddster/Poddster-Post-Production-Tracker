@@ -255,6 +255,19 @@ export default function PCMDashboard({
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [showAllCompleted, setShowAllCompleted] = useState(false)
   const [tick, setTick] = useState(0)
+  const [driveStats, setDriveStats] = useState<{ total_bytes: number | null; total_objects: number | null; updated_at: string | null } | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('pcm_config')
+      .select('value, updated_at')
+      .eq('key', 'drive_total')
+      .single()
+      .then(({ data }) => {
+        if (data) setDriveStats({ total_bytes: data.value.total_bytes, total_objects: data.value.total_objects, updated_at: data.updated_at })
+      })
+  }, [])
 
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 1000)
@@ -443,6 +456,11 @@ export default function PCMDashboard({
             <div>
               <p className="text-base font-bold text-th/90">Google Drive</p>
               <p className="text-xs text-th/50 mt-0.5">750 GB / rolling 24 h window</p>
+              {driveStats?.total_bytes != null && (
+                <p className="text-xs text-th/40 mt-0.5">
+                  {(driveStats.total_bytes / 1e12).toFixed(2)} TB total &middot; {driveStats.total_objects.toLocaleString()} files
+                </p>
+              )}
             </div>
             <div className="text-right shrink-0">
               <p className={`text-sm font-bold ${quotaExhausted ? 'text-red-400' : quotaPct >= 75 ? 'text-yellow-400' : 'text-green-400'}`}>

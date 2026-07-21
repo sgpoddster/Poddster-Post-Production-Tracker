@@ -587,6 +587,44 @@ def report_nas_stats():
         print(f"[discover] WARNING: could not report NAS stats: {e}")
 
 
+def report_drive_stats(state: dict):
+    """
+    Run rclone size on the full Drive and report total bytes + object count.
+    Only runs once per day (timestamp stored in state.json under __drive_stats__).
+    """
+    KEY = "__drive_stats__"
+    now = datetime.now(timezone.utc)
+    last = state.get(KEY, {}).get("last_run")
+    if last:
+        try:
+            elapsed = (now - datetime.fromisoformat(last)).total_seconds()
+            if elapsed < 86400:
+                return
+        except Exception:
+            pass
+
+    rclone     = Path("/volume1/PCM/bin/rclone")
+    rclone_cfg = Path("/volume1/PCM/config/rclone.conf")
+    try:
+        result = subprocess.run(
+            [str(rclone), "--config", str(rclone_cfg), "size", "gdrive:", "--json"],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode != 0:
+            print(f"[discover] WARNING: rclone size failed: {result.stderr.strip()}")
+            return
+        data = json.loads(result.stdout)
+        total_bytes   = data.get("bytes", 0)
+        total_objects = data.get("count", 0)
+        from core.reporter import _post
+        _post("/api/pcm/drive-stats", {"total_bytes": total_bytes, "total_objects": total_objects})
+        print(f"[discover] Drive total: {total_bytes / 1e12:.2f} TB, {total_objects:,} files")
+        state[KEY] = {"last_run": now.isoformat()}
+        save_state(state)
+    except Exception as e:
+        print(f"[discover] WARNING: could not report Drive stats: {e}")
+
+
 def cleanup_nas():
     """
     Fetch recordings whose NAS copy is due for deletion (archived 10+ days ago),
@@ -843,6 +881,7 @@ def main():
     print(f"\n[discover] Done. {counters['found']} new, {counters['deferred']} deferred for upload window{quota_msg}.")
 
     report_nas_stats()
+    report_drive_stats(state)
     cleanup_nas()
     cleanup_drive()
 

@@ -81,6 +81,13 @@ def copy_file(ftp, remote, local, expected_size):
     # (40+ GB) frequently exceed a single FTP session; REST STREAM lets us
     # pick up where we left off instead of discarding progress each retry.
     offset = partial.stat().st_size if partial.exists() else 0
+    if offset > 0 and expected_size and offset >= expected_size:
+        # Partial is at least as large as the source — stale from a previous
+        # run where the remote file was later replaced with a smaller one.
+        # Discard it and start fresh to avoid a REST seek past end-of-file.
+        print(f"  discarding oversized partial for {Path(remote).name} ({offset} >= {expected_size})")
+        partial.unlink()
+        offset = 0
     if offset > 0:
         print(f"  resuming {Path(remote).name} from {offset / 1e9:.1f} GB")
 

@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-21 — PCM: fix FTP resume crash when partial file is larger than source
+
+### Fixed
+- **`docs/nas_files/core/ftp_copy.py`** — `copy_file()` would crash with a timeout when a `.partial` file from a previous copy attempt was larger than the current remote file. This happened when an ATEM camera file (e.g. an inactive camera that recorded a small placeholder) was overwritten or replaced with a smaller file between runs. The FTP REST command was issued with an offset beyond the remote file's end, causing the connection to time out. Fixed by checking if `offset >= expected_size` before resuming; if so, the stale partial is deleted and the transfer restarts from zero.
+
+---
+
 ## 2026-07-14 — PCM: detect active recordings via composite file size growth
 
 ### Fixed

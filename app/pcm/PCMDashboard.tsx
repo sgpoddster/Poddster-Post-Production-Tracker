@@ -456,7 +456,7 @@ export default function PCMDashboard({
             <div>
               <p className="text-base font-bold text-th/90">Google Drive</p>
               <p className="text-xs text-th/50 mt-0.5">750 GB / rolling 24 h window</p>
-              {driveStats?.total_bytes != null && (
+              {driveStats?.total_bytes != null && driveStats.total_objects != null && (
                 <p className="text-xs text-th/40 mt-0.5">
                   {(driveStats.total_bytes / 1e12).toFixed(2)} TB total &middot; {driveStats.total_objects.toLocaleString()} files
                 </p>

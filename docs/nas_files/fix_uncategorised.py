@@ -41,7 +41,7 @@ def rclone(*args, check=False):
     return result
 
 
-def get_drive_folder_url(studio: str, folder_name: str) -> str | None:
+def get_drive_folder_url(studio: str, folder_name: str):
     result = rclone("lsjson", "--dirs-only", f"gdrive:{studio}/")
     try:
         for item in json.loads(result.stdout):

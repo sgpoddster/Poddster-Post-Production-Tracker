@@ -56,10 +56,14 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const studio       = searchParams.get('studio')    // e.g. "Studio 4"
-  const date         = searchParams.get('date')       // e.g. "2026-06-30"
-  const end_time_str = searchParams.get('end_time')  // session end time HH:MM (SGT) — preferred
-  const time_str     = searchParams.get('time')       // legacy: recording start time HH:MM
+  const studio       = searchParams.get('studio')     // e.g. "Studio 4"
+  const date         = searchParams.get('date')        // e.g. "2026-07-21" (MDTM date)
+  const end_time_str = searchParams.get('end_time')   // session end time HH:MM (SGT) — preferred
+  const time_str     = searchParams.get('time')        // legacy: recording start time HH:MM
+  // from_date: ATEM folder creation date (first session start). When earlier than `date`,
+  // the composite file MDTMs are unreliable (set when the NEXT session starts, not when
+  // the current session ended). Cross-day absolute-time matching is used instead.
+  const from_date_str = searchParams.get('from_date') // e.g. "2026-07-20"
 
   if (!studio || !date || (!end_time_str && !time_str)) {
     return NextResponse.json({ error: 'studio, date, and end_time (or time) are required' }, { status: 400 })
@@ -71,6 +75,54 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: `Unknown studio: ${studio}` }, { status: 400 })
   }
 
+  const setupFilter = setups.map(s => `setup.ilike.${s}`).join(',')
+
+  // ── Cross-day MDTM mode ───────────────────────────────────────────────────
+  // When from_date < date, composite file MDTMs are known to be unreliable: the
+  // ATEM sets them to the start of the NEXT recording session (which may be on a
+  // different day). Normal same-day window matching would misattribute sessions.
+  // Instead: search all bookings across [from_date, date], compare in absolute
+  // SGT datetime, and return the LAST booking whose end+buffer is strictly before
+  // the session end absolute time.
+  if (from_date_str && from_date_str < date && end_time_str) {
+    const { data: rangeData } = await supabase
+      .from('footage_deliveries')
+      .select('client_name, filming_date, filming_time, setup')
+      .gte('filming_date', from_date_str)
+      .lte('filming_date', date)
+      .not('setup', 'is', null)
+      .or(setupFilter)
+      .order('filming_date', { ascending: true })
+      .order('filming_time', { ascending: true })
+
+    if (rangeData && rangeData.length > 0) {
+      const sessionEndAbs = new Date(`${date}T${end_time_str}:00+08:00`)
+      let crossMatch: typeof rangeData[0] | null = null
+
+      for (const booking of rangeData) {
+        const times = parseBookingTimes(booking.filming_time)
+        if (!times) continue
+        const endH = Math.floor(times.end / 60).toString().padStart(2, '0')
+        const endM = (times.end % 60).toString().padStart(2, '0')
+        const bookingEndAbs = new Date(`${booking.filming_date}T${endH}:${endM}:00+08:00`)
+        const bookingEndWithBuffer = new Date(bookingEndAbs.getTime() + OVERRUN_BUFFER * 60_000)
+        if (bookingEndWithBuffer < sessionEndAbs) {
+          crossMatch = booking  // sorted ascending — last qualifying booking wins
+        }
+      }
+
+      if (crossMatch) {
+        return NextResponse.json({
+          client_name:  crossMatch.client_name,
+          booking_time: crossMatch.filming_time.split('-')[0].trim(),
+          match_method: 'cross_day_range',
+        })
+      }
+    }
+    // Fall through to same-day matching if cross-day found nothing
+  }
+
+  // ── Same-day matching ─────────────────────────────────────────────────────
   // Fetch all bookings for this studio on this date that have a setup.
   // Use ilike per setup value so "Club" matches "club" etc.
   const { data, error } = await supabase
@@ -78,7 +130,7 @@ export async function GET(request: Request) {
     .select('client_name, filming_time, setup')
     .eq('filming_date', date)
     .not('setup', 'is', null)
-    .or(setups.map(s => `setup.ilike.${s}`).join(','))
+    .or(setupFilter)
     .order('filming_time', { ascending: true })
 
   if (error) {

@@ -179,27 +179,37 @@ def get_session_end_time(manifest, suffix, local_dir):
     return earliest
 
 
-def _call_resolve_api(base, secret, studio, date, end_time):
+def _call_resolve_api(base, secret, studio, date, end_time, from_date=None):
     """Call resolve-booking with session end time HH:MM (SGT) for booking window matching."""
-    params = urllib.parse.urlencode({"studio": studio, "date": date, "end_time": end_time})
-    url    = f"{base}/api/pcm/resolve-booking?{params}"
-    req    = urllib.request.Request(url, headers={"x-pcm-secret": secret})
+    params = {"studio": studio, "date": date, "end_time": end_time}
+    if from_date:
+        params["from_date"] = from_date
+    url = f"{base}/api/pcm/resolve-booking?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={"x-pcm-secret": secret})
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
             method = data.get("match_method", "")
             if method == "fallback_last_before":
                 print(f"[upload] NOTE: booking matched via fallback (end time {end_time} past all windows) — SSD may have been disconnected mid-session")
+            elif method == "cross_day_range":
+                print(f"[upload] NOTE: booking matched via cross-day range (ATEM composite MDTM artifact, from_date={from_date})")
             return data.get("client_name"), data.get("booking_time")
     except Exception as e:
         print(f"[upload] WARNING: resolve-booking API error: {e}")
         return None, None
 
 
-def resolve_booking(studio, session_end_dt):
+def resolve_booking(studio, session_end_dt, recording_time=None):
     """
     Resolve client name from footage_deliveries by matching session end time
     to a booking window (booking_start <= end_time <= booking_end + 25 min buffer).
+
+    recording_time: the ATEM folder MDTM (creation time = first session start).
+    When it falls on a different (earlier) day than session_end_dt, ATEM composite
+    file MDTMs are unreliable — they reflect when the NEXT session started, not when
+    the current session ended. In that case, cross-day absolute-time matching is used.
+
     Tries SGT date +/-1 day to handle mtime drift across midnight.
     Returns (client_name, booking_time) or (None, None).
     """
@@ -211,6 +221,12 @@ def resolve_booking(studio, session_end_dt):
     base = endpoint.rsplit("/api/pcm/", 1)[0]
     sgt  = session_end_dt.astimezone(SGT)
 
+    # Determine the folder creation date for cross-day MDTM detection.
+    # If recording_time (folder MDTM) is on an earlier day than session_end_dt,
+    # the composite file MDTMs are unreliable — pass from_date so the API uses
+    # absolute-time matching across the full date range.
+    recording_date = recording_time.astimezone(SGT).strftime("%Y-%m-%d") if recording_time else None
+
     hour = sgt.hour
     # Only try adjacent days when the recording end time is near midnight — the
     # ±1 day fallback exists solely for ATEM MDTM drift that can push a recording
@@ -221,10 +237,15 @@ def resolve_booking(studio, session_end_dt):
     if hour >= 21:   deltas.append(+1)   # late night → might drift to next day
 
     for delta in deltas:
-        candidate  = sgt + timedelta(days=delta)
-        date_str   = candidate.strftime("%Y-%m-%d")
-        end_time   = candidate.strftime("%H:%M")
-        client, bt = _call_resolve_api(base, secret, studio, date_str, end_time)
+        candidate = sgt + timedelta(days=delta)
+        date_str  = candidate.strftime("%Y-%m-%d")
+        end_time  = candidate.strftime("%H:%M")
+
+        # Supply from_date when the folder was created on an earlier day — this
+        # signals to the API that composite MDTMs are unreliable for this session.
+        from_date = recording_date if recording_date and recording_date < date_str else None
+
+        client, bt = _call_resolve_api(base, secret, studio, date_str, end_time, from_date=from_date)
         if client:
             print(f"[upload] Booking found on {date_str}: {client} at {bt}")
             return client, bt
@@ -450,6 +471,17 @@ def main():
     total_bytes    = manifest.get("total_bytes", 0)
     expected_files = manifest.get("file_count", 0)
 
+    # Folder MDTM = when the ATEM created this folder = start of the FIRST session.
+    # Used as the cross-day anchor: if a sub-session's MDTM is on a later day,
+    # composite files were finalised by the next session, not the current one.
+    recording_time = None
+    rec_time_str   = manifest.get("recording_time")
+    if rec_time_str:
+        try:
+            recording_time = datetime.fromisoformat(rec_time_str)
+        except Exception:
+            pass
+
     # --- Quota check (rolling 24h window) ---
     bytes_used = get_quota_used()
     remaining = QUOTA_SAFE_BYTES - bytes_used
@@ -481,7 +513,7 @@ def main():
         print(f"[upload] End time: {session_end_dt}")
 
         if session_end_dt:
-            client_name, booking_time = resolve_booking(args.studio, session_end_dt)
+            client_name, booking_time = resolve_booking(args.studio, session_end_dt, recording_time=recording_time)
         else:
             client_name, booking_time = None, None
         print(f"[upload] Booking: {client_name or 'Uncategorised'} at {booking_time or '?'}")

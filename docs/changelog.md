@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-23 — PCM: fix cross-day ATEM MDTM misattribution (composite files finalised by next session)
+
+### Fixed
+- **`app/api/pcm/resolve-booking/route.ts`** — Added `from_date` query parameter. When the ATEM folder was created on an earlier day than the session MDTM date (meaning composite files were finalised when the *next* session started, not when the current one ended), the API now uses absolute SGT datetime comparison across the full `[from_date, date]` range and returns the last booking whose end+buffer is strictly before the session end time. This correctly attributes sub-sessions whose composite MDTMs have drifted to the following day back to the booking on the original recording day.
+- **`docs/nas_files/upload_drive.py`** — `resolve_booking()` now accepts `recording_time` (ATEM folder MDTM = first session start, read from `manifest["recording_time"]`). When `recording_time.date() < session_end_dt.date()`, `from_date` is passed to the resolve-booking API, activating cross-day absolute-time matching. `_call_resolve_api()` updated to include `from_date` in query params.
+
+---
+
 ## 2026-07-23 — footage-ingest: fix missing bookings caused by 500-event Calendar API cap
 
 ### Fixed

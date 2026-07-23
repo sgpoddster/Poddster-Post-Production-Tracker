@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-07-23 — footage-ingest: fix missing bookings caused by 500-event Calendar API cap
+
+### Fixed
+- **`app/api/cron/footage-ingest/route.ts`** — `fetchCalendarEvents()` was capped at `maxResults: 500` with no pagination. The Calendar API returns events in chronological order from 90 days ago, so any calendar with more than 500 events in the 90+365-day scan window would silently drop recent bookings. The cleanup pass then deleted those events from `footage_deliveries` (since they weren't in `seen`), causing sessions to show as Uncategorised in the PCM dashboard. Fixed by implementing full pagination via `nextPageToken` and raising the per-page limit to 2500.
+
+---
+
 ## 2026-07-21 — PCM: show total Google Drive storage in dashboard
 
 ### Added

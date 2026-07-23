@@ -109,25 +109,37 @@ async function fetchCalendarEvents(calendarId: string, token: string): Promise<R
   const timeMin = new Date(now); timeMin.setDate(timeMin.getDate() - 90)
   const timeMax = new Date(now); timeMax.setDate(timeMax.getDate() + 365)
 
-  const params = new URLSearchParams({
+  const baseParams: Record<string, string> = {
     timeMin:      timeMin.toISOString(),
     timeMax:      timeMax.toISOString(),
     singleEvents: 'true',
     orderBy:      'startTime',
-    maxResults:   '500',
-  })
-
-  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-
-  if (!res.ok) {
-    const text = await res.text()
-    console.warn(`[footage-ingest] calendar ${calendarId} failed: ${res.status} ${text.slice(0, 200)}`)
-    return []
+    maxResults:   '2500',
   }
 
-  const json = await res.json()
-  return (json.items ?? []) as RawCalendarEvent[]
+  const all: RawCalendarEvent[] = []
+  let pageToken: string | undefined
+
+  do {
+    const params = new URLSearchParams(baseParams)
+    if (pageToken) params.set('pageToken', pageToken)
+
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+
+    if (!res.ok) {
+      const text = await res.text()
+      console.warn(`[footage-ingest] calendar ${calendarId} failed: ${res.status} ${text.slice(0, 200)}`)
+      return all
+    }
+
+    const json = await res.json()
+    const items = (json.items ?? []) as RawCalendarEvent[]
+    all.push(...items)
+    pageToken = json.nextPageToken as string | undefined
+  } while (pageToken)
+
+  return all
 }
 
 // Format as "HH:MM - HH:MM" in Singapore time

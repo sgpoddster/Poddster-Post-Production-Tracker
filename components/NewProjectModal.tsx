@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import CalendarPicker from './CalendarPicker'
 import { CalendarPrefill } from '@/lib/calendarParser'
@@ -46,6 +46,40 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
   // Tracks whether the editor was manually chosen — once it is, picking a
   // producer no longer overwrites it.
   const [editorTouched, setEditorTouched] = useState(false)
+
+  type CapacityResult = { ok: boolean; reasons: string[] } | { ok: null } | null
+  const [capacityResult, setCapacityResult] = useState<CapacityResult>(null)
+  const [capacityLoading, setCapacityLoading] = useState(false)
+  const capacityTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Re-run the capacity check whenever the booking slot changes.
+  useEffect(() => {
+    const { filming_date, filming_hour, filming_mins, shoot_duration, setup } = form
+    if (!filming_date || !filming_hour || !shoot_duration || !setup) {
+      setCapacityResult(null)
+      return
+    }
+    const start = `${filming_hour}:${filming_mins}`
+    const startMin = parseInt(filming_hour) * 60 + parseInt(filming_mins)
+    const endMin = startMin + Math.round(parseFloat(shoot_duration) * 60)
+    const end = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`
+
+    if (capacityTimer.current) clearTimeout(capacityTimer.current)
+    capacityTimer.current = setTimeout(async () => {
+      setCapacityLoading(true)
+      try {
+        const params = new URLSearchParams({ date: filming_date, start, end, set: setup })
+        const res = await fetch(`/api/shoots/can-place?${params}`)
+        if (res.ok) setCapacityResult(await res.json())
+        else setCapacityResult(null)
+      } catch {
+        setCapacityResult(null)
+      } finally {
+        setCapacityLoading(false)
+      }
+    }, 400)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.filming_date, form.filming_hour, form.filming_mins, form.shoot_duration, form.setup])
 
   function set(field: string, value: string | number) {
     setForm(f => ({ ...f, [field]: value }))
@@ -98,6 +132,10 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     if (!form.shoot_duration)  { setError('Please select the shoot duration'); return }
     if (form.episode_count + form.highlight_count === 0) { setError('Please add at least one episode or highlight'); return }
     if (!form.drive_link.trim()) { setError('Please add a Drive link'); return }
+    if (capacityResult && capacityResult.ok === false) {
+      setError(`Capacity conflict: ${(capacityResult as { ok: false; reasons: string[] }).reasons.join(' — ')}`)
+      return
+    }
     if (form.job_id.trim() && !/^[A-Fa-f][A-Fa-f0-9]{4}$/.test(form.job_id.trim())) {
       setError('Job ID must be 5 hex characters starting A–F (e.g. A3F2B), or leave blank to auto-generate'); return
     }
@@ -241,6 +279,34 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
               </select>
             </div>
           </div>
+
+          {/* Capacity check indicator */}
+          {(capacityLoading || capacityResult !== null) && (
+            <div className={`flex items-start gap-2 rounded px-3 py-2 text-xs border ${
+              capacityLoading
+                ? 'bg-th/5 border-th/10 text-th/40'
+                : capacityResult?.ok === true
+                  ? 'bg-green-500/10 border-green-500/20 text-green-400'
+                  : capacityResult?.ok === false
+                    ? 'bg-brand-red/10 border-brand-red/20 text-brand-red'
+                    : 'bg-th/5 border-th/10 text-th/40'
+            }`}>
+              {capacityLoading ? (
+                <span>Checking capacity…</span>
+              ) : capacityResult?.ok === true ? (
+                <span>Slot available</span>
+              ) : capacityResult?.ok === false ? (
+                <div>
+                  <p className="font-medium mb-1">Capacity conflict</p>
+                  <ul className="space-y-0.5 list-disc list-inside">
+                    {(capacityResult as { ok: false; reasons: string[] }).reasons.map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* Drive link */}
           <div>

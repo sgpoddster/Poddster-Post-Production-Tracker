@@ -45,7 +45,7 @@ export async function GET() {
 
   const { error } = await supabase
     .from('studio_config')
-    .upsert({ name: 'Poddster Live', config: LIVE_CONFIG, is_live: true }, { onConflict: 'name' })
+    .insert({ name: 'Poddster Live', config: LIVE_CONFIG, is_live: true })
 
   if (error) {
     return NextResponse.json({

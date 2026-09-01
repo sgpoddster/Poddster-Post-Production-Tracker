@@ -47,7 +47,7 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
   // producer no longer overwrites it.
   const [editorTouched, setEditorTouched] = useState(false)
 
-  type CapacityResult = { ok: boolean; reasons: string[] } | { ok: null } | null
+  type CapacityResult = { ok: boolean; reasons: string[]; blocked_by?: string | null } | { ok: null } | null
   const [capacityResult, setCapacityResult] = useState<CapacityResult>(null)
   const [capacityLoading, setCapacityLoading] = useState(false)
   const capacityTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -133,7 +133,9 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     if (form.episode_count + form.highlight_count === 0) { setError('Please add at least one episode or highlight'); return }
     if (!form.drive_link.trim()) { setError('Please add a Drive link'); return }
     if (capacityResult && capacityResult.ok === false) {
-      setError(`Capacity conflict: ${(capacityResult as { ok: false; reasons: string[] }).reasons.join(' — ')}`)
+      const r = capacityResult as { ok: false; reasons: string[]; blocked_by?: string | null }
+      logEnquiry('lost', r.blocked_by ?? null)
+      setError(`Capacity conflict: ${r.reasons.join(' — ')}`)
       return
     }
     if (form.job_id.trim() && !/^[A-Fa-f][A-Fa-f0-9]{4}$/.test(form.job_id.trim())) {
@@ -173,8 +175,27 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
       return
     }
 
+    logEnquiry('booked', null)
     router.refresh()
     onClose()
+  }
+
+  function logEnquiry(outcome: 'booked' | 'lost', blocked_by: string | null) {
+    const { filming_date, filming_hour, filming_mins, shoot_duration, setup } = form
+    if (!filming_date || !filming_hour || !shoot_duration || !setup) return
+    const duration_minutes = Math.round(parseFloat(shoot_duration) * 60)
+    fetch('/api/shoots/enquiry-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: filming_date,
+        start: `${filming_hour}:${filming_mins}`,
+        duration_minutes,
+        set: setup,
+        outcome,
+        blocked_by,
+      }),
+    }).catch(() => {/* fire-and-forget */})
   }
 
   return (

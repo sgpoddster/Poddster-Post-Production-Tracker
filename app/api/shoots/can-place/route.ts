@@ -100,5 +100,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: null, reasons: [], unknown_set: true, detail: msg })
   }
 
-  return NextResponse.json(result)
+  const blocked_by = deriveBlockedBy(result.reasons)
+  return NextResponse.json({ ...result, blocked_by })
+}
+
+function deriveBlockedBy(reasons: string[]): 'room' | 'operator' | 'hours' | null {
+  if (!reasons.length) return null
+  for (const r of reasons) {
+    if (r.includes('Outside')) return 'hours'
+    if (r.includes('operator') || r.includes('No operator')) return 'operator'
+  }
+  return 'room'
 }

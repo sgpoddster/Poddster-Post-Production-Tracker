@@ -153,70 +153,116 @@ const ROOM_STYLE: Record<string, { clip: string; buf: string; label: string; dot
 }
 const FALLBACK_STYLE = { clip: 'bg-th/30', buf: 'bg-th/5 border border-dashed border-th/10', label: 'text-th/50', dot: 'bg-th/40' }
 
-/* ------------------------------------------------------------------ pinch point table */
+/* ------------------------------------------------------------------ pinch points visual */
 
-function PinchPointsTable({ points, config }: { points: PinchPoint[]; config: StudioConfig }) {
-  if (points.length === 0) return (
+function PinchPointsVisual({ ppDays, config }: { ppDays: DayAnalysis[]; config: StudioConfig }) {
+  const pinchDays = ppDays.filter(d => d.atCapacity.length > 0)
+  const allPoints = computePinchPoints(ppDays, config)
+  const summary   = hardDaySummary(allPoints)
+
+  if (pinchDays.length === 0) return (
     <div className="bg-brand-surface rounded-xl border border-brand-surface2 px-5 py-4">
       <h2 className="text-sm font-semibold text-th/90 mb-1">Pinch points</h2>
       <p className="text-xs text-th/35">No fully-committed windows in the next 60 days.</p>
     </div>
   )
 
-  const summary = hardDaySummary(points)
-
   return (
     <div className="bg-brand-surface rounded-xl border border-brand-surface2 overflow-hidden">
+      {/* Header */}
       <div className="px-5 py-3 border-b border-th/[0.05] flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold text-th/90">Pinch points</h2>
-          <p className="text-xs text-th/35 mt-0.5">{points.length} window{points.length !== 1 ? 's' : ''} where nothing can be added</p>
+          <p className="text-xs text-th/35 mt-0.5">
+            {pinchDays.length} day{pinchDays.length !== 1 ? 's' : ''} fully committed in the next 60 days
+          </p>
         </div>
         <span className="text-xs px-2 py-0.5 rounded bg-brand-red/15 text-brand-red font-medium">
-          {points.length} blocked
+          {allPoints.length} window{allPoints.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-th/[0.05]">
-              <th className="text-left px-5 py-2 text-th/30 font-medium uppercase tracking-wide text-[10px] w-32">Date</th>
-              <th className="text-left px-3 py-2 text-th/30 font-medium uppercase tracking-wide text-[10px] w-32">Window</th>
-              <th className="text-left px-3 py-2 text-th/30 font-medium uppercase tracking-wide text-[10px] w-16">Length</th>
-              <th className="text-left px-3 py-2 text-th/30 font-medium uppercase tracking-wide text-[10px]">What&apos;s running</th>
-              <th className="text-left px-5 py-2 text-th/30 font-medium uppercase tracking-wide text-[10px]">Consequence</th>
-            </tr>
-          </thead>
-          <tbody>
-            {points.map((p, i) => {
-              const { date, day } = formatPinchDate(p.date)
-              const whatsRunning = p.rooms.map(r => `${r.label}: ${r.sets.join(' / ')}`).join(' · ')
-              return (
-                <tr key={i} className="border-b border-th/[0.04] hover:bg-th/[0.02] transition-colors last:border-0">
-                  <td className="px-5 py-3 font-medium text-th/80">
-                    {date} <span className="text-th/30 font-normal">{day}</span>
-                  </td>
-                  <td className="px-3 py-3 font-mono text-th/60">{p.start}–{p.end}</td>
-                  <td className="px-3 py-3 text-th/50">
-                    {p.hours % 1 === 0 ? p.hours.toFixed(0) : p.hours.toFixed(1)} h
-                  </td>
-                  <td className="px-3 py-3 text-th/60">{whatsRunning}</td>
-                  <td className="px-5 py-3 text-th/35">
-                    Nothing can be added — all {p.operators} rooms and all {p.operators} operators committed.
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      {/* Visual */}
+      <div className="px-5 pt-4 pb-3 space-y-1.5">
+        {/* Time axis */}
+        <div className="flex items-center gap-3">
+          <div className="w-28 shrink-0" />
+          <div className="flex-1 relative h-4">
+            {[10,11,12,13,14,15,16,17,18].map(h => (
+              <span key={h} className="absolute text-[9px] text-th/25 -translate-x-1/2" style={{ left: `${pct(h * 60)}%` }}>
+                {h}
+              </span>
+            ))}
+          </div>
+          <div className="w-10 shrink-0" />
+        </div>
+
+        {/* One row per pinch day */}
+        {pinchDays.map(day => {
+          const { date, day: dayName } = formatPinchDate(day.date)
+          const atCapSet = new Set(day.atCapacity)
+          const pinnedHours = day.atCapacity.length * config.slotMinutes / 60
+
+          return (
+            <div key={day.date} className="flex items-center gap-3">
+              {/* Date label */}
+              <div className="w-28 shrink-0 flex items-baseline gap-1.5">
+                <span className="text-xs font-medium text-th/80">{date}</span>
+                <span className="text-[10px] text-th/30">{dayName}</span>
+              </div>
+
+              {/* Timeline strip */}
+              <div className="flex-1 relative h-7 bg-th/[0.04] rounded overflow-hidden">
+                {/* Hour gridlines */}
+                {[10,11,12,13,14,15,16,17,18].map(h => (
+                  <div key={h} className="absolute top-0 h-full border-l border-th/[0.08] pointer-events-none" style={{ left: `${pct(h * 60)}%` }} />
+                ))}
+
+                {/* Demand slots */}
+                {day.slotTimes.map((t, i) => {
+                  const d = day.demand[i] ?? 0
+                  if (d === 0) return null
+                  const atCap = atCapSet.has(t)
+                  const slotL = pct(toMinutes(t))
+                  const slotW = pct(toMinutes(t) + config.slotMinutes) - slotL
+                  const colour = atCap
+                    ? 'bg-brand-red/70'
+                    : d >= day.operators - 1
+                    ? 'bg-amber-400/45'
+                    : 'bg-th/[0.14]'
+                  return (
+                    <div key={t} className={`absolute top-0 bottom-0 ${colour}`} style={{ left: `${slotL}%`, width: `${slotW}%` }} />
+                  )
+                })}
+              </div>
+
+              {/* Hours pinched */}
+              <div className="w-10 shrink-0 text-right">
+                <span className="text-[10px] font-mono text-brand-red/70">
+                  {pinnedHours % 1 === 0 ? pinnedHours.toFixed(0) : pinnedHours.toFixed(1)}h
+                </span>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      {summary && (
-        <div className="px-5 py-3 border-t border-th/[0.05] text-xs text-th/40">
-          · {summary}
+      {/* Legend + summary */}
+      <div className="px-5 py-3 border-t border-th/[0.05] flex flex-wrap items-center gap-5 text-[10px] text-th/35">
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-brand-red/70 shrink-0" />
+          <span>At capacity</span>
         </div>
-      )}
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-amber-400/45 shrink-0" />
+          <span>2 of {config.operators.names.length} operators</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-th/[0.14] shrink-0" />
+          <span>1 operator</span>
+        </div>
+        {summary && <span className="ml-auto text-th/25 hidden sm:block">· {summary}</span>}
+      </div>
     </div>
   )
 }
@@ -462,7 +508,7 @@ export default async function ShootsPage({
       </div>
 
       {/* Pinch points — always shows next 60 days regardless of week view */}
-      <PinchPointsTable points={pinchPoints} config={config} />
+      <PinchPointsVisual ppDays={ppDays} config={config} />
 
       {/* Weekly summary strip */}
       <div className="flex items-center gap-6 px-5 py-3 bg-brand-surface rounded-xl border border-brand-surface2 text-sm">

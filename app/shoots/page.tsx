@@ -9,6 +9,7 @@ import {
 } from '@/lib/capacity/capacity-engine'
 import { getLiveConfig } from '@/lib/capacity/config-loader'
 import { loadBookingsForRange } from '@/lib/capacity/bookings-loader'
+import ShootsActions from '@/components/ShootsActions'
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -497,7 +498,8 @@ export default async function ShootsPage({
           <h1 className="text-xl font-semibold text-th/90">Shoots</h1>
           <p className="text-sm text-th/40 mt-0.5">Studio capacity — next 60 days</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <ShootsActions operators={config.operators.names} />
           <Link href={`/shoots?w=${isoDate(prevMonday)}`} className="text-sm px-3 py-1.5 rounded bg-th/[0.06] hover:bg-th/10 text-th/60 hover:text-th transition-colors">←</Link>
           <span className="text-sm font-medium text-th/80 min-w-[160px] text-center">{formatWeekLabel(monday)}</span>
           <Link href={`/shoots?w=${isoDate(nextMonday)}`} className="text-sm px-3 py-1.5 rounded bg-th/[0.06] hover:bg-th/10 text-th/60 hover:text-th transition-colors">→</Link>

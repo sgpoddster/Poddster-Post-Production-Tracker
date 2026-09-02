@@ -6,17 +6,29 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
-/**
- * Returns the live StudioConfig from the database.
- * Falls back to the hardcoded PODDSTER_CONFIG if no live row exists yet.
- */
 export async function getLiveConfig(): Promise<StudioConfig> {
-  const { data } = await supabase
-    .from('studio_config')
-    .select('config')
-    .eq('is_live', true)
-    .single()
+  const today = new Date().toISOString().slice(0, 10)
 
-  if (data?.config) return data.config as StudioConfig
-  return PODDSTER_CONFIG
+  const [{ data: configRow }, { data: leaveRows }] = await Promise.all([
+    supabase.from('studio_config').select('config').eq('is_live', true).single(),
+    supabase.from('operator_leave').select('date, operator').gte('date', today),
+  ])
+
+  const base: StudioConfig = configRow?.config
+    ? (configRow.config as StudioConfig)
+    : PODDSTER_CONFIG
+
+  const fromDB = (leaveRows ?? []).map(r => ({
+    date:     r.date     as string,
+    operator: r.operator as string,
+  }))
+
+  // Merge DB leave on top of config leave, deduplicating by date|operator
+  const existing = new Set(base.operators.leave.map(l => `${l.date}|${l.operator}`))
+  const merged = [
+    ...base.operators.leave,
+    ...fromDB.filter(l => !existing.has(`${l.date}|${l.operator}`)),
+  ]
+
+  return { ...base, operators: { ...base.operators, leave: merged } }
 }

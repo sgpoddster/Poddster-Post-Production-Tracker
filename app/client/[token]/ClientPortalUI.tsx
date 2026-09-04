@@ -202,9 +202,12 @@ export default function ClientPortalUI({ firstName, projects }: Props) {
       <div style={{ maxWidth: 880, margin: '0 auto' }}>
 
         {/* Brand bar */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, paddingTop: 28 }}>
-          <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '0.18em' }}>PODDSTER</div>
-          <div style={{ fontSize: 15, color: '#8a8a8a' }}>Post Production</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 28 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Poddster" style={{ height: 22, width: 'auto' }} />
+          <div style={{ width: 1, height: 20, background: '#2a2a2a' }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-post2.png" alt="Post Production" style={{ height: 20, width: 'auto', opacity: 0.9 }} />
         </div>
 
         {/* Greeting + filters */}

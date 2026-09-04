@@ -9,16 +9,17 @@ const supabase = createClient(
 export async function getLiveConfig(): Promise<StudioConfig> {
   const today = new Date().toISOString().slice(0, 10)
 
-  const [{ data: configRow }, { data: leaveRows }] = await Promise.all([
+  const [{ data: configRow }, leaveResult] = await Promise.all([
     supabase.from('studio_config').select('config').eq('is_live', true).single(),
     supabase.from('operator_leave').select('date, operator').gte('date', today),
   ])
+  const leaveRows = leaveResult.error ? [] : (leaveResult.data ?? [])
 
   const base: StudioConfig = configRow?.config
     ? (configRow.config as StudioConfig)
     : PODDSTER_CONFIG
 
-  const fromDB = (leaveRows ?? []).map(r => ({
+  const fromDB = leaveRows.map(r => ({
     date:     r.date     as string,
     operator: r.operator as string,
   }))

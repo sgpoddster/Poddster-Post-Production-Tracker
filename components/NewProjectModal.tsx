@@ -100,8 +100,8 @@ export default function NewProjectModal({ onClose, clients, editors, currentUser
     if (form.episode_count + form.highlight_count === 0) { setError('Please add at least one episode or highlight'); return }
     if (!form.drive_link.trim()) { setError('Please add a Drive link'); return }
 
-    if (form.job_id.trim() && !/^[A-Fa-f][A-Fa-f0-9]{4}$/.test(form.job_id.trim())) {
-      setError('Job ID must be 5 hex characters starting A–F (e.g. A3F2B), or leave blank to auto-generate'); return
+    if (form.job_id.trim() && !/^[A-Za-z0-9]{5}$/.test(form.job_id.trim())) {
+      setError('Job ID must be exactly 5 alphanumeric characters (e.g. A3F2B), or leave blank to auto-generate'); return
     }
     if (!form.assigned_editor) { setError('Please assign a producer'); return }
     setLoading(true)

@@ -138,11 +138,10 @@ export const isoWeekday = (d: IsoDate): number => {
 
 /* --------------------------------------------------------- config helpers */
 
-export function roomOf(config: StudioConfig, setName: string): string {
+export function roomOf(config: StudioConfig, setName: string): string | null {
   const needle = setName.trim().toLowerCase();
   const room = config.rooms.find((r) => r.sets.some((s) => s.toLowerCase() === needle));
-  if (!room) throw new Error(`Unknown set "${setName}" — add it to a room in StudioConfig.rooms`);
-  return room.id;
+  return room?.id ?? null;
 }
 
 /**
@@ -225,7 +224,7 @@ interface Placed extends Booking {
 
 const place = (config: StudioConfig, b: Booking): Placed => ({
   ...b,
-  roomId: roomOf(config, b.set),
+  roomId: roomOf(config, b.set)!,
   startMin: toMinutes(b.start),
   endMin: toMinutes(b.end),
 });
@@ -242,7 +241,7 @@ export function analyseDay(bookings: Booking[], config: StudioConfig, date: IsoD
   const close = toMinutes(config.hours.close);
   const step = config.slotMinutes;
 
-  const placed = bookings.filter((b) => b.date === date).map((b) => place(config, b)).sort((x, y) => x.startMin - y.startMin);
+  const placed = bookings.filter((b) => b.date === date && roomOf(config, b.set) !== null).map((b) => place(config, b)).sort((x, y) => x.startMin - y.startMin);
 
   // Grid runs wider than opening hours so buffers that spill outside are still counted.
   const grid: number[] = [];
@@ -370,6 +369,7 @@ export function canPlace(
   candidate: { date: IsoDate; start: Time; end: Time; set: string },
 ): PlacementResult {
   const roomId = roomOf(config, candidate.set);
+  if (roomId === null) return { ok: false, reasons: [`Unknown set "${candidate.set}"`] };
   const day = analyseDay(bookings, config, candidate.date);
   const match = day.openSlots[String(toMinutes(candidate.end) - toMinutes(candidate.start))];
   if (match) {

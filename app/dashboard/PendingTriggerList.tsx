@@ -111,7 +111,7 @@ export default function PendingTriggerList({
           )}
         </button>
 
-        <Link href={`/projects/${item.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+        <Link href={`/projects/${item.id}`} className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1" target="_blank" rel="noopener noreferrer">
           <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{item.internal_id}</code>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">

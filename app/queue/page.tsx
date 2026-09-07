@@ -200,7 +200,7 @@ function QueueRow({ project, isAdmin, editorName }: {
     <div className="flex items-center px-3 sm:px-5 py-3.5 sm:py-4 hover:bg-th/[0.03] transition-colors group gap-3 sm:gap-4">
       <span className="hidden sm:block w-3 shrink-0" />
       <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
-      <Link href={`/projects/${project.id}`} className="min-w-0 flex-1">
+      <Link href={`/projects/${project.id}`} className="min-w-0 flex-1" target="_blank" rel="noopener noreferrer">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold text-th group-hover:text-th/90 truncate">
             {project.client_name || '—'}

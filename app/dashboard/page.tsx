@@ -315,7 +315,7 @@ function CompletedRow({ project, editorName }: { project: Project; editorName: s
       ) : (
         <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
       )}
-      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1">
+      <Link href={`/projects/${project.id}`} className="flex items-center gap-4 min-w-0 flex-1" target="_blank" rel="noopener noreferrer">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <span className="text-sm font-medium text-th group-hover:text-th/90 truncate">
@@ -366,7 +366,7 @@ function InProgressRow({ project, isAdmin, editorName }: {
       ) : (
         <code className="hidden sm:block text-sm text-th/45 shrink-0 w-20 font-mono">{project.internal_id}</code>
       )}
-      <Link href={`/projects/${project.id}`} className="min-w-0 flex-1">
+      <Link href={`/projects/${project.id}`} className="min-w-0 flex-1" target="_blank" rel="noopener noreferrer">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold text-th group-hover:text-th/90 truncate">
             {project.client_name || '—'}

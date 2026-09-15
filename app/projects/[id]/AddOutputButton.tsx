@@ -91,7 +91,7 @@ export default function AddOutputButton({ jobId }: { jobId: string }) {
                   onChange={e => setCount(parseInt(e.target.value, 10))}
                   className="w-full mt-1 bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-brand-red/50"
                 >
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
+                  {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
@@ -103,7 +103,7 @@ export default function AddOutputButton({ jobId }: { jobId: string }) {
                   onChange={e => setStartFrom(parseInt(e.target.value, 10))}
                   className="w-full mt-1 bg-brand-surface2 border border-th/10 rounded px-3 py-2 text-sm text-th/80 focus:outline-none focus:border-brand-red/50"
                 >
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
+                  {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
                     <option key={n} value={n}>{type === 'episode' ? `E${n}` : `H${n}`}</option>
                   ))}
                 </select>

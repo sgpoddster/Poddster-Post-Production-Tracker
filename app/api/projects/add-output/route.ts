@@ -11,8 +11,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'job_id and type are required' }, { status: 400 })
   }
 
-  const numCount = Math.max(1, Math.min(10, Number(count)))
-  const numStart = Math.max(1, Math.min(10, Number(start_from)))
+  const numCount = Math.max(1, Math.min(20, Number(count)))
+  const numStart = Math.max(1, Math.min(20, Number(start_from)))
 
   // Fetch all existing rows for this job
   const { data: siblings, error: fetchError } = await supabase

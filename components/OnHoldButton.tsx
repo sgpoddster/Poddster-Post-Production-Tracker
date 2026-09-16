@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 
 interface Props {
@@ -12,18 +13,36 @@ interface Props {
 export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
   const [loading, setLoading] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
   const [showReasonModal, setShowReasonModal] = useState(false)
   const [reason, setReason] = useState('')
   const router = useRouter()
-  const ref = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const openMenu = useCallback(() => {
+    if (!buttonRef.current) return
+    const rect = buttonRef.current.getBoundingClientRect()
+    setMenuPos({
+      top: rect.bottom + window.scrollY + 6,
+      right: window.innerWidth - rect.right,
+    })
+    setMenuOpen(true)
+  }, [])
 
   useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setMenuOpen(false)
+    if (!menuOpen) return
+    function onDown(e: MouseEvent) {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
+        setMenuOpen(false)
+      }
     }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [])
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [menuOpen])
 
   async function putOnHold() {
     setLoading(true)
@@ -60,8 +79,38 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
     setLoading(false)
   }
 
+  const dropdown = menuOpen ? createPortal(
+    <div
+      ref={menuRef}
+      style={{
+        position: 'absolute',
+        top: menuPos.top,
+        right: menuPos.right,
+        zIndex: 9999,
+      }}
+      className="min-w-[180px] rounded-lg border border-th/10 bg-[var(--bg-float)] shadow-xl overflow-hidden"
+    >
+      {onHold ? (
+        <button onClick={resume}
+          className="w-full text-left px-3 py-2.5 text-sm text-th/70 hover:text-th hover:bg-th/[0.06] transition-colors">
+          ▶ Take off hold
+        </button>
+      ) : (
+        <button onClick={() => { setMenuOpen(false); setShowReasonModal(true) }}
+          className="w-full text-left px-3 py-2.5 text-sm text-th/70 hover:text-th hover:bg-th/[0.06] transition-colors">
+          ⏸ Put on hold
+        </button>
+      )}
+      <button onClick={backToDraft}
+        className="w-full text-left px-3 py-2.5 text-sm text-th/70 hover:text-th hover:bg-th/[0.06] border-t border-th/[0.06] transition-colors">
+        ↩ Back to Draft
+      </button>
+    </div>,
+    document.body,
+  ) : null
+
   return (
-    <div ref={ref} className="relative flex items-center gap-2">
+    <div className="relative flex items-center gap-2">
       {onHold && holdReason && (
         <span className="text-xs text-amber-400/60 italic max-w-[140px] truncate" title={holdReason}>
           {holdReason}
@@ -69,7 +118,8 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
       )}
 
       <button
-        onClick={() => setMenuOpen(o => !o)}
+        ref={buttonRef}
+        onClick={() => menuOpen ? setMenuOpen(false) : openMenu()}
         disabled={loading}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40 border whitespace-nowrap ${
           onHold
@@ -80,28 +130,10 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
         {loading ? '…' : onHold ? '⏸ On Hold ▾' : '⏸ Hold ▾'}
       </button>
 
-      {menuOpen && (
-        <div className="absolute right-0 top-full mt-1.5 z-50 min-w-[180px] rounded-lg border border-th/10 bg-[var(--bg-float)] shadow-xl overflow-hidden">
-          {onHold ? (
-            <button onClick={resume}
-              className="w-full text-left px-3 py-2.5 text-sm text-th/70 hover:text-th hover:bg-th/[0.06] transition-colors">
-              ▶ Take off hold
-            </button>
-          ) : (
-            <button onClick={() => { setMenuOpen(false); setShowReasonModal(true) }}
-              className="w-full text-left px-3 py-2.5 text-sm text-th/70 hover:text-th hover:bg-th/[0.06] transition-colors">
-              ⏸ Put on hold
-            </button>
-          )}
-          <button onClick={backToDraft}
-            className="w-full text-left px-3 py-2.5 text-sm text-th/70 hover:text-th hover:bg-th/[0.06] border-t border-th/[0.06] transition-colors">
-            ↩ Back to Draft
-          </button>
-        </div>
-      )}
+      {dropdown}
 
       {showReasonModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60">
           <div className="bg-brand-surface border border-th/10 rounded-xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
             <div>
               <h3 className="text-sm font-semibold text-th">Put on hold</h3>

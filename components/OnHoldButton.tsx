@@ -16,6 +16,7 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
   const [showReasonModal, setShowReasonModal] = useState(false)
   const [reason, setReason] = useState('')
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; right: number } | null>(null)
   const router = useRouter()
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -109,18 +110,38 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
     document.body,
   ) : null
 
+  const tooltip = tooltipPos && onHold && holdReason ? createPortal(
+    <div
+      style={{
+        position: 'absolute',
+        top: tooltipPos.top,
+        right: tooltipPos.right,
+        zIndex: 9999,
+        transform: 'translateY(-100%)',
+        marginTop: -6,
+      }}
+      className="max-w-[220px] rounded-lg border border-amber-400/20 bg-[var(--bg-float)] shadow-xl px-3 py-2 text-xs text-amber-300/90 pointer-events-none"
+    >
+      {holdReason}
+      <div style={{ position: 'absolute', bottom: -5, right: 16, width: 10, height: 5, overflow: 'hidden' }}>
+        <div style={{ width: 8, height: 8, background: 'var(--bg-float)', border: '1px solid', borderColor: 'rgb(251 191 36 / 0.2)', transform: 'rotate(45deg)', marginTop: -4, marginLeft: 1 }} />
+      </div>
+    </div>,
+    document.body,
+  ) : null
+
   return (
     <div className="relative flex items-center gap-2">
-      {onHold && holdReason && (
-        <span className="text-xs text-amber-400/60 italic max-w-[140px] truncate" title={holdReason}>
-          {holdReason}
-        </span>
-      )}
-
       <button
         ref={buttonRef}
         onClick={() => menuOpen ? setMenuOpen(false) : openMenu()}
         disabled={loading}
+        onMouseEnter={() => {
+          if (!onHold || !holdReason || !buttonRef.current) return
+          const rect = buttonRef.current.getBoundingClientRect()
+          setTooltipPos({ top: rect.top + window.scrollY - 6, right: window.innerWidth - rect.right })
+        }}
+        onMouseLeave={() => setTooltipPos(null)}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40 border whitespace-nowrap ${
           onHold
             ? 'bg-amber-400 hover:bg-amber-300 border-amber-400 text-black font-bold'
@@ -129,6 +150,8 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
       >
         {loading ? '…' : onHold ? '⏸ On Hold ▾' : '⏸ Hold ▾'}
       </button>
+
+      {tooltip}
 
       {dropdown}
 

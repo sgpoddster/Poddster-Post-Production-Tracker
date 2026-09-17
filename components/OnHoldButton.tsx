@@ -110,22 +110,19 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
     document.body,
   ) : null
 
-  const tooltip = tooltipPos && onHold && holdReason ? createPortal(
+  const tooltip = tooltipPos && onHold ? createPortal(
     <div
       style={{
-        position: 'absolute',
+        position: 'fixed',
         top: tooltipPos.top,
         right: tooltipPos.right,
         zIndex: 9999,
-        transform: 'translateY(-100%)',
-        marginTop: -6,
+        transform: 'translateY(calc(-100% - 8px))',
       }}
-      className="max-w-[220px] rounded-lg border border-amber-400/20 bg-[var(--bg-float)] shadow-xl px-3 py-2 text-xs text-amber-300/90 pointer-events-none"
+      className="max-w-[240px] rounded-lg border border-amber-400/20 bg-[var(--bg-float)] shadow-xl px-3 py-2 text-xs text-amber-300/80 pointer-events-none"
     >
-      {holdReason}
-      <div style={{ position: 'absolute', bottom: -5, right: 16, width: 10, height: 5, overflow: 'hidden' }}>
-        <div style={{ width: 8, height: 8, background: 'var(--bg-float)', border: '1px solid', borderColor: 'rgb(251 191 36 / 0.2)', transform: 'rotate(45deg)', marginTop: -4, marginLeft: 1 }} />
-      </div>
+      <span className="block text-amber-400/50 uppercase tracking-wider text-[10px] mb-0.5">Hold reason</span>
+      {holdReason || <span className="italic text-th/30">No reason given</span>}
     </div>,
     document.body,
   ) : null
@@ -137,9 +134,9 @@ export default function OnHoldButton({ projectId, onHold, holdReason }: Props) {
         onClick={() => menuOpen ? setMenuOpen(false) : openMenu()}
         disabled={loading}
         onMouseEnter={() => {
-          if (!onHold || !holdReason || !buttonRef.current) return
+          if (!onHold || !buttonRef.current) return
           const rect = buttonRef.current.getBoundingClientRect()
-          setTooltipPos({ top: rect.top + window.scrollY - 6, right: window.innerWidth - rect.right })
+          setTooltipPos({ top: rect.top, right: window.innerWidth - rect.right })
         }}
         onMouseLeave={() => setTooltipPos(null)}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40 border whitespace-nowrap ${

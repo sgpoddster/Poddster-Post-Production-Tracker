@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       email_2:    email_2    || null,
       email_3:    email_3    || null,
       exclude_from_reminders: !!exclude_from_reminders,
+      has_post_production: true,
     })
     .select()
     .single()

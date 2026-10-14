@@ -70,6 +70,11 @@ const STATE_SORT: Record<string, number> = {
 const STUDIOS    = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4']
 const MAX_RETRIES = 5
 const ONLINE_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours — uploads can run for 60-90 min, blocking the next scan
+// The ATEM SSDs are a rolling buffer — once full (~10 days of footage) the oldest
+// recordings are wiped. If a recording hasn't been copied OFF the ATEM onto the NAS
+// within this many days, it's at real risk of permanent loss. Flag loudly before then.
+const ATEM_WIPE_DAYS = 10
+const BACKUP_RISK_DAYS = 5 // half the wipe window — leaves time to intervene manually
 // An active record (copying/uploading) pushes a progress report every ~10s. If we
 // haven't heard anything for this long, the run has died — flag it, don't show a
 // runaway "1126h" timer as if it were still going.
@@ -415,6 +420,26 @@ export default function PCMDashboard({
   if (stalledRecords.length > 0) problems.push({
     severity: 'error',
     text: `${stalledRecords.length} transfer${stalledRecords.length > 1 ? 's' : ''} stalled (no progress for 30+ min): ${stalledRecords.map(r => `${r.studio}/${r.recording}`).join(', ')}.`,
+  })
+  // DATA-LOSS RISK: recordings still on the ATEM (not yet copied to NAS) that are
+  // aging toward the ~10-day auto-wipe. This is the highest-severity problem.
+  const ageDays = (r: Recording) => {
+    const ref = r.discovered_at ?? r.created_at
+    return ref ? (Date.now() - new Date(ref).getTime()) / 86_400_000 : 0
+  }
+  const atWipeRisk = recordings.filter(
+    r => (r.state === 'discovered' || r.state === 'copying') && ageDays(r) > BACKUP_RISK_DAYS,
+  )
+  if (atWipeRisk.length > 0) problems.push({
+    severity: 'error',
+    text: `⚠ DATA-LOSS RISK: ${atWipeRisk.length} recording${atWipeRisk.length > 1 ? 's' : ''} still not copied off the ATEM after ${BACKUP_RISK_DAYS}+ days — the ATEM wipes old footage at ~${ATEM_WIPE_DAYS} days. Copy now: ${atWipeRisk.map(r => `${r.studio}/${r.recording}`).join(', ')}.`,
+  })
+  // On the NAS but not yet on Drive for too long — safe from the ATEM wipe, but a
+  // single NAS copy with no second backup.
+  const unbackedUp = recordings.filter(r => r.state === 'copy_complete' && ageDays(r) > BACKUP_RISK_DAYS)
+  if (unbackedUp.length > 0) problems.push({
+    severity: 'warn',
+    text: `${unbackedUp.length} recording${unbackedUp.length > 1 ? 's' : ''} on the NAS but not yet backed up to Drive for ${BACKUP_RISK_DAYS}+ days (single copy only).`,
   })
   if (gaveUpCount > 0) problems.push({
     severity: 'warn',

@@ -66,7 +66,7 @@ def ignore(name):
     return (
         name in IGNORE_EXACT
         or name.startswith(IGNORE_PREFIXES)
-        or name.lower().endswith((".exe", ".dmg", ".txt", ".plist"))
+        or name.lower().endswith((".exe", ".dmg", ".txt", ".plist", ".xml", ".ini", ".db"))
         or name.lower().startswith("install sandisk")
     )
 

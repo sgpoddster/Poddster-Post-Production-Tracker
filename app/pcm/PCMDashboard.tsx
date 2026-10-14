@@ -70,6 +70,10 @@ const STATE_SORT: Record<string, number> = {
 const STUDIOS    = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4']
 const MAX_RETRIES = 5
 const ONLINE_THRESHOLD_MS = 2 * 60 * 60 * 1000 // 2 hours — uploads can run for 60-90 min, blocking the next scan
+// An active record (copying/uploading) pushes a progress report every ~10s. If we
+// haven't heard anything for this long, the run has died — flag it, don't show a
+// runaway "1126h" timer as if it were still going.
+const STALL_THRESHOLD_MS = 30 * 60 * 1000 // 30 minutes of silence = stalled
 const COMPLETED_PAGE = 20
 
 function Badge({ state, retryCount }: { state: string; retryCount?: number | null }) {
@@ -174,6 +178,14 @@ function elapsed(ts: string | null): string {
   if (secs < 60)   return `${secs}s`
   if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`
   return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`
+}
+
+// A record is "stalled" if it claims to be actively copying/uploading but hasn't
+// reported progress within STALL_THRESHOLD_MS — i.e. the run died mid-transfer.
+function isStalled(r: Recording): boolean {
+  if (r.state !== 'copying' && r.state !== 'uploading') return false
+  if (!r.updated_at) return false
+  return (Date.now() - new Date(r.updated_at).getTime()) > STALL_THRESHOLD_MS
 }
 
 function formatDate(ts: string | null): string {
@@ -388,6 +400,31 @@ export default function PCMDashboard({
   const failingCount = inProgress.filter(r => r.state === 'failed' && r.recording !== '—').length
   const gaveUpCount  = inProgress.filter(r => r.state === 'gave_up').length
 
+  // ── Health controls: surface problems instead of hiding them ──────────────
+  void tick // re-evaluate staleness each second
+  const nasStat    = studioStats.find(s => s.studio === 'NAS')
+  const nasOffline = !nasStat || (Date.now() - new Date(nasStat.updated_at).getTime()) >= ONLINE_THRESHOLD_MS
+  const stalledRecords = inProgress.filter(isStalled)
+  const problems: { severity: 'error' | 'warn'; text: string }[] = []
+  if (nasOffline) problems.push({
+    severity: 'error',
+    text: nasStat
+      ? `NAS offline — last reported ${timeAgo(nasStat.updated_at)}. Nothing is being backed up right now.`
+      : `NAS has never reported in. Check it's powered on and connected.`,
+  })
+  if (stalledRecords.length > 0) problems.push({
+    severity: 'error',
+    text: `${stalledRecords.length} transfer${stalledRecords.length > 1 ? 's' : ''} stalled (no progress for 30+ min): ${stalledRecords.map(r => `${r.studio}/${r.recording}`).join(', ')}.`,
+  })
+  if (gaveUpCount > 0) problems.push({
+    severity: 'warn',
+    text: `${gaveUpCount} recording${gaveUpCount > 1 ? 's' : ''} gave up after ${MAX_RETRIES} retries — need manual attention.`,
+  })
+  if (failingCount > 0) problems.push({
+    severity: 'warn',
+    text: `${failingCount} recording${failingCount > 1 ? 's' : ''} failing and retrying.`,
+  })
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 
@@ -411,15 +448,40 @@ export default function PCMDashboard({
         </div>
       </div>
 
+      {/* Health banner — shows the moment anything is wrong, hidden when all clear */}
+      {problems.length > 0 ? (
+        <div className={`rounded-lg border p-4 space-y-2 ${
+          problems.some(p => p.severity === 'error')
+            ? 'border-red-500/30 bg-red-500/[0.07]'
+            : 'border-amber-500/30 bg-amber-500/[0.06]'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className={`text-sm font-semibold ${problems.some(p => p.severity === 'error') ? 'text-red-300' : 'text-amber-300'}`}>
+              {problems.some(p => p.severity === 'error') ? '● Problem detected' : '● Needs attention'}
+            </span>
+          </div>
+          <ul className="space-y-1">
+            {problems.map((p, i) => (
+              <li key={i} className={`text-xs flex items-start gap-2 ${p.severity === 'error' ? 'text-red-200/90' : 'text-amber-200/90'}`}>
+                <span className="mt-0.5 shrink-0">{p.severity === 'error' ? '✕' : '⚠'}</span>
+                <span>{p.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-green-500/20 bg-green-500/[0.05] px-4 py-2.5 flex items-center gap-2">
+          <span className="text-sm font-medium text-green-400">● All systems healthy</span>
+          <span className="text-xs text-th/40">— NAS online, no stalled or failed transfers</span>
+        </div>
+      )}
+
       {/* NAS + Drive status row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
         {/* Synology NAS card */}
         {(() => {
-          const nasStat   = studioStats.find(s => s.studio === 'NAS')
-          const nasOnline = nasStat
-            ? (Date.now() - new Date(nasStat.updated_at).getTime()) < ONLINE_THRESHOLD_MS
-            : false
+          const nasOnline = !nasOffline
           const nasName   = nasStat?.ssd_root ?? 'Synology NAS'
           return (
             <div className="rounded-lg border border-th/[0.08] bg-brand-surface p-4 flex flex-col">
@@ -603,16 +665,21 @@ export default function PCMDashboard({
               </thead>
               <tbody className="divide-y divide-th/[0.04]">
                 {inProgress.map(r => {
-                  const isActive   = ['copying', 'uploading'].includes(r.state)
+                  const stalled    = isStalled(r)
+                  const isActive   = ['copying', 'uploading'].includes(r.state) && !stalled
                   const canRetry   = ['failed', 'gave_up'].includes(r.state)
                   return (
-                    <tr key={r.id} className={`transition-colors ${isActive ? 'bg-blue-500/[0.03]' : 'hover:bg-th/[0.02]'}`}>
+                    <tr key={r.id} className={`transition-colors ${stalled ? 'bg-amber-500/[0.05]' : isActive ? 'bg-blue-500/[0.03]' : 'hover:bg-th/[0.02]'}`}>
                       <td className="px-4 py-3 font-medium text-th/80 whitespace-nowrap">{r.studio}</td>
                       <td className="px-4 py-3 font-mono text-xs text-th/60">{r.recording}</td>
                       <td className="px-4 py-3 min-w-[200px]">
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge state={r.state} retryCount={r.retry_count} />
-                          {isActive && (
+                          {stalled ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400">
+                              ⚠ Stalled · no update {timeAgo(r.updated_at)}
+                            </span>
+                          ) : isActive && (
                             <span className="text-xs text-th/30">
                               {elapsed(r.state === 'copying' ? r.copy_started_at : r.upload_started_at)}
                             </span>

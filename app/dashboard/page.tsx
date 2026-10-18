@@ -151,12 +151,15 @@ export default async function DashboardPage({
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10">
-      <StaffLeaveBanner />
+      <div className="flex flex-col gap-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-th tracking-tight">Staff offline</h2>
+        <StaffLeaveBanner />
+      </div>
       <div className="flex flex-col gap-3">
         {/* Row 1: title + new project button */}
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl sm:text-2xl font-bold text-th tracking-tight">
-            {isAdmin ? 'Dashboard' : 'My Dashboard'}
+            {isAdmin ? 'All Projects' : 'My Projects'}
           </h1>
           <NewProjectButton clients={clients} editors={editors} currentUserEmail={user.email ?? ''} />
         </div>

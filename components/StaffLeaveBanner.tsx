@@ -2,6 +2,7 @@ import { fetchStaffLeave } from '@/lib/staff-leave'
 import { createClient } from '@/lib/supabase/server'
 
 const EDITOR_EMAILS = [
+  'ben@poddster.com',
   'rusette@poddster.com',
   'claudine@poddster.com',
   'dain@poddster.com',

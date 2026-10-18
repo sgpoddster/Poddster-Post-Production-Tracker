@@ -1,5 +1,15 @@
-import { fetchStaffLeave, LeaveEntry } from '@/lib/staff-leave'
+import { fetchStaffLeave } from '@/lib/staff-leave'
 import { createClient } from '@/lib/supabase/server'
+
+const EDITOR_EMAILS = [
+  'rusette@poddster.com',
+  'claudine@poddster.com',
+  'dain@poddster.com',
+  'jake@poddster.com',
+  'kirk@poddster.com',
+  'mark@poddster.com',
+  'martin@poddster.com',
+]
 
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start + 'T12:00:00')
@@ -10,30 +20,12 @@ function formatDateRange(start: string, end: string): string {
   return `${s.getDate()} ${months[s.getMonth()]} – ${e.getDate()} ${months[e.getMonth()]}`
 }
 
-function daysFromNow(dateStr: string): number {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const d = new Date(dateStr + 'T12:00:00')
-  return Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-}
-
-function UpcomingPill({ days }: { days: number }) {
-  const label = days === 1 ? 'tomorrow' : `in ${days} days`
-  const style = days <= 2
-    ? 'bg-amber-400/15 text-amber-300 border border-amber-400/20'
-    : 'bg-th/[0.06] text-th/40 border border-th/10'
-  return (
-    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${style}`}>
-      {label}
-    </span>
-  )
-}
-
 export default async function StaffLeaveBanner() {
   const supabase = await createClient()
   const { data: profiles } = await supabase
     .from('user_profiles')
     .select('email, display_name')
+    .in('email', EDITOR_EMAILS)
 
   const editorsByEmail: Record<string, string> = {}
   for (const p of profiles ?? []) {
@@ -44,51 +36,61 @@ export default async function StaffLeaveBanner() {
 
   const { today, upcoming } = await fetchStaffLeave(editorsByEmail)
 
-  if (today.length === 0 && upcoming.length === 0) return null
+  const offlineToday = new Set(today.map(e => e.name))
+  const offlineSoon = new Map(upcoming.map(e => [e.name, e]))
+
+  // Sort: offline today first, then upcoming, then online
+  const editors = EDITOR_EMAILS
+    .map(email => ({ email, name: editorsByEmail[email] ?? email }))
+    .filter(e => e.name)
+    .sort((a, b) => {
+      const aOff = offlineToday.has(a.name) ? 0 : offlineSoon.has(a.name) ? 1 : 2
+      const bOff = offlineToday.has(b.name) ? 0 : offlineSoon.has(b.name) ? 1 : 2
+      return aOff - bOff
+    })
 
   return (
-    <div className="rounded-xl border border-th/[0.07] bg-brand-surface px-4 py-3.5 space-y-3">
-      {today.length > 0 && (
-        <div>
-          <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider mb-2">Offline today</p>
-          <div className="flex flex-wrap gap-2">
-            {today.map((e: LeaveEntry) => (
-              <div
-                key={`${e.name}-${e.startDate}`}
-                className="flex items-center gap-2 bg-th/[0.05] border border-th/[0.08] rounded-lg px-3 py-1.5"
-              >
+    <div className="rounded-xl border border-th/[0.07] bg-brand-surface px-4 py-3.5">
+      <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider mb-2.5">Staff offline</p>
+      <div className="flex flex-wrap gap-2">
+        {editors.map(({ name }) => {
+          const isOffToday = offlineToday.has(name)
+          const upcoming = offlineSoon.get(name)
+
+          if (isOffToday) {
+            const entry = today.find(e => e.name === name)!
+            return (
+              <div key={name} className="flex items-center gap-2 rounded-lg px-3 py-1.5 border"
+                style={{ background: 'rgba(226,75,74,0.08)', borderColor: 'rgba(226,75,74,0.2)' }}>
                 <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
-                <span className="text-sm font-medium text-th">{e.name}</span>
-                {e.endDate !== e.startDate && (
-                  <span className="text-xs text-th/35">until {formatDateRange(e.endDate, e.endDate)}</span>
+                <span className="text-sm font-medium text-th/80 whitespace-nowrap">{name}</span>
+                {entry.endDate !== entry.startDate && (
+                  <span className="text-xs whitespace-nowrap" style={{ color: 'rgba(226,75,74,0.65)' }}>
+                    until {formatDateRange(entry.endDate, entry.endDate)}
+                  </span>
                 )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            )
+          }
 
-      {upcoming.length > 0 && (
-        <div className={today.length > 0 ? 'border-t border-th/[0.06] pt-3' : ''}>
-          <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider mb-2">Coming up</p>
-          <div className="flex flex-wrap gap-2">
-            {upcoming.map((e: LeaveEntry) => {
-              const days = daysFromNow(e.startDate)
-              return (
-                <div
-                  key={`${e.name}-${e.startDate}`}
-                  className="flex items-center gap-2 bg-th/[0.05] border border-th/[0.08] rounded-lg px-3 py-1.5"
-                >
-                  <span className="w-2 h-2 rounded-full bg-th/25 shrink-0" />
-                  <span className="text-sm font-medium text-th/70">{e.name}</span>
-                  <span className="text-xs text-th/35">{formatDateRange(e.startDate, e.endDate)}</span>
-                  <UpcomingPill days={days} />
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+          if (upcoming) {
+            return (
+              <div key={name} className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-th/[0.04] border border-amber-400/15">
+                <span className="w-2 h-2 rounded-full bg-amber-400/60 shrink-0" />
+                <span className="text-sm font-medium text-th/70 whitespace-nowrap">{name}</span>
+                <span className="text-xs text-th/35 whitespace-nowrap">{formatDateRange(upcoming.startDate, upcoming.endDate)}</span>
+              </div>
+            )
+          }
+
+          return (
+            <div key={name} className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-th/[0.04] border border-th/[0.07]">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#3ddc97' }} />
+              <span className="text-sm font-medium text-th/60 whitespace-nowrap">{name}</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

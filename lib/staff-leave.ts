@@ -15,6 +15,10 @@ export interface StaffLeaveData {
 
 const SGPRODUCTION_CALENDAR_ID = 'sgproduction@poddster.com'
 
+export async function getServiceAccountTokenDebug(): Promise<string | null> {
+  return getServiceAccountToken()
+}
+
 async function getServiceAccountToken(): Promise<string | null> {
   const saJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
   if (!saJson) return null

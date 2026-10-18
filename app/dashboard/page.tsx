@@ -152,7 +152,7 @@ export default async function DashboardPage({
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10">
       <div className="flex flex-col gap-3">
-        <h2 className="text-xl sm:text-2xl font-bold text-th tracking-tight">Staff offline</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-th tracking-tight">Producer availability</h2>
         <StaffLeaveBanner />
       </div>
       <div className="flex flex-col gap-3">

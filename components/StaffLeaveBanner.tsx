@@ -12,6 +12,11 @@ const EDITOR_EMAILS = [
   'sam@poddster.com',
 ]
 
+// Fallback names for editors not yet in user_profiles
+const FALLBACK_NAMES: Record<string, string> = {
+  'sam@poddster.com': 'Sam Lim',
+}
+
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start + 'T12:00:00')
   const e = new Date(end + 'T12:00:00')
@@ -28,7 +33,7 @@ export default async function StaffLeaveBanner() {
     .select('email, display_name')
     .in('email', EDITOR_EMAILS)
 
-  const editorsByEmail: Record<string, string> = {}
+  const editorsByEmail: Record<string, string> = { ...FALLBACK_NAMES }
   for (const p of profiles ?? []) {
     if (p.email && p.display_name) {
       editorsByEmail[p.email.toLowerCase()] = p.display_name
@@ -52,7 +57,7 @@ export default async function StaffLeaveBanner() {
 
   return (
     <div className="rounded-xl border border-th/[0.07] bg-brand-surface px-4 py-3.5">
-      <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider mb-2.5">Staff offline</p>
+      <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider mb-2.5">Producer availability</p>
       <div className="flex flex-wrap gap-2">
         {editors.map(({ name }) => {
           const isOffToday = offlineToday.has(name)

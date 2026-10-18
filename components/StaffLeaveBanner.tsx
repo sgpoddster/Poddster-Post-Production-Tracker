@@ -71,14 +71,17 @@ export default async function StaffLeaveBanner() {
       {upcoming.length > 0 && (
         <div className={today.length > 0 ? 'border-t border-th/[0.06] pt-3' : ''}>
           <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider mb-2">Coming up</p>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {upcoming.map((e: LeaveEntry) => {
               const days = daysFromNow(e.startDate)
               return (
-                <div key={`${e.name}-${e.startDate}`} className="flex items-center gap-3 text-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-th/25 shrink-0" />
-                  <span className="font-medium text-th/80 shrink-0">{e.name}</span>
-                  <span className="text-th/40 text-xs">{formatDateRange(e.startDate, e.endDate)}</span>
+                <div
+                  key={`${e.name}-${e.startDate}`}
+                  className="flex items-center gap-2 bg-th/[0.05] border border-th/[0.08] rounded-lg px-3 py-1.5"
+                >
+                  <span className="w-2 h-2 rounded-full bg-th/25 shrink-0" />
+                  <span className="text-sm font-medium text-th/70">{e.name}</span>
+                  <span className="text-xs text-th/35">{formatDateRange(e.startDate, e.endDate)}</span>
                   <UpcomingPill days={days} />
                 </div>
               )

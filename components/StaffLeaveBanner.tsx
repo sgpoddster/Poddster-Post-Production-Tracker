@@ -1,4 +1,5 @@
 import { fetchStaffLeave, LeaveEntry } from '@/lib/staff-leave'
+import { createClient } from '@/lib/supabase/server'
 
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start + 'T12:00:00')
@@ -29,7 +30,19 @@ function UpcomingPill({ days }: { days: number }) {
 }
 
 export default async function StaffLeaveBanner() {
-  const { today, upcoming } = await fetchStaffLeave()
+  const supabase = await createClient()
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('email, display_name')
+
+  const editorsByEmail: Record<string, string> = {}
+  for (const p of profiles ?? []) {
+    if (p.email && p.display_name) {
+      editorsByEmail[p.email.toLowerCase()] = p.display_name
+    }
+  }
+
+  const { today, upcoming } = await fetchStaffLeave(editorsByEmail)
 
   if (today.length === 0 && upcoming.length === 0) return null
 

@@ -55,13 +55,16 @@ function toDateStr(d: Date): string {
   return d.toISOString().split('T')[0]
 }
 
-function parseName(title: string): string {
-  const colonIdx = title.indexOf(':')
-  if (colonIdx !== -1) return title.slice(colonIdx + 1).trim()
-  return title.trim()
+type CalendarEvent = {
+  summary?: string
+  start?: { date?: string }
+  end?: { date?: string }
+  attendees?: Array<{ email?: string; displayName?: string; self?: boolean; organizer?: boolean }>
 }
 
-export async function fetchStaffLeave(): Promise<StaffLeaveData> {
+export async function fetchStaffLeave(
+  editorsByEmail: Record<string, string> = {}
+): Promise<StaffLeaveData> {
   const token = await getServiceAccountToken()
   if (!token) return { today: [], upcoming: [] }
 
@@ -87,7 +90,7 @@ export async function fetchStaffLeave(): Promise<StaffLeaveData> {
   if (!res.ok) return { today: [], upcoming: [] }
 
   const json = await res.json()
-  const items: Array<{ summary?: string; start?: { date?: string }; end?: { date?: string } }> = json.items ?? []
+  const items: CalendarEvent[] = json.items ?? []
 
   const workingDays: Set<string> = new Set()
   const cursor = new Date(now)
@@ -98,13 +101,34 @@ export async function fetchStaffLeave(): Promise<StaffLeaveData> {
     cursor.setDate(cursor.getDate() + 1)
   }
 
+  function resolveName(item: CalendarEvent): string | null {
+    // Prefer attendee email matched against known editors
+    const attendees = (item.attendees ?? []).filter(a => !a.organizer && !a.self)
+    for (const a of attendees) {
+      if (a.email && editorsByEmail[a.email.toLowerCase()]) {
+        return editorsByEmail[a.email.toLowerCase()]
+      }
+    }
+    // Fall back to attendee displayName
+    const first = attendees[0]
+    if (first?.displayName) return first.displayName
+    if (first?.email) return first.email
+    // Last resort: parse title after colon
+    if (item.summary) {
+      const colonIdx = item.summary.indexOf(':')
+      if (colonIdx !== -1) return item.summary.slice(colonIdx + 1).trim()
+      return item.summary.trim()
+    }
+    return null
+  }
+
   const todayEntries: LeaveEntry[] = []
   const upcomingEntries: LeaveEntry[] = []
   const seenUpcoming = new Set<string>()
 
   for (const item of items) {
-    if (!item.summary || !item.start?.date) continue
-    const name = parseName(item.summary)
+    if (!item.start?.date) continue
+    const name = resolveName(item)
     if (!name) continue
 
     const startStr = item.start.date
@@ -113,7 +137,7 @@ export async function fetchStaffLeave(): Promise<StaffLeaveData> {
     endExclusive.setDate(endExclusive.getDate() - 1)
     const endStr = toDateStr(endExclusive)
 
-    const entry: LeaveEntry = { name, title: item.summary, startDate: startStr, endDate: endStr }
+    const entry: LeaveEntry = { name, title: item.summary ?? '', startDate: startStr, endDate: endStr }
 
     if (startStr <= todayStr && todayStr <= endStr) {
       todayEntries.push(entry)

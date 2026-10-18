@@ -10,14 +10,9 @@ export interface LeaveEntry {
 export interface StaffLeaveData {
   today: LeaveEntry[]
   upcoming: LeaveEntry[]
-  _debug?: object
 }
 
 const SGPRODUCTION_CALENDAR_ID = 'c_afed12b95d84dca4b4b5d24d982c93e13f70a86002206af3cf943f053200e1ac@group.calendar.google.com'
-
-export async function getServiceAccountTokenDebug(): Promise<string | null> {
-  return getServiceAccountToken()
-}
 
 async function getServiceAccountToken(): Promise<string | null> {
   const saJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
@@ -68,12 +63,11 @@ function parseName(title: string): string {
 
 export async function fetchStaffLeave(): Promise<StaffLeaveData> {
   const token = await getServiceAccountToken()
-  if (!token) return { today: [], upcoming: [], _debug: { error: 'no token' } }
+  if (!token) return { today: [], upcoming: [] }
 
   const now = new Date()
   const todayStr = toDateStr(now)
   const endDate = addWorkingDays(now, 5)
-  // Add a couple extra calendar days to ensure we cover 5 working days
   endDate.setDate(endDate.getDate() + 3)
   const endStr = toDateStr(endDate)
 
@@ -90,18 +84,14 @@ export async function fetchStaffLeave(): Promise<StaffLeaveData> {
     { headers: { Authorization: `Bearer ${token}` }, next: { revalidate: 900 } },
   )
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    return { today: [], upcoming: [], _debug: { status: res.status, body, todayStr, endStr } }
-  }
+  if (!res.ok) return { today: [], upcoming: [] }
 
   const json = await res.json()
   const items: Array<{ summary?: string; start?: { date?: string }; end?: { date?: string } }> = json.items ?? []
 
-  // Calculate the 5 working days window
   const workingDays: Set<string> = new Set()
   const cursor = new Date(now)
-  cursor.setDate(cursor.getDate() + 1) // start from tomorrow
+  cursor.setDate(cursor.getDate() + 1)
   while (workingDays.size < 5) {
     const dow = cursor.getDay()
     if (dow !== 0 && dow !== 6) workingDays.add(toDateStr(cursor))
@@ -118,7 +108,6 @@ export async function fetchStaffLeave(): Promise<StaffLeaveData> {
     if (!name) continue
 
     const startStr = item.start.date
-    // end date in Google Calendar all-day events is exclusive
     const endDateRaw = item.end?.date ?? startStr
     const endExclusive = new Date(endDateRaw)
     endExclusive.setDate(endExclusive.getDate() - 1)
@@ -137,5 +126,5 @@ export async function fetchStaffLeave(): Promise<StaffLeaveData> {
     }
   }
 
-  return { today: todayEntries, upcoming: upcomingEntries, _debug: { todayStr, endStr, rawCount: items.length, titles: items.map(i => i.summary) } }
+  return { today: todayEntries, upcoming: upcomingEntries }
 }

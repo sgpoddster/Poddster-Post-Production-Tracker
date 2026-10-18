@@ -13,7 +13,7 @@ export interface StaffLeaveData {
   _debug?: object
 }
 
-const SGPRODUCTION_CALENDAR_ID = 'sgproduction@poddster.com'
+const SGPRODUCTION_CALENDAR_ID = 'c_afed12b95d84dca4b4b5d24d982c93e13f70a86002206af3cf943f053200e1ac@group.calendar.google.com'
 
 export async function getServiceAccountTokenDebug(): Promise<string | null> {
   return getServiceAccountToken()

@@ -9,6 +9,7 @@ const EDITOR_EMAILS = [
   'kirk@poddster.com',
   'mark@poddster.com',
   'martin@poddster.com',
+  'sam@poddster.com',
 ]
 
 function formatDateRange(start: string, end: string): string {

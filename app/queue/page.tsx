@@ -12,6 +12,7 @@ import OnHoldButton from '@/components/OnHoldButton'
 import { ProducerFilter } from '@/app/dashboard/ProducerFilter'
 import { DueFilter } from './DueFilter'
 import { ClientFilter } from './ClientFilter'
+import StaffLeaveBanner from '@/components/StaffLeaveBanner'
 
 export default async function QueuePage({
   searchParams,
@@ -105,6 +106,7 @@ export default async function QueuePage({
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+      <StaffLeaveBanner />
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>

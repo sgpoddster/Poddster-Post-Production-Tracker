@@ -18,6 +18,7 @@ import { SortControl } from './SortControl'
 import PendingTriggerList from './PendingTriggerList'
 import MarkDoneButton from '../queue/MarkDoneButton'
 import CompleteButton from '@/components/CompleteButton'
+import StaffLeaveBanner from '@/components/StaffLeaveBanner'
 import UndoButton from '@/components/UndoButton'
 import UndoToDraftButton from '@/components/UndoToDraftButton'
 import OnHoldButton from '@/components/OnHoldButton'
@@ -150,6 +151,7 @@ export default async function DashboardPage({
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10">
+      <StaffLeaveBanner />
       <div className="flex flex-col gap-3">
         {/* Row 1: title + new project button */}
         <div className="flex items-center justify-between gap-3">

@@ -58,7 +58,7 @@ export default async function StaffLeaveBanner() {
 
   return (
     <div className="rounded-xl border border-th/[0.07] bg-brand-surface px-4 py-3.5">
-      <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider mb-2.5">Producer availability</p>
+      <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider mb-2.5">Who is in and who is out!</p>
       <div className="flex flex-wrap gap-2">
         {editors.map(({ name }) => {
           const isOffToday = offlineToday.has(name)

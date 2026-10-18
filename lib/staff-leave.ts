@@ -10,6 +10,7 @@ export interface LeaveEntry {
 export interface StaffLeaveData {
   today: LeaveEntry[]
   upcoming: LeaveEntry[]
+  _debug?: object
 }
 
 const SGPRODUCTION_CALENDAR_ID = 'sgproduction@poddster.com'
@@ -63,7 +64,7 @@ function parseName(title: string): string {
 
 export async function fetchStaffLeave(): Promise<StaffLeaveData> {
   const token = await getServiceAccountToken()
-  if (!token) return { today: [], upcoming: [] }
+  if (!token) return { today: [], upcoming: [], _debug: { error: 'no token' } }
 
   const now = new Date()
   const todayStr = toDateStr(now)
@@ -85,7 +86,10 @@ export async function fetchStaffLeave(): Promise<StaffLeaveData> {
     { headers: { Authorization: `Bearer ${token}` }, next: { revalidate: 900 } },
   )
 
-  if (!res.ok) return { today: [], upcoming: [] }
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    return { today: [], upcoming: [], _debug: { status: res.status, body, todayStr, endStr } }
+  }
 
   const json = await res.json()
   const items: Array<{ summary?: string; start?: { date?: string }; end?: { date?: string } }> = json.items ?? []
@@ -129,5 +133,5 @@ export async function fetchStaffLeave(): Promise<StaffLeaveData> {
     }
   }
 
-  return { today: todayEntries, upcoming: upcomingEntries }
+  return { today: todayEntries, upcoming: upcomingEntries, _debug: { todayStr, endStr, rawCount: items.length, titles: items.map(i => i.summary) } }
 }

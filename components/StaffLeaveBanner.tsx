@@ -77,7 +77,7 @@ export default async function StaffLeaveBanner() {
               return (
                 <div key={`${e.name}-${e.startDate}`} className="flex items-center gap-3 text-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-th/25 shrink-0" />
-                  <span className="font-medium text-th/80 w-28 shrink-0">{e.name}</span>
+                  <span className="font-medium text-th/80 shrink-0">{e.name}</span>
                   <span className="text-th/40 text-xs">{formatDateRange(e.startDate, e.endDate)}</span>
                   <UpcomingPill days={days} />
                 </div>

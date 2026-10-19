@@ -4,6 +4,25 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-19 — Admin: Drive Storage tab
+
+### Added
+- **`lib/drive-scan.ts`** — Core Drive API helpers: `getDriveToken()` (service account JWT), `listAllFilesInDrive()` (paginated), `aggregateByClientFolder()` (client-level storage totals), `extractShootFolders()` (depth-3 shoot detection using Cam A/B/C + Audio heuristic), `trashDriveFolder()`.
+- **`supabase/drive_scan.sql`** — Migration creating `drive_scan_folders` table (client-level stats per drive).
+- **`supabase/drive_scan_shoots.sql`** — Migration creating `drive_scan_shoots` table (shoot-level stats per drive).
+- **`app/api/admin/drive/scan/route.ts`** — POST endpoint (admin session auth) to manually trigger a full Drive scan and upsert both tables. Deletes stale rows no longer present on Drive.
+- **`app/api/admin/drive/trash/route.ts`** — POST endpoint to move a Drive folder to trash; requires admin session + `ADMIN_TRASH_PASSWORD` env var confirmation.
+- **`app/api/cron/drive-scan/route.ts`** — GET endpoint authenticated by `CRON_SECRET`; same scan logic as manual route. Scheduled daily at 02:00 via `vercel.json`.
+- **`app/admin/DriveManager.tsx`** — New admin Drive tab component. Per-drive sections each show: top-10 storage strip (clickable to select client), click-to-select autocomplete search (type → dropdown of matching client names → click to lock selection), selected client summary card, and session table (oldest first, age colour-coded red >90d / amber >60d, default 10 rows with "Show all N" toggle). Trash button on folders/sessions triggers password-gated modal.
+- **`app/admin/page.tsx`** — "Drive" tab wired up; fetches `drive_scan_folders` and `drive_scan_shoots` from Supabase and passes to `DriveManager`.
+
+### Notes
+- Shoot detection heuristic: a folder only counts as a shoot if it contains at least one child folder named `audio` or matching `/^cam\s*[a-z0-9]/i`. Branding/support folders are excluded automatically.
+- Drive root IDs: `client_raw = 0AMwW0RURekMfUk9PVA`, `post_production = 0AOgf3l3lzd1vUk9PVA`.
+- Service account: `900391242734-compute@developer.gserviceaccount.com` — must be Content Manager on both Shared Drives.
+
+---
+
 ## 2026-07-23 — PCM: fix cross-day ATEM MDTM misattribution (composite files finalised by next session)
 
 ### Fixed

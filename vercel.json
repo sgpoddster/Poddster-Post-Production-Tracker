@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/footage-expiry",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/drive-scan",
+      "schedule": "0 2 * * *"
     }
   ]
 }

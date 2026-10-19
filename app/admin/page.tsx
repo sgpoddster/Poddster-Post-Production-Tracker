@@ -6,6 +6,7 @@ import ClientManager from './ClientManager'
 import HolidayManager from './HolidayManager'
 import FrameioBackfill from './FrameioBackfill'
 import FrameioFolderBackfill from './FrameioFolderBackfill'
+import DriveManager from './DriveManager'
 
 export default async function AdminPage({
   searchParams,
@@ -19,15 +20,16 @@ export default async function AdminPage({
   const profile = await getUserProfile()
   if (profile?.role !== 'admin') redirect('/dashboard')
 
-  const tab = ['clients', 'holidays', 'tools'].includes(searchParams?.tab ?? '')
-    ? (searchParams!.tab as 'clients' | 'holidays' | 'tools')
+  const tab = ['clients', 'holidays', 'tools', 'drive'].includes(searchParams?.tab ?? '')
+    ? (searchParams!.tab as 'clients' | 'holidays' | 'tools' | 'drive')
     : 'team'
 
   const svc = createServiceClient()
-  const [{ data: users }, { data: clients }, { data: holidays }] = await Promise.all([
+  const [{ data: users }, { data: clients }, { data: holidays }, { data: driveFolders }] = await Promise.all([
     supabase.from('user_profiles').select('*').order('display_name'),
     supabase.from('clients').select('*, portal_token').order('name'),
     svc.from('holidays').select('*').order('date'),
+    svc.from('drive_scan_folders').select('*').order('size_bytes', { ascending: false }),
   ])
 
   return (
@@ -55,6 +57,9 @@ export default async function AdminPage({
         </TabLink>
         <TabLink href="/admin?tab=tools" active={tab === 'tools'}>
           Tools
+        </TabLink>
+        <TabLink href="/admin?tab=drive" active={tab === 'drive'}>
+          Drive
         </TabLink>
       </div>
 
@@ -97,6 +102,13 @@ export default async function AdminPage({
         <section className="space-y-4">
           <FrameioBackfill />
           <FrameioFolderBackfill />
+        </section>
+      )}
+
+      {/* Drive tab */}
+      {tab === 'drive' && (
+        <section className="space-y-4">
+          <DriveManager folders={driveFolders ?? []} />
         </section>
       )}
 

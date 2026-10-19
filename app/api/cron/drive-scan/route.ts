@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       size_bytes:       s.size_bytes,
       file_count:       s.file_count,
       created_at_drive: s.created_at_drive,
+      paid_storage:     s.paid_storage,
       last_scanned_at:  scannedAt,
     }))
     if (clientRows.length > 0) {

@@ -4,6 +4,15 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-19 — Drive tab: paid storage badge
+
+### Added
+- **`supabase/drive_scan_paid_storage.sql`** — Migration adding `paid_storage boolean DEFAULT false` column to `drive_scan_folders`.
+- **`lib/drive-scan.ts`** — `aggregateByClientFolder` now detects paid storage: recursively checks whether any non-folder file within the client's tree has "delete" in its name (case-insensitive). Result stored in `ClientFolderStat.paid_storage`.
+- **`app/admin/DriveManager.tsx`** — `PaidBadge` component (amber "Paid" pill with coin icon). Shown next to client name in the top-10 storage strip, the autocomplete dropdown, and the selected client summary card.
+
+---
+
 ## 2026-10-19 — Admin: Drive Storage tab
 
 ### Added

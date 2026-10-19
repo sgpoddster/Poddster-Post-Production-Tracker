@@ -12,6 +12,7 @@ type DriveFolder = {
   file_count: number
   created_at_drive: string | null
   last_scanned_at: string
+  paid_storage: boolean
 }
 
 type DriveShoot = {
@@ -35,6 +36,18 @@ const DRIVE_LABELS: Record<string, string> = {
 }
 
 const SHOOTS_DEFAULT = 10
+
+function PaidBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-400/15 text-amber-500 shrink-0 whitespace-nowrap">
+      <svg width="8" height="8" viewBox="0 0 8 8" fill="none" className="shrink-0">
+        <circle cx="4" cy="4" r="3.5" stroke="currentColor" strokeWidth="1"/>
+        <path d="M4 2v.5M4 5.5V6M3 3.5c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1 .45-1 1" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round"/>
+      </svg>
+      Paid
+    </span>
+  )
+}
 
 function fmtBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -222,6 +235,7 @@ function DriveSection({
               <div key={f.id} className="flex items-center gap-2 cursor-pointer group/row" onClick={() => selectClient(f)}>
                 <span className="text-[10px] text-th/25 w-4 shrink-0 text-right">{i + 1}</span>
                 <span className="text-xs text-th/70 group-hover/row:text-th truncate flex-1 transition-colors">{f.folder_name}</span>
+                {f.paid_storage && <PaidBadge />}
                 <span className="text-xs text-th/40 shrink-0">{fmtBytes(f.size_bytes)}</span>
               </div>
             ))}
@@ -254,7 +268,10 @@ function DriveSection({
                     onMouseDown={() => selectClient(f)}
                     className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-th/80 hover:bg-th/[0.06] hover:text-th transition-colors text-left gap-4"
                   >
-                    <span className="truncate">{f.folder_name}</span>
+                    <span className="flex items-center gap-2 truncate">
+                      <span className="truncate">{f.folder_name}</span>
+                      {f.paid_storage && <PaidBadge />}
+                    </span>
                     <span className="text-xs text-th/35 shrink-0">{fmtBytes(f.size_bytes)}</span>
                   </button>
                 ))}
@@ -288,7 +305,10 @@ function DriveSection({
             </div>
             <div className="contents">
               <div className="px-4 py-3 min-w-0">
-                <span className="text-sm text-th truncate block">{selected.folder_name}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-sm text-th truncate">{selected.folder_name}</span>
+                  {selected.paid_storage && <PaidBadge />}
+                </span>
               </div>
               <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(selected.size_bytes)}</div>
               <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{selected.file_count.toLocaleString()}</div>

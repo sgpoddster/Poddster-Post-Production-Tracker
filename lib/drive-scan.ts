@@ -77,6 +77,7 @@ export type ClientFolderStat = {
   size_bytes:       number
   file_count:       number
   created_at_drive: string | null
+  paid_storage:     boolean
 }
 
 export function aggregateByClientFolder(
@@ -129,6 +130,19 @@ export function aggregateByClientFolder(
     const codeMatch = cf.name.match(/\(([^)]+)\)\s*$/)
     const clientCode = codeMatch ? codeMatch[1] : null
 
+    // Paid storage: any file anywhere in this client's tree with "delete" in the name
+    const paidStorage = (function checkPaid(parentId: string): boolean {
+      for (const childId of childrenOf.get(parentId) ?? []) {
+        const child = fileById.get(childId)
+        if (!child) continue
+        if (child.mimeType !== 'application/vnd.google-apps.folder' &&
+            child.name.toLowerCase().includes('delete')) return true
+        if (child.mimeType === 'application/vnd.google-apps.folder' &&
+            checkPaid(childId)) return true
+      }
+      return false
+    })(cfId)
+
     stats.push({
       folder_id:        cfId,
       folder_name:      cf.name,
@@ -136,6 +150,7 @@ export function aggregateByClientFolder(
       size_bytes:       sizeBytes,
       file_count:       fileCount,
       created_at_drive: cf.createdTime ?? null,
+      paid_storage:     paidStorage,
     })
   }
 

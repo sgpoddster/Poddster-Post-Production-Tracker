@@ -38,19 +38,31 @@ export async function GET() {
 
   const results: Record<string, unknown> = {}
 
+  // List accessible Shared Drives
+  try {
+    const drivesRes = await fetch(
+      'https://www.googleapis.com/drive/v3/drives?pageSize=20&fields=drives(id,name)',
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    const drivesJson = await drivesRes.json()
+    results['accessible_shared_drives'] = { status: drivesRes.status, drives: drivesJson.drives }
+  } catch (e) {
+    results['accessible_shared_drives'] = { error: String(e) }
+  }
+
   for (const [label, folderId] of Object.entries(ROOT_FOLDERS)) {
     try {
+      // Try with supportsAllDrives=true for Shared Drive compatibility
       const res = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType`,
+        `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType,driveId&supportsAllDrives=true`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       const json = await res.json()
       results[label] = { status: res.status, ...json }
 
       if (res.ok) {
-        // Also try listing top-level children
         const listRes = await fetch(
-          `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed=false`)}&fields=files(id,name,mimeType)&pageSize=5`,
+          `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and trashed=false`)}&fields=files(id,name,mimeType)&pageSize=5&supportsAllDrives=true&includeItemsFromAllDrives=true`,
           { headers: { Authorization: `Bearer ${token}` } }
         )
         const listJson = await listRes.json()

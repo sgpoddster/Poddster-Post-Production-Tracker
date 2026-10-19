@@ -213,24 +213,20 @@ function ClientSection({
 
         {searchResults.length > 0 && (
           <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] divide-y divide-th/[0.05]">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] divide-y divide-th/[0.05]">
               <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
                 <div className="px-4 py-2.5">Client</div>
                 <div className="px-4 py-2.5 text-right">Storage</div>
                 <div className="px-4 py-2.5 text-right">Files</div>
-                <div className="px-4 py-2.5 text-right">Age</div>
                 <div className="px-4 py-2.5" />
               </div>
-              {searchResults.map(f => {
-                const age = daysSince(f.created_at_drive)
-                return (
+              {searchResults.map(f => (
                   <div key={f.id} className="contents">
                     <div className="px-4 py-3 min-w-0">
                       <span className="text-sm text-th truncate block">{f.folder_name}</span>
                     </div>
                     <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(f.size_bytes)}</div>
                     <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{f.file_count.toLocaleString()}</div>
-                    <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{age !== null ? `${age}d` : '—'}</div>
                     <div className="px-4 py-3 flex items-center justify-end">
                       <button
                         onClick={() => setModal({ folderId: f.folder_id, name: f.folder_name })}
@@ -240,8 +236,7 @@ function ClientSection({
                       </button>
                     </div>
                   </div>
-                )
-              })}
+              ))}
             </div>
           </div>
         )}

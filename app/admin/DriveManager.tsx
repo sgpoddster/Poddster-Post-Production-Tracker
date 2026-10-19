@@ -140,8 +140,10 @@ function DriveSection({
   shoots: DriveShoot[]
   ageDays: number | null
 }) {
-  const [query, setQuery]       = useState('')
-  const [showAll, setShowAll]   = useState(false)
+  const [inputValue, setInputValue]     = useState('')
+  const [selected, setSelected]         = useState<DriveFolder | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [showAll, setShowAll]           = useState(false)
   const { modal, setModal, removed, doTrash } = useTrash()
 
   const allFolders = useMemo(
@@ -153,15 +155,26 @@ function DriveSection({
   const lastScanned = folders[0]?.last_scanned_at
   const totalBytes  = allFolders.reduce((s, f) => s + f.size_bytes, 0)
 
-  const q = query.trim().toLowerCase()
+  const suggestions = useMemo(() => {
+    const q = inputValue.trim().toLowerCase()
+    if (!q || selected) return []
+    return allFolders.filter(f => f.folder_name.toLowerCase().includes(q)).slice(0, 8)
+  }, [allFolders, inputValue, selected])
 
-  // Client rows — shown only when there's a search query
-  const matchingClients = useMemo(
-    () => q ? allFolders.filter(f => f.folder_name.toLowerCase().includes(q)) : [],
-    [allFolders, q]
-  )
+  function selectClient(f: DriveFolder) {
+    setSelected(f)
+    setInputValue(f.folder_name)
+    setDropdownOpen(false)
+    setShowAll(false)
+  }
 
-  // Shoot rows — filtered by age AND (if query) by client name
+  function clearSelection() {
+    setSelected(null)
+    setInputValue('')
+    setShowAll(false)
+  }
+
+  // Shoot rows — filtered by age AND selected client
   const allShoots = useMemo(() => {
     let list = shoots.filter(s => !removed.has(s.folder_id))
     if (ageDays !== null) {
@@ -170,13 +183,15 @@ function DriveSection({
         return age !== null && age >= ageDays
       })
     }
-    if (q) list = list.filter(s => s.client_name.toLowerCase().includes(q))
+    if (selected) {
+      list = list.filter(s => s.client_folder_id === selected.folder_id)
+    }
     return list.sort((a, b) => {
       if (!a.created_at_drive) return 1
       if (!b.created_at_drive) return -1
       return a.created_at_drive.localeCompare(b.created_at_drive)
     })
-  }, [shoots, removed, ageDays, q])
+  }, [shoots, removed, ageDays, selected])
 
   const visibleShoots = showAll ? allShoots : allShoots.slice(0, SHOOTS_DEFAULT)
 
@@ -204,9 +219,9 @@ function DriveSection({
           <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider">Top 10 by storage</p>
           <div className="space-y-1.5">
             {topTen.map((f, i) => (
-              <div key={f.id} className="flex items-center gap-2">
+              <div key={f.id} className="flex items-center gap-2 cursor-pointer group/row" onClick={() => selectClient(f)}>
                 <span className="text-[10px] text-th/25 w-4 shrink-0 text-right">{i + 1}</span>
-                <span className="text-xs text-th/70 truncate flex-1">{f.folder_name}</span>
+                <span className="text-xs text-th/70 group-hover/row:text-th truncate flex-1 transition-colors">{f.folder_name}</span>
                 <span className="text-xs text-th/40 shrink-0">{fmtBytes(f.size_bytes)}</span>
               </div>
             ))}
@@ -214,20 +229,55 @@ function DriveSection({
         </div>
       )}
 
-      {/* Search input */}
-      <input
-        type="text"
-        value={query}
-        onChange={e => { setQuery(e.target.value); setShowAll(false) }}
-        placeholder="Search client to filter sessions…"
-        className="w-full rounded-lg border border-th/[0.1] bg-th/[0.04] px-3 py-2 text-sm text-th placeholder:text-th/25 outline-none focus:border-th/20"
-      />
+      {/* Search / selected client */}
+      <div className="relative">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={e => { setInputValue(e.target.value); setSelected(null); setDropdownOpen(true) }}
+              onFocus={() => !selected && setDropdownOpen(true)}
+              onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
+              placeholder="Search client…"
+              className={`w-full rounded-lg border px-3 py-2 text-sm text-th placeholder:text-th/25 outline-none transition-colors ${
+                selected
+                  ? 'border-brand-red/30 bg-brand-red/5'
+                  : 'border-th/[0.1] bg-th/[0.04] focus:border-th/20'
+              }`}
+            />
+            {dropdownOpen && suggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-lg border border-th/[0.1] bg-brand-surface shadow-xl overflow-hidden">
+                {suggestions.map(f => (
+                  <button
+                    key={f.id}
+                    onMouseDown={() => selectClient(f)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-th/80 hover:bg-th/[0.06] hover:text-th transition-colors text-left gap-4"
+                  >
+                    <span className="truncate">{f.folder_name}</span>
+                    <span className="text-xs text-th/35 shrink-0">{fmtBytes(f.size_bytes)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {selected && (
+            <button
+              onClick={clearSelection}
+              className="px-3 py-2 text-xs rounded-lg border border-th/[0.1] text-th/40 hover:text-th hover:border-th/20 transition-colors whitespace-nowrap"
+            >
+              Clear
+            </button>
+          )}
+        </div>
 
-      {/* Client summary rows (only when searching) */}
-      {q && matchingClients.length === 0 && (
-        <p className="text-sm text-th/25 text-center py-2">No clients match &quot;{query}&quot;</p>
-      )}
-      {matchingClients.length > 0 && (
+        {inputValue.trim() && !selected && suggestions.length === 0 && (
+          <p className="text-sm text-th/25 text-center py-2 mt-1">No clients match &quot;{inputValue}&quot;</p>
+        )}
+      </div>
+
+      {/* Selected client summary */}
+      {selected && (
         <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
           <div className="grid grid-cols-[1fr_auto_auto_auto] divide-y divide-th/[0.05]">
             <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
@@ -236,23 +286,21 @@ function DriveSection({
               <div className="px-4 py-2.5 text-right">Files</div>
               <div className="px-4 py-2.5" />
             </div>
-            {matchingClients.map(f => (
-              <div key={f.id} className="contents">
-                <div className="px-4 py-3 min-w-0">
-                  <span className="text-sm text-th truncate block">{f.folder_name}</span>
-                </div>
-                <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(f.size_bytes)}</div>
-                <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{f.file_count.toLocaleString()}</div>
-                <div className="px-4 py-3 flex items-center justify-end">
-                  <button
-                    onClick={() => setModal({ folderId: f.folder_id, name: f.folder_name })}
-                    className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
-                  >
-                    Trash
-                  </button>
-                </div>
+            <div className="contents">
+              <div className="px-4 py-3 min-w-0">
+                <span className="text-sm text-th truncate block">{selected.folder_name}</span>
               </div>
-            ))}
+              <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(selected.size_bytes)}</div>
+              <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{selected.file_count.toLocaleString()}</div>
+              <div className="px-4 py-3 flex items-center justify-end">
+                <button
+                  onClick={() => setModal({ folderId: selected.folder_id, name: selected.folder_name })}
+                  className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
+                >
+                  Trash
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -261,7 +309,7 @@ function DriveSection({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider">
-            {q ? `Sessions for "${query}"` : 'All sessions'} — oldest first
+            {selected ? `Sessions — ${selected.folder_name}` : 'All sessions'} — oldest first
           </p>
           <span className="text-xs text-th/30">{allShoots.length} sessions</span>
         </div>

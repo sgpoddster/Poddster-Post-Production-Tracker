@@ -202,7 +202,9 @@ export function extractShootFolders(
     for (const yearId of childrenOf.get(clientId) ?? []) {
       if (!isFolder(yearId)) continue
       const yearFile = fileById.get(yearId)!
-      const year     = yearFile.name.match(/^\d{4}$/) ? yearFile.name : null
+      // Only walk 4-digit year folders — skips asset/branding subfolders in PP drives
+      const year = yearFile.name.match(/^\d{4}$/) ? yearFile.name : null
+      if (!year) continue
 
       for (const shootId of childrenOf.get(yearId) ?? []) {
         if (!isFolder(shootId)) continue

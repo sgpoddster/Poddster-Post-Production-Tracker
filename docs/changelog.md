@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-19 — Drive tab: require 4-digit year folder for shoot detection
+
+### Fixed
+- **`lib/drive-scan.ts`** — `extractShootFolders` now skips any intermediate folder whose name is not a 4-digit year. Previously, asset/branding subfolders (e.g. "Arize logos - eps") inside PP client folders were being included as shoot sessions because they happened to contain Cam A–style subfolders. Requiring the year level to be `2024`, `2025`, etc. excludes them cleanly.
+
+---
+
 ## 2026-10-19 — Drive tab: paid storage badge
 
 ### Added

@@ -283,7 +283,8 @@ function ShootSection({
     })
   }, [shoots, removed, ageDays])
 
-  if (filtered.length === 0 && ageDays !== null) return null
+  // Hide section only when age filter is active and nothing matches
+  if (filtered.length === 0 && ageDays !== null && shoots.length > 0) return null
 
   return (
     <div className="space-y-3">
@@ -375,11 +376,12 @@ export default function DriveManager({
     setScanning(true)
     setScanMsg('')
     const res = await fetch('/api/admin/drive/scan', { method: 'POST' })
+    const j = await res.json().catch(() => ({}))
     if (res.ok) {
-      setScanMsg('Scan complete — reloading…')
-      window.location.reload()
+      const shootCount = Object.values(j.summary ?? {}).reduce((s: number, v: unknown) => s + ((v as {shoots?: number}).shoots ?? 0), 0)
+      setScanMsg(`Scan complete (${shootCount} shoots found) — reloading…`)
+      setTimeout(() => window.location.reload(), 1200)
     } else {
-      const j = await res.json().catch(() => ({}))
       setScanMsg(j.error ?? 'Scan failed')
       setScanning(false)
     }
@@ -445,9 +447,7 @@ export default function DriveManager({
               {foldersByDrive[dt] && (
                 <ClientSection driveType={dt} folders={foldersByDrive[dt]} ageDays={ageDays} />
               )}
-              {shootsByDrive[dt] && (
-                <ShootSection driveType={dt} shoots={shootsByDrive[dt]} ageDays={ageDays} />
-              )}
+              <ShootSection driveType={dt} shoots={shootsByDrive[dt] ?? []} ageDays={ageDays} />
             </div>
           ))}
         </div>

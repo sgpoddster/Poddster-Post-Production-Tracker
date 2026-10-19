@@ -211,6 +211,17 @@ export function extractShootFolders(
           }
         }
 
+        // Only include folders that look like real shoot sessions:
+        // must contain at least one child folder named like "Cam A/B/C..." or "Audio"
+        const children = childrenOf.get(shootId) ?? []
+        const hasShootMarker = children.some(childId => {
+          const child = fileById.get(childId)
+          if (!child || child.mimeType !== 'application/vnd.google-apps.folder') return false
+          const n = child.name.toLowerCase()
+          return n === 'audio' || /^cam\s*[a-z0-9]/i.test(child.name)
+        })
+        if (!hasShootMarker) continue
+
         shoots.push({
           folder_id:        shootId,
           folder_name:      shootFile.name,

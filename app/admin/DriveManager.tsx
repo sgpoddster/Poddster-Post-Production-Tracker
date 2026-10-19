@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 
 type DriveFolder = {
   id: string
@@ -138,10 +138,11 @@ function ClientSection({
   folders: DriveFolder[]
   ageDays: number | null
 }) {
-  const [showAll, setShowAll]   = useState(false)
+  const [query, setQuery] = useState('')
   const { modal, setModal, removed, doTrash } = useTrash()
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const filtered = useMemo(() => {
+  const allFolders = useMemo(() => {
     let list = folders.filter(f => !removed.has(f.folder_id))
     if (ageDays !== null) {
       list = list.filter(f => {
@@ -149,13 +150,18 @@ function ClientSection({
         return age !== null && age >= ageDays
       })
     }
-    return list // already sorted by size desc from DB
+    return list
   }, [folders, removed, ageDays])
 
-  const topTen   = filtered.slice(0, 10)
-  const visible  = showAll ? filtered : filtered.slice(0, CLIENT_LIST_DEFAULT)
+  const topTen      = allFolders.slice(0, 10)
   const lastScanned = folders[0]?.last_scanned_at
-  const totalBytes  = filtered.reduce((s, f) => s + f.size_bytes, 0)
+  const totalBytes  = allFolders.reduce((s, f) => s + f.size_bytes, 0)
+
+  const searchResults = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    return allFolders.filter(f => f.folder_name.toLowerCase().includes(q))
+  }, [allFolders, query])
 
   return (
     <div className="space-y-3">
@@ -169,7 +175,7 @@ function ClientSection({
           )}
         </div>
         <div className="text-xs text-th/40">
-          <span className="text-th font-medium">{filtered.length}</span> folders ·{' '}
+          <span className="text-th font-medium">{allFolders.length}</span> folders ·{' '}
           <span className="text-th font-medium">{fmtBytes(totalBytes)}</span> total
         </div>
       </div>
@@ -190,26 +196,35 @@ function ClientSection({
         </div>
       )}
 
-      {/* Table */}
-      {filtered.length === 0 ? (
-        <p className="text-sm text-th/25 py-4 text-center">
-          {ageDays !== null ? `No folders older than ${ageDays} days.` : 'No scan data yet.'}
-        </p>
-      ) : (
-        <>
+      {/* Client search */}
+      <div className="space-y-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search client…"
+          className="w-full rounded-lg border border-th/[0.1] bg-th/[0.04] px-3 py-2 text-sm text-th placeholder:text-th/25 outline-none focus:border-th/20"
+        />
+
+        {query.trim() && searchResults.length === 0 && (
+          <p className="text-sm text-th/25 py-2 text-center">No clients match &quot;{query}&quot;</p>
+        )}
+
+        {searchResults.length > 0 && (
           <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
             <div className="grid grid-cols-[1fr_auto_auto_auto_auto] divide-y divide-th/[0.05]">
               <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
-                <div className="px-4 py-2.5">Folder</div>
+                <div className="px-4 py-2.5">Client</div>
                 <div className="px-4 py-2.5 text-right">Storage</div>
                 <div className="px-4 py-2.5 text-right">Files</div>
                 <div className="px-4 py-2.5 text-right">Age</div>
                 <div className="px-4 py-2.5" />
               </div>
-              {visible.map(f => {
+              {searchResults.map(f => {
                 const age = daysSince(f.created_at_drive)
                 return (
-                  <div key={f.id} className="contents group">
+                  <div key={f.id} className="contents">
                     <div className="px-4 py-3 min-w-0">
                       <span className="text-sm text-th truncate block">{f.folder_name}</span>
                     </div>
@@ -229,19 +244,8 @@ function ClientSection({
               })}
             </div>
           </div>
-
-          {filtered.length > CLIENT_LIST_DEFAULT && (
-            <button
-              onClick={() => setShowAll(v => !v)}
-              className="text-xs text-th/40 hover:text-th transition-colors"
-            >
-              {showAll
-                ? `Show less`
-                : `Show all ${filtered.length} folders`}
-            </button>
-          )}
-        </>
-      )}
+        )}
+      </div>
 
       {modal && (
         <TrashModal
@@ -304,10 +308,10 @@ function ShootSection({
         <p className="text-sm text-th/25 py-4 text-center">No shoot folders found — run a scan first.</p>
       ) : (
         <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] divide-y divide-th/[0.05]">
+          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] divide-y divide-th/[0.05]">
             <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
-              <div className="px-4 py-2.5">Session</div>
               <div className="px-4 py-2.5">Client</div>
+              <div className="px-4 py-2.5">Session</div>
               <div className="px-4 py-2.5 text-right">Year</div>
               <div className="px-4 py-2.5 text-right">Storage</div>
               <div className="px-4 py-2.5 text-right">Age</div>
@@ -323,10 +327,10 @@ function ShootSection({
               return (
                 <div key={s.id} className="contents group">
                   <div className="px-4 py-3 min-w-0">
-                    <span className="text-sm text-th truncate block">{s.folder_name}</span>
+                    <span className="text-xs text-th/60 truncate block whitespace-nowrap">{s.client_name}</span>
                   </div>
                   <div className="px-4 py-3 min-w-0">
-                    <span className="text-xs text-th/60 truncate block">{s.client_name}</span>
+                    <span className="text-sm text-th truncate block">{s.folder_name}</span>
                   </div>
                   <div className="px-4 py-3 text-right text-xs text-th/40 whitespace-nowrap">{s.year ?? '—'}</div>
                   <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(s.size_bytes)}</div>

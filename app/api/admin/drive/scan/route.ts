@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getUserProfile } from '@/lib/auth'
 import {
   getDriveToken,
   listAllFilesInDrive,
@@ -8,13 +9,11 @@ import {
   DriveType,
 } from '@/lib/drive-scan'
 
-// POST /api/admin/drive/scan
-// Called by daily cron (Vercel cron or manual). Auth via x-admin-secret header.
-export async function POST(req: Request) {
-  const secret = req.headers.get('x-admin-secret')
-  if (!secret || secret !== process.env.ADMIN_CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+// POST /api/admin/drive/scan — manual trigger (admin session auth)
+export async function POST() {
+  const profile = await getUserProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const supabase = createServiceClient()
   const token = await getDriveToken()

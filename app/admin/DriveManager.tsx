@@ -235,16 +235,15 @@ export default function DriveManager({ folders }: { folders: DriveFolder[] }) {
   async function triggerScan() {
     setScanning(true)
     setScanMsg('')
-    const res = await fetch('/api/admin/drive/scan', {
-      method: 'POST',
-      headers: { 'x-admin-secret': '' }, // server rejects empty — user must refresh after backend scan
-    })
+    const res = await fetch('/api/admin/drive/scan', { method: 'POST' })
     if (res.ok) {
-      setScanMsg('Scan complete — refresh page to see updated data.')
+      setScanMsg('Scan complete — reloading…')
+      window.location.reload()
     } else {
-      setScanMsg('Scan can only be triggered server-side. Refresh after the daily cron runs.')
+      const j = await res.json().catch(() => ({}))
+      setScanMsg(j.error ?? 'Scan failed')
+      setScanning(false)
     }
-    setScanning(false)
   }
 
   return (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 
 type DriveFolder = {
   id: string
@@ -34,7 +34,7 @@ const DRIVE_LABELS: Record<string, string> = {
   post_production: 'Poddster PP Files',
 }
 
-const CLIENT_LIST_DEFAULT = 10
+const SHOOTS_DEFAULT = 10
 
 function fmtBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -127,44 +127,62 @@ function useTrash() {
   return { modal, setModal, removed, doTrash }
 }
 
-// ── Client folders section ───────────────────────────────────────────────────
+// ── Unified drive section (top-10 + search + shoots) ────────────────────────
 
-function ClientSection({
+function DriveSection({
   driveType,
   folders,
+  shoots,
   ageDays,
 }: {
   driveType: string
   folders: DriveFolder[]
+  shoots: DriveShoot[]
   ageDays: number | null
 }) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery]       = useState('')
+  const [showAll, setShowAll]   = useState(false)
   const { modal, setModal, removed, doTrash } = useTrash()
-  const inputRef = useRef<HTMLInputElement>(null)
 
-  const allFolders = useMemo(() => {
-    let list = folders.filter(f => !removed.has(f.folder_id))
-    if (ageDays !== null) {
-      list = list.filter(f => {
-        const age = daysSince(f.created_at_drive)
-        return age !== null && age >= ageDays
-      })
-    }
-    return list
-  }, [folders, removed, ageDays])
+  const allFolders = useMemo(
+    () => folders.filter(f => !removed.has(f.folder_id)),
+    [folders, removed]
+  )
 
   const topTen      = allFolders.slice(0, 10)
   const lastScanned = folders[0]?.last_scanned_at
   const totalBytes  = allFolders.reduce((s, f) => s + f.size_bytes, 0)
 
-  const searchResults = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return []
-    return allFolders.filter(f => f.folder_name.toLowerCase().includes(q))
-  }, [allFolders, query])
+  const q = query.trim().toLowerCase()
+
+  // Client rows — shown only when there's a search query
+  const matchingClients = useMemo(
+    () => q ? allFolders.filter(f => f.folder_name.toLowerCase().includes(q)) : [],
+    [allFolders, q]
+  )
+
+  // Shoot rows — filtered by age AND (if query) by client name
+  const allShoots = useMemo(() => {
+    let list = shoots.filter(s => !removed.has(s.folder_id))
+    if (ageDays !== null) {
+      list = list.filter(s => {
+        const age = daysSince(s.created_at_drive)
+        return age !== null && age >= ageDays
+      })
+    }
+    if (q) list = list.filter(s => s.client_name.toLowerCase().includes(q))
+    return list.sort((a, b) => {
+      if (!a.created_at_drive) return 1
+      if (!b.created_at_drive) return -1
+      return a.created_at_drive.localeCompare(b.created_at_drive)
+    })
+  }, [shoots, removed, ageDays, q])
+
+  const visibleShoots = showAll ? allShoots : allShoots.slice(0, SHOOTS_DEFAULT)
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h3 className="text-sm font-semibold text-th">{DRIVE_LABELS[driveType] ?? driveType}</h3>
@@ -175,7 +193,7 @@ function ClientSection({
           )}
         </div>
         <div className="text-xs text-th/40">
-          <span className="text-th font-medium">{allFolders.length}</span> folders ·{' '}
+          <span className="text-th font-medium">{allFolders.length}</span> clients ·{' '}
           <span className="text-th font-medium">{fmtBytes(totalBytes)}</span> total
         </div>
       </div>
@@ -196,156 +214,119 @@ function ClientSection({
         </div>
       )}
 
-      {/* Client search */}
-      <div className="space-y-2">
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search client…"
-          className="w-full rounded-lg border border-th/[0.1] bg-th/[0.04] px-3 py-2 text-sm text-th placeholder:text-th/25 outline-none focus:border-th/20"
-        />
+      {/* Search input */}
+      <input
+        type="text"
+        value={query}
+        onChange={e => { setQuery(e.target.value); setShowAll(false) }}
+        placeholder="Search client to filter sessions…"
+        className="w-full rounded-lg border border-th/[0.1] bg-th/[0.04] px-3 py-2 text-sm text-th placeholder:text-th/25 outline-none focus:border-th/20"
+      />
 
-        {query.trim() && searchResults.length === 0 && (
-          <p className="text-sm text-th/25 py-2 text-center">No clients match &quot;{query}&quot;</p>
-        )}
-
-        {searchResults.length > 0 && (
-          <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
-            <div className="grid grid-cols-[1fr_auto_auto_auto] divide-y divide-th/[0.05]">
-              <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
-                <div className="px-4 py-2.5">Client</div>
-                <div className="px-4 py-2.5 text-right">Storage</div>
-                <div className="px-4 py-2.5 text-right">Files</div>
-                <div className="px-4 py-2.5" />
-              </div>
-              {searchResults.map(f => (
-                  <div key={f.id} className="contents">
-                    <div className="px-4 py-3 min-w-0">
-                      <span className="text-sm text-th truncate block">{f.folder_name}</span>
-                    </div>
-                    <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(f.size_bytes)}</div>
-                    <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{f.file_count.toLocaleString()}</div>
-                    <div className="px-4 py-3 flex items-center justify-end">
-                      <button
-                        onClick={() => setModal({ folderId: f.folder_id, name: f.folder_name })}
-                        className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
-                      >
-                        Trash
-                      </button>
-                    </div>
-                  </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {modal && (
-        <TrashModal
-          name={modal.name}
-          onClose={() => setModal(null)}
-          onConfirm={pw => doTrash(modal.folderId, pw)}
-        />
+      {/* Client summary rows (only when searching) */}
+      {q && matchingClients.length === 0 && (
+        <p className="text-sm text-th/25 text-center py-2">No clients match &quot;{query}&quot;</p>
       )}
-    </div>
-  )
-}
-
-// ── Shoot folders section ────────────────────────────────────────────────────
-
-function ShootSection({
-  driveType,
-  shoots,
-  ageDays,
-}: {
-  driveType: string
-  shoots: DriveShoot[]
-  ageDays: number | null
-}) {
-  const { modal, setModal, removed, doTrash } = useTrash()
-
-  const filtered = useMemo(() => {
-    let list = shoots.filter(s => !removed.has(s.folder_id))
-    if (ageDays !== null) {
-      list = list.filter(s => {
-        const age = daysSince(s.created_at_drive)
-        return age !== null && age >= ageDays
-      })
-    }
-    // Oldest first (created_at_drive asc already from DB, but re-sort after filter)
-    return list.sort((a, b) => {
-      if (!a.created_at_drive) return 1
-      if (!b.created_at_drive) return -1
-      return a.created_at_drive.localeCompare(b.created_at_drive)
-    })
-  }, [shoots, removed, ageDays])
-
-  // Hide section only when age filter is active and nothing matches
-  if (filtered.length === 0 && ageDays !== null && shoots.length > 0) return null
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h3 className="text-sm font-semibold text-th">
-            {DRIVE_LABELS[driveType] ?? driveType} — Shoot Folders
-          </h3>
-          <p className="text-xs text-th/30 mt-0.5">Individual sessions, oldest first</p>
-        </div>
-        <div className="text-xs text-th/40">
-          <span className="text-th font-medium">{filtered.length}</span> sessions
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
-        <p className="text-sm text-th/25 py-4 text-center">No shoot folders found — run a scan first.</p>
-      ) : (
+      {matchingClients.length > 0 && (
         <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] divide-y divide-th/[0.05]">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] divide-y divide-th/[0.05]">
             <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
               <div className="px-4 py-2.5">Client</div>
-              <div className="px-4 py-2.5">Session</div>
-              <div className="px-4 py-2.5 text-right">Year</div>
               <div className="px-4 py-2.5 text-right">Storage</div>
-              <div className="px-4 py-2.5 text-right">Age</div>
+              <div className="px-4 py-2.5 text-right">Files</div>
               <div className="px-4 py-2.5" />
             </div>
-            {filtered.map(s => {
-              const age = daysSince(s.created_at_drive)
-              const ageColor = age !== null && age > 90
-                ? 'text-red-400'
-                : age !== null && age > 60
-                  ? 'text-amber-400'
-                  : 'text-th/40'
-              return (
-                <div key={s.id} className="contents group">
-                  <div className="px-4 py-3 min-w-0">
-                    <span className="text-xs text-th/60 truncate block whitespace-nowrap">{s.client_name}</span>
-                  </div>
-                  <div className="px-4 py-3 min-w-0">
-                    <span className="text-sm text-th truncate block">{s.folder_name}</span>
-                  </div>
-                  <div className="px-4 py-3 text-right text-xs text-th/40 whitespace-nowrap">{s.year ?? '—'}</div>
-                  <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(s.size_bytes)}</div>
-                  <div className={`px-4 py-3 text-right text-sm whitespace-nowrap font-medium ${ageColor}`}>
-                    {age !== null ? `${age}d` : '—'}
-                  </div>
-                  <div className="px-4 py-3 flex items-center justify-end">
-                    <button
-                      onClick={() => setModal({ folderId: s.folder_id, name: s.folder_name })}
-                      className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
-                    >
-                      Trash
-                    </button>
-                  </div>
+            {matchingClients.map(f => (
+              <div key={f.id} className="contents">
+                <div className="px-4 py-3 min-w-0">
+                  <span className="text-sm text-th truncate block">{f.folder_name}</span>
                 </div>
-              )
-            })}
+                <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(f.size_bytes)}</div>
+                <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{f.file_count.toLocaleString()}</div>
+                <div className="px-4 py-3 flex items-center justify-end">
+                  <button
+                    onClick={() => setModal({ folderId: f.folder_id, name: f.folder_name })}
+                    className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
+                  >
+                    Trash
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
+
+      {/* Shoot folders */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider">
+            {q ? `Sessions for "${query}"` : 'All sessions'} — oldest first
+          </p>
+          <span className="text-xs text-th/30">{allShoots.length} sessions</span>
+        </div>
+
+        {allShoots.length === 0 ? (
+          <p className="text-sm text-th/25 py-4 text-center">
+            {shoots.length === 0 ? 'No shoot data yet — run a scan first.' : 'No sessions match.'}
+          </p>
+        ) : (
+          <>
+            <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
+              <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] divide-y divide-th/[0.05]">
+                <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
+                  <div className="px-4 py-2.5">Client</div>
+                  <div className="px-4 py-2.5">Session</div>
+                  <div className="px-4 py-2.5 text-right">Year</div>
+                  <div className="px-4 py-2.5 text-right">Storage</div>
+                  <div className="px-4 py-2.5 text-right">Age</div>
+                  <div className="px-4 py-2.5" />
+                </div>
+                {visibleShoots.map(s => {
+                  const age = daysSince(s.created_at_drive)
+                  const ageColor = age !== null && age > 90
+                    ? 'text-red-400'
+                    : age !== null && age > 60
+                      ? 'text-amber-400'
+                      : 'text-th/40'
+                  return (
+                    <div key={s.id} className="contents">
+                      <div className="px-4 py-3 min-w-0">
+                        <span className="text-xs text-th/60 truncate block whitespace-nowrap">{s.client_name}</span>
+                      </div>
+                      <div className="px-4 py-3 min-w-0">
+                        <span className="text-sm text-th truncate block">{s.folder_name}</span>
+                      </div>
+                      <div className="px-4 py-3 text-right text-xs text-th/40 whitespace-nowrap">{s.year ?? '—'}</div>
+                      <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(s.size_bytes)}</div>
+                      <div className={`px-4 py-3 text-right text-sm whitespace-nowrap font-medium ${ageColor}`}>
+                        {age !== null ? `${age}d` : '—'}
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-end">
+                        <button
+                          onClick={() => setModal({ folderId: s.folder_id, name: s.folder_name })}
+                          className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
+                        >
+                          Trash
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {allShoots.length > SHOOTS_DEFAULT && (
+              <button
+                onClick={() => setShowAll(v => !v)}
+                className="text-xs text-th/40 hover:text-th transition-colors"
+              >
+                {showAll ? 'Show less' : `Show all ${allShoots.length} sessions`}
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
       {modal && (
         <TrashModal
@@ -377,7 +358,7 @@ export default function DriveManager({
     const res = await fetch('/api/admin/drive/scan', { method: 'POST' })
     const j = await res.json().catch(() => ({}))
     if (res.ok) {
-      const shootCount = Object.values(j.summary ?? {}).reduce((s: number, v: unknown) => s + ((v as {shoots?: number}).shoots ?? 0), 0)
+      const shootCount = Object.values(j.summary ?? {}).reduce((s: number, v: unknown) => s + ((v as { shoots?: number }).shoots ?? 0), 0)
       setScanMsg(`Scan complete (${shootCount} shoots found) — reloading…`)
       setTimeout(() => window.location.reload(), 1200)
     } else {
@@ -409,7 +390,7 @@ export default function DriveManager({
       {/* Controls */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-th/40">Show folders older than</label>
+          <label className="text-xs text-th/40">Show sessions older than</label>
           <select
             value={ageDays ?? ''}
             onChange={e => setAgeDays(e.target.value ? Number(e.target.value) : null)}
@@ -442,12 +423,13 @@ export default function DriveManager({
       ) : (
         <div className="space-y-12">
           {(['client_raw', 'post_production'] as const).map(dt => (
-            <div key={dt} className="space-y-8">
-              {foldersByDrive[dt] && (
-                <ClientSection driveType={dt} folders={foldersByDrive[dt]} ageDays={ageDays} />
-              )}
-              <ShootSection driveType={dt} shoots={shootsByDrive[dt] ?? []} ageDays={ageDays} />
-            </div>
+            <DriveSection
+              key={dt}
+              driveType={dt}
+              folders={foldersByDrive[dt] ?? []}
+              shoots={shootsByDrive[dt] ?? []}
+              ageDays={ageDays}
+            />
           ))}
         </div>
       )}

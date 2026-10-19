@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 
 type DriveFolder = {
   id: string
@@ -14,10 +14,27 @@ type DriveFolder = {
   last_scanned_at: string
 }
 
+type DriveShoot = {
+  id: string
+  drive_type: 'client_raw' | 'post_production'
+  folder_id: string
+  folder_name: string
+  client_folder_id: string
+  client_name: string
+  client_code: string | null
+  year: string | null
+  size_bytes: number
+  file_count: number
+  created_at_drive: string | null
+  last_scanned_at: string
+}
+
 const DRIVE_LABELS: Record<string, string> = {
   client_raw:      'Poddster Client Raw Files',
   post_production: 'Poddster PP Files',
 }
+
+const CLIENT_LIST_DEFAULT = 10
 
 function fmtBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -32,33 +49,23 @@ function daysSince(iso: string | null): number | null {
 }
 
 function TrashModal({
-  folder,
+  name,
   onClose,
-  onDone,
+  onConfirm,
 }: {
-  folder: DriveFolder
+  name: string
   onClose: () => void
-  onDone: (id: string) => void
+  onConfirm: (password: string) => Promise<string | null>
 }) {
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [pending, startTransition] = useTransition()
+  const [error, setError]       = useState('')
+  const [pending, setPending]   = useState(false)
 
-  function submit() {
-    startTransition(async () => {
-      setError('')
-      const res = await fetch('/api/admin/drive/trash', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder_id: folder.folder_id, admin_password: password }),
-      })
-      if (res.ok) {
-        onDone(folder.id)
-      } else {
-        const j = await res.json()
-        setError(j.error ?? 'Failed')
-      }
-    })
+  async function submit() {
+    setPending(true)
+    setError('')
+    const err = await onConfirm(password)
+    if (err) { setError(err); setPending(false) }
   }
 
   return (
@@ -66,8 +73,8 @@ function TrashModal({
       <div className="bg-brand-surface border border-th/[0.1] rounded-xl p-6 w-full max-w-sm shadow-xl space-y-4">
         <h2 className="text-base font-semibold text-th">Move to Trash</h2>
         <p className="text-sm text-th/60">
-          This will move <span className="text-th font-medium">{folder.folder_name}</span> to Google Drive trash.
-          It can be restored from Drive trash within 30 days.
+          This will move <span className="text-th font-medium">{name}</span> to Google Drive trash.
+          It can be restored within 30 days.
         </p>
         <div className="space-y-1.5">
           <label className="text-xs text-th/40 font-medium">Admin password</label>
@@ -98,7 +105,31 @@ function TrashModal({
   )
 }
 
-function DriveSection({
+function useTrash() {
+  const [modal, setModal]     = useState<{ folderId: string; name: string } | null>(null)
+  const [removed, setRemoved] = useState<Set<string>>(new Set())
+
+  async function doTrash(folderId: string, password: string): Promise<string | null> {
+    const res = await fetch('/api/admin/drive/trash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder_id: folderId, admin_password: password }),
+    })
+    if (res.ok) {
+      setRemoved(prev => new Set([...prev, folderId]))
+      setModal(null)
+      return null
+    }
+    const j = await res.json().catch(() => ({}))
+    return j.error ?? 'Failed'
+  }
+
+  return { modal, setModal, removed, doTrash }
+}
+
+// ── Client folders section ───────────────────────────────────────────────────
+
+function ClientSection({
   driveType,
   folders,
   ageDays,
@@ -107,27 +138,24 @@ function DriveSection({
   folders: DriveFolder[]
   ageDays: number | null
 }) {
-  const [trashing, setTrashing] = useState<DriveFolder | null>(null)
-  const [removed, setRemoved] = useState<Set<string>>(new Set())
+  const [showAll, setShowAll]   = useState(false)
+  const { modal, setModal, removed, doTrash } = useTrash()
 
-  const visible = useMemo(() => {
-    let list = folders.filter(f => !removed.has(f.id))
+  const filtered = useMemo(() => {
+    let list = folders.filter(f => !removed.has(f.folder_id))
     if (ageDays !== null) {
       list = list.filter(f => {
         const age = daysSince(f.created_at_drive)
         return age !== null && age >= ageDays
       })
     }
-    return list.sort((a, b) => b.size_bytes - a.size_bytes)
+    return list // already sorted by size desc from DB
   }, [folders, removed, ageDays])
 
-  const topTen = useMemo(
-    () => [...folders].filter(f => !removed.has(f.id)).sort((a, b) => b.size_bytes - a.size_bytes).slice(0, 10),
-    [folders, removed]
-  )
-
-  const totalBytes = visible.reduce((s, f) => s + f.size_bytes, 0)
+  const topTen   = filtered.slice(0, 10)
+  const visible  = showAll ? filtered : filtered.slice(0, CLIENT_LIST_DEFAULT)
   const lastScanned = folders[0]?.last_scanned_at
+  const totalBytes  = filtered.reduce((s, f) => s + f.size_bytes, 0)
 
   return (
     <div className="space-y-3">
@@ -141,7 +169,8 @@ function DriveSection({
           )}
         </div>
         <div className="text-xs text-th/40">
-          <span className="text-th font-medium">{visible.length}</span> folders · <span className="text-th font-medium">{fmtBytes(totalBytes)}</span> total
+          <span className="text-th font-medium">{filtered.length}</span> folders ·{' '}
+          <span className="text-th font-medium">{fmtBytes(totalBytes)}</span> total
         </div>
       </div>
 
@@ -162,37 +191,151 @@ function DriveSection({
       )}
 
       {/* Table */}
-      {visible.length === 0 ? (
+      {filtered.length === 0 ? (
         <p className="text-sm text-th/25 py-4 text-center">
-          {ageDays !== null ? `No folders older than ${ageDays} days.` : 'No scan data yet — run a scan first.'}
+          {ageDays !== null ? `No folders older than ${ageDays} days.` : 'No scan data yet.'}
         </p>
       ) : (
+        <>
+          <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] divide-y divide-th/[0.05]">
+              <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
+                <div className="px-4 py-2.5">Folder</div>
+                <div className="px-4 py-2.5 text-right">Storage</div>
+                <div className="px-4 py-2.5 text-right">Files</div>
+                <div className="px-4 py-2.5 text-right">Age</div>
+                <div className="px-4 py-2.5" />
+              </div>
+              {visible.map(f => {
+                const age = daysSince(f.created_at_drive)
+                return (
+                  <div key={f.id} className="contents group">
+                    <div className="px-4 py-3 min-w-0">
+                      <span className="text-sm text-th truncate block">{f.folder_name}</span>
+                    </div>
+                    <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(f.size_bytes)}</div>
+                    <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{f.file_count.toLocaleString()}</div>
+                    <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{age !== null ? `${age}d` : '—'}</div>
+                    <div className="px-4 py-3 flex items-center justify-end">
+                      <button
+                        onClick={() => setModal({ folderId: f.folder_id, name: f.folder_name })}
+                        className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
+                      >
+                        Trash
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {filtered.length > CLIENT_LIST_DEFAULT && (
+            <button
+              onClick={() => setShowAll(v => !v)}
+              className="text-xs text-th/40 hover:text-th transition-colors"
+            >
+              {showAll
+                ? `Show less`
+                : `Show all ${filtered.length} folders`}
+            </button>
+          )}
+        </>
+      )}
+
+      {modal && (
+        <TrashModal
+          name={modal.name}
+          onClose={() => setModal(null)}
+          onConfirm={pw => doTrash(modal.folderId, pw)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Shoot folders section ────────────────────────────────────────────────────
+
+function ShootSection({
+  driveType,
+  shoots,
+  ageDays,
+}: {
+  driveType: string
+  shoots: DriveShoot[]
+  ageDays: number | null
+}) {
+  const { modal, setModal, removed, doTrash } = useTrash()
+
+  const filtered = useMemo(() => {
+    let list = shoots.filter(s => !removed.has(s.folder_id))
+    if (ageDays !== null) {
+      list = list.filter(s => {
+        const age = daysSince(s.created_at_drive)
+        return age !== null && age >= ageDays
+      })
+    }
+    // Oldest first (created_at_drive asc already from DB, but re-sort after filter)
+    return list.sort((a, b) => {
+      if (!a.created_at_drive) return 1
+      if (!b.created_at_drive) return -1
+      return a.created_at_drive.localeCompare(b.created_at_drive)
+    })
+  }, [shoots, removed, ageDays])
+
+  if (filtered.length === 0 && ageDays !== null) return null
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h3 className="text-sm font-semibold text-th">
+            {DRIVE_LABELS[driveType] ?? driveType} — Shoot Folders
+          </h3>
+          <p className="text-xs text-th/30 mt-0.5">Individual sessions, oldest first</p>
+        </div>
+        <div className="text-xs text-th/40">
+          <span className="text-th font-medium">{filtered.length}</span> sessions
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-th/25 py-4 text-center">No shoot folders found — run a scan first.</p>
+      ) : (
         <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-0 divide-y divide-th/[0.05]">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] divide-y divide-th/[0.05]">
             <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
-              <div className="px-4 py-2.5">Folder</div>
+              <div className="px-4 py-2.5">Session</div>
+              <div className="px-4 py-2.5">Client</div>
+              <div className="px-4 py-2.5 text-right">Year</div>
               <div className="px-4 py-2.5 text-right">Storage</div>
-              <div className="px-4 py-2.5 text-right">Files</div>
               <div className="px-4 py-2.5 text-right">Age</div>
               <div className="px-4 py-2.5" />
             </div>
-            {visible.map(f => {
-              const age = daysSince(f.created_at_drive)
+            {filtered.map(s => {
+              const age = daysSince(s.created_at_drive)
+              const ageColor = age !== null && age > 90
+                ? 'text-red-400'
+                : age !== null && age > 60
+                  ? 'text-amber-400'
+                  : 'text-th/40'
               return (
-                <div key={f.id} className="contents group">
-                  <div className="px-4 py-3 flex items-center gap-2 min-w-0">
-                    <span className="text-sm text-th truncate">{f.folder_name}</span>
+                <div key={s.id} className="contents group">
+                  <div className="px-4 py-3 min-w-0">
+                    <span className="text-sm text-th truncate block">{s.folder_name}</span>
                   </div>
-                  <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(f.size_bytes)}</div>
-                  <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">{f.file_count.toLocaleString()}</div>
-                  <div className="px-4 py-3 text-right text-sm text-th/40 whitespace-nowrap">
+                  <div className="px-4 py-3 min-w-0">
+                    <span className="text-xs text-th/60 truncate block">{s.client_name}</span>
+                  </div>
+                  <div className="px-4 py-3 text-right text-xs text-th/40 whitespace-nowrap">{s.year ?? '—'}</div>
+                  <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(s.size_bytes)}</div>
+                  <div className={`px-4 py-3 text-right text-sm whitespace-nowrap font-medium ${ageColor}`}>
                     {age !== null ? `${age}d` : '—'}
                   </div>
                   <div className="px-4 py-3 flex items-center justify-end">
                     <button
-                      onClick={() => setTrashing(f)}
+                      onClick={() => setModal({ folderId: s.folder_id, name: s.folder_name })}
                       className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
-                      title="Move to trash"
                     >
                       Trash
                     </button>
@@ -204,33 +347,29 @@ function DriveSection({
         </div>
       )}
 
-      {trashing && (
+      {modal && (
         <TrashModal
-          folder={trashing}
-          onClose={() => setTrashing(null)}
-          onDone={id => {
-            setRemoved(prev => new Set([...prev, id]))
-            setTrashing(null)
-          }}
+          name={modal.name}
+          onClose={() => setModal(null)}
+          onConfirm={pw => doTrash(modal.folderId, pw)}
         />
       )}
     </div>
   )
 }
 
-export default function DriveManager({ folders }: { folders: DriveFolder[] }) {
-  const [ageDays, setAgeDays] = useState<number | null>(null)
-  const [scanning, setScanning] = useState(false)
-  const [scanMsg, setScanMsg] = useState('')
+// ── Root component ───────────────────────────────────────────────────────────
 
-  const byDrive = useMemo(() => {
-    const map: Record<string, DriveFolder[]> = {}
-    for (const f of folders) {
-      if (!map[f.drive_type]) map[f.drive_type] = []
-      map[f.drive_type].push(f)
-    }
-    return map
-  }, [folders])
+export default function DriveManager({
+  folders,
+  shoots,
+}: {
+  folders: DriveFolder[]
+  shoots: DriveShoot[]
+}) {
+  const [ageDays, setAgeDays]   = useState<number | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [scanMsg, setScanMsg]   = useState('')
 
   async function triggerScan() {
     setScanning(true)
@@ -245,6 +384,24 @@ export default function DriveManager({ folders }: { folders: DriveFolder[] }) {
       setScanning(false)
     }
   }
+
+  const foldersByDrive = useMemo(() => {
+    const map: Record<string, DriveFolder[]> = {}
+    for (const f of folders) {
+      if (!map[f.drive_type]) map[f.drive_type] = []
+      map[f.drive_type].push(f)
+    }
+    return map
+  }, [folders])
+
+  const shootsByDrive = useMemo(() => {
+    const map: Record<string, DriveShoot[]> = {}
+    for (const s of shoots) {
+      if (!map[s.drive_type]) map[s.drive_type] = []
+      map[s.drive_type].push(s)
+    }
+    return map
+  }, [shoots])
 
   return (
     <div className="space-y-6">
@@ -276,18 +433,23 @@ export default function DriveManager({ folders }: { folders: DriveFolder[] }) {
         </div>
       </div>
 
-      {folders.length === 0 ? (
+      {folders.length === 0 && shoots.length === 0 ? (
         <div className="rounded-lg border border-th/[0.06] bg-brand-surface px-5 py-12 text-center">
           <p className="text-sm text-th/40">No scan data yet.</p>
-          <p className="text-xs text-th/25 mt-1">Run the daily cron or click &quot;Scan now&quot; to populate.</p>
+          <p className="text-xs text-th/25 mt-1">Click &quot;Scan now&quot; to populate.</p>
         </div>
       ) : (
-        <div className="space-y-8">
-          {(['client_raw', 'post_production'] as const).map(dt =>
-            byDrive[dt] ? (
-              <DriveSection key={dt} driveType={dt} folders={byDrive[dt]} ageDays={ageDays} />
-            ) : null
-          )}
+        <div className="space-y-12">
+          {(['client_raw', 'post_production'] as const).map(dt => (
+            <div key={dt} className="space-y-8">
+              {foldersByDrive[dt] && (
+                <ClientSection driveType={dt} folders={foldersByDrive[dt]} ageDays={ageDays} />
+              )}
+              {shootsByDrive[dt] && (
+                <ShootSection driveType={dt} shoots={shootsByDrive[dt]} ageDays={ageDays} />
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

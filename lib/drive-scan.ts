@@ -142,6 +142,93 @@ export function aggregateByClientFolder(
   return stats
 }
 
+export type ShootFolderStat = {
+  folder_id:        string
+  folder_name:      string
+  client_folder_id: string
+  client_name:      string
+  client_code:      string | null
+  year:             string | null
+  size_bytes:       number
+  file_count:       number
+  created_at_drive: string | null
+}
+
+// Extracts shoot folders (Root → Client → Year → Shoot) from the same file list.
+// Reuses the same childrenOf/fileById maps already built in aggregateByClientFolder,
+// so this should be called with the same files array.
+export function extractShootFolders(
+  files: DriveFile[],
+  driveRootId: string
+): ShootFolderStat[] {
+  const childrenOf = new Map<string, string[]>()
+  const fileById   = new Map<string, DriveFile>()
+
+  for (const f of files) {
+    fileById.set(f.id, f)
+    for (const p of f.parents ?? []) {
+      if (!childrenOf.has(p)) childrenOf.set(p, [])
+      childrenOf.get(p)!.push(f.id)
+    }
+  }
+
+  const shoots: ShootFolderStat[] = []
+
+  const isFolder = (id: string) =>
+    fileById.get(id)?.mimeType === 'application/vnd.google-apps.folder'
+
+  // Walk: root → client → year → shoot
+  for (const clientId of childrenOf.get(driveRootId) ?? []) {
+    if (!isFolder(clientId)) continue
+    const clientFile = fileById.get(clientId)!
+    const codeMatch  = clientFile.name.match(/\(([^)]+)\)\s*$/)
+    const clientCode = codeMatch ? codeMatch[1] : null
+
+    for (const yearId of childrenOf.get(clientId) ?? []) {
+      if (!isFolder(yearId)) continue
+      const yearFile = fileById.get(yearId)!
+      const year     = yearFile.name.match(/^\d{4}$/) ? yearFile.name : null
+
+      for (const shootId of childrenOf.get(yearId) ?? []) {
+        if (!isFolder(shootId)) continue
+        const shootFile = fileById.get(shootId)!
+
+        // Sum direct + recursive file sizes under this shoot folder
+        let sizeBytes = 0
+        let fileCount = 0
+        const queue = [shootId]
+        while (queue.length) {
+          const cur = queue.pop()!
+          for (const childId of childrenOf.get(cur) ?? []) {
+            const child = fileById.get(childId)
+            if (!child) continue
+            if (child.mimeType === 'application/vnd.google-apps.folder') {
+              queue.push(childId)
+            } else {
+              sizeBytes += parseInt(child.size ?? '0', 10)
+              fileCount++
+            }
+          }
+        }
+
+        shoots.push({
+          folder_id:        shootId,
+          folder_name:      shootFile.name,
+          client_folder_id: clientId,
+          client_name:      clientFile.name,
+          client_code:      clientCode,
+          year,
+          size_bytes:       sizeBytes,
+          file_count:       fileCount,
+          created_at_drive: shootFile.createdTime ?? null,
+        })
+      }
+    }
+  }
+
+  return shoots
+}
+
 export async function trashDriveFolder(token: string, folderId: string): Promise<void> {
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files/${folderId}/trash?supportsAllDrives=true`,

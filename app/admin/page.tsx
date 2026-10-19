@@ -25,11 +25,12 @@ export default async function AdminPage({
     : 'team'
 
   const svc = createServiceClient()
-  const [{ data: users }, { data: clients }, { data: holidays }, { data: driveFolders }] = await Promise.all([
+  const [{ data: users }, { data: clients }, { data: holidays }, { data: driveFolders }, { data: driveShoots }] = await Promise.all([
     supabase.from('user_profiles').select('*').order('display_name'),
     supabase.from('clients').select('*, portal_token').order('name'),
     svc.from('holidays').select('*').order('date'),
     svc.from('drive_scan_folders').select('*').order('size_bytes', { ascending: false }),
+    svc.from('drive_scan_shoots').select('*').order('created_at_drive', { ascending: true }),
   ])
 
   return (
@@ -108,7 +109,7 @@ export default async function AdminPage({
       {/* Drive tab */}
       {tab === 'drive' && (
         <section className="space-y-4">
-          <DriveManager folders={driveFolders ?? []} />
+          <DriveManager folders={driveFolders ?? []} shoots={driveShoots ?? []} />
         </section>
       )}
 

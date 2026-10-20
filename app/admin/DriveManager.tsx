@@ -37,6 +37,32 @@ const DRIVE_LABELS: Record<string, string> = {
 
 const SHOOTS_DEFAULT = 10
 
+function SortHeader({
+  col, label, align, sortCol, sortDir, onSort,
+}: {
+  col: 'name' | 'storage' | 'age'
+  label: string
+  align: 'left' | 'right'
+  sortCol: 'name' | 'storage' | 'age'
+  sortDir: 'asc' | 'desc'
+  onSort: (col: 'name' | 'storage' | 'age') => void
+}) {
+  const active = sortCol === col
+  return (
+    <button
+      onClick={() => onSort(col)}
+      className={`px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider flex items-center gap-1 transition-colors ${
+        align === 'right' ? 'justify-end' : ''
+      } ${active ? 'text-th/70' : 'text-th/30 hover:text-th/50'}`}
+    >
+      {label}
+      <span className="text-[9px] opacity-70">
+        {active ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+      </span>
+    </button>
+  )
+}
+
 function PaidBadge() {
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-400/15 text-amber-500 shrink-0 whitespace-nowrap">
@@ -157,6 +183,18 @@ function DriveSection({
   const [selected, setSelected]         = useState<DriveFolder | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [showAll, setShowAll]           = useState(false)
+  const [sortCol, setSortCol]   = useState<'name' | 'storage' | 'age'>('age')
+  const [sortDir, setSortDir]   = useState<'asc' | 'desc'>('asc')
+
+  function toggleSort(col: 'name' | 'storage' | 'age') {
+    if (sortCol === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortCol(col)
+      setSortDir(col === 'name' ? 'asc' : col === 'storage' ? 'desc' : 'asc')
+    }
+    setShowAll(false)
+  }
   const { modal, setModal, removed, doTrash } = useTrash()
 
   const allFolders = useMemo(
@@ -199,12 +237,21 @@ function DriveSection({
     if (selected) {
       list = list.filter(s => s.client_folder_id === selected.folder_id)
     }
-    return list.sort((a, b) => {
-      if (!a.created_at_drive) return 1
-      if (!b.created_at_drive) return -1
-      return a.created_at_drive.localeCompare(b.created_at_drive)
+    list.sort((a, b) => {
+      let cmp = 0
+      if (sortCol === 'name') {
+        cmp = a.folder_name.localeCompare(b.folder_name)
+      } else if (sortCol === 'storage') {
+        cmp = a.size_bytes - b.size_bytes
+      } else {
+        const aa = a.created_at_drive ?? ''
+        const bb = b.created_at_drive ?? ''
+        cmp = aa.localeCompare(bb)
+      }
+      return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [shoots, removed, ageDays, selected])
+    return list
+  }, [shoots, removed, ageDays, selected, sortCol, sortDir])
 
   const visibleShoots = showAll ? allShoots : allShoots.slice(0, SHOOTS_DEFAULT)
 
@@ -329,7 +376,7 @@ function DriveSection({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider">
-            {selected ? `Sessions — ${selected.folder_name}` : 'All sessions'} — oldest first
+            {selected ? `Sessions — ${selected.folder_name}` : 'All sessions'}
           </p>
           <span className="text-xs text-th/30">{allShoots.length} sessions</span>
         </div>
@@ -343,11 +390,11 @@ function DriveSection({
             <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
               <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] divide-y divide-th/[0.05]">
                 <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
-                  <div className="px-4 py-2.5">Client</div>
-                  <div className="px-4 py-2.5">Session</div>
+                  <SortHeader col="name" label="Client" align="left" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
+                  <SortHeader col="name" label="Session" align="left" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
                   <div className="px-4 py-2.5 text-right">Year</div>
-                  <div className="px-4 py-2.5 text-right">Storage</div>
-                  <div className="px-4 py-2.5 text-right">Age</div>
+                  <SortHeader col="storage" label="Storage" align="right" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
+                  <SortHeader col="age" label="Age" align="right" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
                   <div className="px-4 py-2.5" />
                 </div>
                 {visibleShoots.map(s => {

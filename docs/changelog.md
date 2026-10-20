@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Drive tab: sortable sessions table
+
+### Added
+- **`app/admin/DriveManager.tsx`** — Sessions table headers (Client/Session, Storage, Age) are now clickable sort controls. Click to sort by that column; click again to flip direction. Arrow indicators show the active sort and direction. Defaults to Age ascending (oldest first).
+
+---
+
 ## 2026-10-20 — Drive tab: fix trash API call (v3 uses PATCH not POST /trash)
 
 ### Fixed

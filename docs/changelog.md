@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Drive scan: fix stale row cleanup after deletion
+
+### Fixed
+- **`app/api/admin/drive/scan/route.ts`** + **`app/api/cron/drive-scan/route.ts`** — Cleanup queries were wrapping folder IDs in double-quotes (`"id"`), which PostgREST does not recognise as string literals in an `IN` list. The `NOT IN` filter was silently failing, so deleted Drive folders were never removed from Supabase after a scan. Fixed by using bare unquoted IDs.
+
+---
+
 ## 2026-10-20 — Drive tab: increase scan timeout to 300s
 
 ### Fixed

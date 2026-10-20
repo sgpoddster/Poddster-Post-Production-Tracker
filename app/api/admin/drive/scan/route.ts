@@ -45,7 +45,7 @@ export async function POST() {
     const clientIds = clientStats.map(s => s.folder_id)
     if (clientIds.length > 0) {
       await supabase.from('drive_scan_folders').delete().eq('drive_type', driveType)
-        .not('folder_id', 'in', `(${clientIds.map(id => `"${id}"`).join(',')})`)
+        .not('folder_id', 'in', `(${clientIds.join(',')})`)
     }
 
     // Upsert shoot folders
@@ -69,7 +69,7 @@ export async function POST() {
     const shootIds = shootStats.map(s => s.folder_id)
     if (shootIds.length > 0) {
       await supabase.from('drive_scan_shoots').delete().eq('drive_type', driveType)
-        .not('folder_id', 'in', `(${shootIds.map(id => `"${id}"`).join(',')})`)
+        .not('folder_id', 'in', `(${shootIds.join(',')})`)
     }
 
     summary[driveType] = { clients: clientStats.length, shoots: shootStats.length }

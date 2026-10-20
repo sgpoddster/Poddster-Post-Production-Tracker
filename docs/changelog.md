@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Drive tab: fix trash API call (v3 uses PATCH not POST /trash)
+
+### Fixed
+- **`lib/drive-scan.ts`** — `trashDriveFolder` was calling the Drive API v2 `/trash` endpoint which doesn't exist in v3. Changed to `PATCH /files/{id}` with body `{ trashed: true }`, which is the correct v3 method.
+
+---
+
 ## 2026-10-20 — Drive tab: fix trash Drive API error handling
 
 ### Fixed

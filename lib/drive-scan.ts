@@ -259,8 +259,12 @@ export function extractShootFolders(
 
 export async function trashDriveFolder(token: string, folderId: string): Promise<void> {
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${folderId}/trash?supportsAllDrives=true`,
-    { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+    `https://www.googleapis.com/drive/v3/files/${folderId}?supportsAllDrives=true`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trashed: true }),
+    }
   )
   if (!res.ok) throw new Error(`Trash failed: ${res.status} ${await res.text()}`)
 }

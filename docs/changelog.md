@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Frame.io Storage: fix binary unit conversion
+
+### Fixed
+- **`app/admin/FrameioManager.tsx`** — `fmtBytes` was using decimal SI units (÷ 10⁹/10¹²), which made totals appear larger than the GAS script's figures. Switched to binary gibibytes (÷ 1024³/1024⁴) to match how the GAS audit tool reports storage — the same raw bytes now show the same number.
+
+---
+
 ## 2026-10-20 — Frame.io Storage tab
 
 ### Added

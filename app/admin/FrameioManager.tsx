@@ -23,10 +23,13 @@ interface Props {
   sessions: Session[]
 }
 
+const GiB = 1024 ** 3
+const TiB = 1024 ** 4
+
 function fmtBytes(b: number) {
-  if (b >= 1e12) return (b / 1e12).toFixed(2) + ' TB'
-  if (b >= 1e9)  return (b / 1e9).toFixed(2) + ' GB'
-  if (b >= 1e6)  return (b / 1e6).toFixed(1) + ' MB'
+  if (b >= TiB)       return (b / TiB).toFixed(2) + ' TB'
+  if (b >= GiB)       return (b / GiB).toFixed(2) + ' GB'
+  if (b >= 1024 ** 2) return (b / 1024 ** 2).toFixed(1) + ' MB'
   return b + ' B'
 }
 

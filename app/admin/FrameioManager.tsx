@@ -80,6 +80,7 @@ export default function FrameioManager({ projects: initialProjects, sessions: in
   const [sortAsc, setSortAsc]       = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [allExpanded, setAllExpanded] = useState(false)
+  const [filterDays, setFilterDays] = useState<number | null>(null)
 
   // Keep local state in sync if server data changes (e.g. after scan)
   useEffect(() => { setProjects(initialProjects) }, [initialProjects])
@@ -112,9 +113,16 @@ export default function FrameioManager({ projects: initialProjects, sessions: in
   }
 
   const sortedProjects = useMemo(() => {
-    const list = selected
+    let list = selected
       ? projects.filter(p => p.project_name === selected)
       : [...projects]
+    if (filterDays !== null) {
+      const cutoff = Date.now() - filterDays * 86400000
+      list = list.filter(p => {
+        const t = p.updated_at_frameio ? new Date(p.updated_at_frameio).getTime() : 0
+        return t > 0 && t <= cutoff
+      })
+    }
     list.sort((a, b) => {
       let diff = 0
       if (sortCol === 'storage') diff = a.storage_bytes - b.storage_bytes
@@ -197,7 +205,7 @@ export default function FrameioManager({ projects: initialProjects, sessions: in
     <div className="space-y-6">
 
       {/* Header row */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-base font-semibold text-th">Frame.io Storage</h2>
           {lastScan && (
@@ -206,13 +214,29 @@ export default function FrameioManager({ projects: initialProjects, sessions: in
             </p>
           )}
         </div>
-        <button
-          onClick={runScan}
-          disabled={scanning}
-          className="text-xs px-3 py-1.5 rounded-md bg-brand-accent text-white font-medium disabled:opacity-50"
-        >
-          {scanning ? 'Scanning…' : 'Scan now'}
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-th/40">Last updated older than</label>
+            <select
+              value={filterDays ?? ''}
+              onChange={e => setFilterDays(e.target.value ? Number(e.target.value) : null)}
+              className="rounded-lg border border-th/[0.1] bg-th/[0.04] px-3 py-1.5 text-sm text-th outline-none"
+            >
+              <option value="">All ages</option>
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+              <option value="120">120 days</option>
+            </select>
+          </div>
+          <button
+            onClick={runScan}
+            disabled={scanning}
+            className="text-xs px-3 py-1.5 rounded-md bg-brand-accent text-white font-medium disabled:opacity-50"
+          >
+            {scanning ? 'Scanning…' : 'Scan now'}
+          </button>
+        </div>
       </div>
 
       {scanError && <p className="text-xs text-red-500">{scanError}</p>}

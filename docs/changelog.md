@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Frame.io Storage: age filter
+
+### Added
+- **`app/admin/FrameioManager.tsx`** — "Last updated older than" dropdown (All / 30 / 60 / 90 / 120 days), matching the Drive tab. Filters the project list to only show projects whose `updated_at_frameio` is older than the selected threshold.
+
+---
+
 ## 2026-10-20 — Frame.io Storage: fix binary unit conversion
 
 ### Fixed

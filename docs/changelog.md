@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Drive tab: fix trash password check
+
+### Fixed
+- **`app/api/admin/drive/trash/route.ts`** — Added `.trim()` to both sides of the password comparison to handle trailing whitespace in the Vercel env var value. Added a distinct error message (`ADMIN_TRASH_PASSWORD not set in environment`) when the env var is missing, so the two failure modes are distinguishable.
+
+---
+
 ## 2026-10-19 — Drive tab: require 4-digit year folder for shoot detection
 
 ### Fixed

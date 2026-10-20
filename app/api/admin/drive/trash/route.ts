@@ -13,7 +13,10 @@ export async function POST(req: Request) {
   if (!folder_id) return NextResponse.json({ error: 'folder_id required' }, { status: 400 })
 
   const adminPass = process.env.ADMIN_TRASH_PASSWORD
-  if (!adminPass || admin_password !== adminPass) {
+  if (!adminPass) {
+    return NextResponse.json({ error: 'ADMIN_TRASH_PASSWORD not set in environment' }, { status: 403 })
+  }
+  if (admin_password.trim() !== adminPass.trim()) {
     return NextResponse.json({ error: 'Wrong password' }, { status: 403 })
   }
 

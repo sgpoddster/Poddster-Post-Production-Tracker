@@ -17,18 +17,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'ADMIN_TRASH_PASSWORD not set in environment' }, { status: 403 })
   }
   if (admin_password.trim() !== adminPass.trim()) {
-    return NextResponse.json({
-      error: 'Wrong password',
-      debug: { stored_len: adminPass.trim().length, received_len: admin_password.trim().length },
-    }, { status: 403 })
+    return NextResponse.json({ error: 'Wrong password' }, { status: 403 })
   }
 
-  const token = await getDriveToken()
-  await trashDriveFolder(token, folder_id)
+  try {
+    const token = await getDriveToken()
+    await trashDriveFolder(token, folder_id)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return NextResponse.json({ error: `Drive error: ${msg}` }, { status: 500 })
+  }
 
   // Remove from scan table so it disappears from the UI immediately
   const supabase = createServiceClient()
   await supabase.from('drive_scan_folders').delete().eq('folder_id', folder_id)
+  await supabase.from('drive_scan_shoots').delete().eq('client_folder_id', folder_id)
 
   return NextResponse.json({ ok: true })
 }

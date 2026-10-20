@@ -4,10 +4,10 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
-## 2026-10-20 — Drive tab: temp debug for trash password mismatch (to remove)
+## 2026-10-20 — Drive tab: fix trash Drive API error handling
 
-### Changed
-- **`app/api/admin/drive/trash/route.ts`** + **`app/admin/DriveManager.tsx`** — Temporarily return stored vs received character lengths in the wrong-password error message to diagnose the mismatch. Remove once resolved.
+### Fixed
+- **`app/api/admin/drive/trash/route.ts`** — Wrapped `getDriveToken` + `trashDriveFolder` in try/catch so Drive API errors are returned as JSON (`Drive error: …`) instead of crashing the route and returning an HTML 500 (which appeared as "Failed" in the UI). Also deletes associated rows from `drive_scan_shoots` on success (was only deleting from `drive_scan_folders`). Removed debug character-length output now that password auth is confirmed working.
 
 ---
 

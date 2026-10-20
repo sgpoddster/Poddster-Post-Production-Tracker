@@ -134,7 +134,8 @@ function useTrash() {
       return null
     }
     const j = await res.json().catch(() => ({}))
-    return j.error ?? 'Failed'
+    const msg = j.error ?? 'Failed'
+    return j.debug ? `${msg} (stored: ${j.debug.stored_len} chars, received: ${j.debug.received_len} chars)` : msg
   }
 
   return { modal, setModal, removed, doTrash }

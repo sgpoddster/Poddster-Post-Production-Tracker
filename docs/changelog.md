@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Drive tab: temp debug for trash password mismatch (to remove)
+
+### Changed
+- **`app/api/admin/drive/trash/route.ts`** + **`app/admin/DriveManager.tsx`** — Temporarily return stored vs received character lengths in the wrong-password error message to diagnose the mismatch. Remove once resolved.
+
+---
+
 ## 2026-10-20 — Drive tab: fix trash password check
 
 ### Fixed

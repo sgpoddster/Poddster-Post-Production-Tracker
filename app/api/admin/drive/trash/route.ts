@@ -17,7 +17,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'ADMIN_TRASH_PASSWORD not set in environment' }, { status: 403 })
   }
   if (admin_password.trim() !== adminPass.trim()) {
-    return NextResponse.json({ error: 'Wrong password' }, { status: 403 })
+    return NextResponse.json({
+      error: 'Wrong password',
+      debug: { stored_len: adminPass.trim().length, received_len: admin_password.trim().length },
+    }, { status: 403 })
   }
 
   const token = await getDriveToken()

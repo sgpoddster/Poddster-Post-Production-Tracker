@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Drive tab: increase scan timeout to 300s
+
+### Fixed
+- **`vercel.json`** — Added `maxDuration: 300` for both scan routes. Default Vercel timeout (10s Hobby / 60s Pro) was too short to paginate all files in a 58 TB drive with 463+ clients.
+- **`app/admin/DriveManager.tsx`** — Scan button now shows the actual HTTP status or error message on failure instead of the generic "Scan failed".
+
+---
+
 ## 2026-10-20 — Drive tab: grouped sessions with collapse/expand
 
 ### Changed

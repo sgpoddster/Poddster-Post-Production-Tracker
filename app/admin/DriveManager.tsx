@@ -524,13 +524,15 @@ export default function DriveManager({
     setScanning(true)
     setScanMsg('')
     const res = await fetch('/api/admin/drive/scan', { method: 'POST' })
+      .catch(e => { setScanMsg(`Network error: ${e.message}`); setScanning(false); return null })
+    if (!res) return
     const j = await res.json().catch(() => ({}))
     if (res.ok) {
       const shootCount = Object.values(j.summary ?? {}).reduce((s: number, v: unknown) => s + ((v as { shoots?: number }).shoots ?? 0), 0)
       setScanMsg(`Scan complete (${shootCount} shoots found) — reloading…`)
       setTimeout(() => window.location.reload(), 1200)
     } else {
-      setScanMsg(j.error ?? 'Scan failed')
+      setScanMsg(j.error ?? `Scan failed (HTTP ${res.status})`)
       setScanning(false)
     }
   }

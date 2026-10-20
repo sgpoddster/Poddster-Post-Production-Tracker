@@ -4,6 +4,19 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Frame.io Storage tab
+
+### Added
+- **`supabase/frameio_scan.sql`** — New migration: `frameio_scan_projects` (one row per Frame.io project/client with `storage_bytes`) and `frameio_scan_sessions` (one row per top-level session folder per project).
+- **`lib/frameio-scan.ts`** — Scan library: paginates all projects from `GET /v4/accounts/{id}/workspaces/{id}/projects` (storage in bytes comes from the project record), then lists the root folder children (session folders) for each project via `GET /v4/accounts/{id}/folders/{id}/children`.
+- **`app/api/admin/frameio/scan/route.ts`** — Manual scan endpoint (POST, admin auth). Upserts projects + sessions and removes deleted rows.
+- **`app/api/cron/frameio-scan/route.ts`** — Daily cron scan (GET, CRON_SECRET auth). Runs at 03:00 UTC.
+- **`app/admin/FrameioManager.tsx`** — Frame.io storage UI: total storage summary, top-10 bar chart, autocomplete search, sortable project list grouped with collapsible session rows.
+- **`app/admin/page.tsx`** — Added "Frame.io" tab; loads `frameio_scan_projects` + `frameio_scan_sessions` from Supabase and passes to `FrameioManager`.
+- **`vercel.json`** — Added `maxDuration: 300` for both new scan routes; added daily cron at `0 3 * * *` for `/api/cron/frameio-scan`.
+
+---
+
 ## 2026-10-20 — Drive scan: fix stale row cleanup after deletion
 
 ### Fixed

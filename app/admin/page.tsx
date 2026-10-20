@@ -7,6 +7,7 @@ import HolidayManager from './HolidayManager'
 import FrameioBackfill from './FrameioBackfill'
 import FrameioFolderBackfill from './FrameioFolderBackfill'
 import DriveManager from './DriveManager'
+import FrameioManager from './FrameioManager'
 
 export default async function AdminPage({
   searchParams,
@@ -20,17 +21,19 @@ export default async function AdminPage({
   const profile = await getUserProfile()
   if (profile?.role !== 'admin') redirect('/dashboard')
 
-  const tab = ['clients', 'holidays', 'tools', 'drive'].includes(searchParams?.tab ?? '')
-    ? (searchParams!.tab as 'clients' | 'holidays' | 'tools' | 'drive')
+  const tab = ['clients', 'holidays', 'tools', 'drive', 'frameio'].includes(searchParams?.tab ?? '')
+    ? (searchParams!.tab as 'clients' | 'holidays' | 'tools' | 'drive' | 'frameio')
     : 'team'
 
   const svc = createServiceClient()
-  const [{ data: users }, { data: clients }, { data: holidays }, { data: driveFolders }, { data: driveShoots }] = await Promise.all([
+  const [{ data: users }, { data: clients }, { data: holidays }, { data: driveFolders }, { data: driveShoots }, { data: frameioProjects }, { data: frameioSessions }] = await Promise.all([
     supabase.from('user_profiles').select('*').order('display_name'),
     supabase.from('clients').select('*, portal_token').order('name'),
     svc.from('holidays').select('*').order('date'),
     svc.from('drive_scan_folders').select('*').order('size_bytes', { ascending: false }),
     svc.from('drive_scan_shoots').select('*').order('created_at_drive', { ascending: true }),
+    svc.from('frameio_scan_projects').select('*').order('storage_bytes', { ascending: false }),
+    svc.from('frameio_scan_sessions').select('*').order('created_at_frameio', { ascending: false }),
   ])
 
   return (
@@ -61,6 +64,9 @@ export default async function AdminPage({
         </TabLink>
         <TabLink href="/admin?tab=drive" active={tab === 'drive'}>
           Drive
+        </TabLink>
+        <TabLink href="/admin?tab=frameio" active={tab === 'frameio'}>
+          Frame.io
         </TabLink>
       </div>
 
@@ -110,6 +116,13 @@ export default async function AdminPage({
       {tab === 'drive' && (
         <section className="space-y-4">
           <DriveManager folders={driveFolders ?? []} shoots={driveShoots ?? []} />
+        </section>
+      )}
+
+      {/* Frame.io tab */}
+      {tab === 'frameio' && (
+        <section className="space-y-4">
+          <FrameioManager projects={frameioProjects ?? []} sessions={frameioSessions ?? []} />
         </section>
       )}
 

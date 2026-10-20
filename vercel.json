@@ -1,7 +1,9 @@
 {
   "functions": {
-    "app/api/admin/drive/scan/route.ts": { "maxDuration": 300 },
-    "app/api/cron/drive-scan/route.ts":  { "maxDuration": 300 }
+    "app/api/admin/drive/scan/route.ts":    { "maxDuration": 300 },
+    "app/api/cron/drive-scan/route.ts":     { "maxDuration": 300 },
+    "app/api/admin/frameio/scan/route.ts":  { "maxDuration": 300 },
+    "app/api/cron/frameio-scan/route.ts":   { "maxDuration": 300 }
   },
   "crons": [
     {
@@ -15,6 +17,10 @@
     {
       "path": "/api/cron/drive-scan",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/frameio-scan",
+      "schedule": "0 3 * * *"
     }
   ]
 }

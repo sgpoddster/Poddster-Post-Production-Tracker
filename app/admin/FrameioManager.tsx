@@ -81,6 +81,7 @@ export default function FrameioManager({ projects: initialProjects, sessions: in
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [allExpanded, setAllExpanded] = useState(false)
   const [filterDays, setFilterDays] = useState<number | null>(null)
+  const [hideSmall, setHideSmall]   = useState(true)
 
   // Keep local state in sync if server data changes (e.g. after scan)
   useEffect(() => { setProjects(initialProjects) }, [initialProjects])
@@ -116,6 +117,9 @@ export default function FrameioManager({ projects: initialProjects, sessions: in
     let list = selected
       ? projects.filter(p => p.project_name === selected)
       : [...projects]
+    if (hideSmall) {
+      list = list.filter(p => p.storage_bytes >= 500 * 1024 * 1024)
+    }
     if (filterDays !== null) {
       const cutoff = Date.now() - filterDays * 86400000
       list = list.filter(p => {
@@ -135,7 +139,7 @@ export default function FrameioManager({ projects: initialProjects, sessions: in
       return sortAsc ? diff : -diff
     })
     return list
-  }, [projects, selected, sortCol, sortAsc])
+  }, [projects, selected, sortCol, sortAsc, filterDays, hideSmall])
 
   const sessionsByProject = useMemo(() => {
     const map: Record<string, Session[]> = {}
@@ -214,7 +218,17 @@ export default function FrameioManager({ projects: initialProjects, sessions: in
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => setHideSmall(h => !h)}
+            className={`text-xs px-3 py-1.5 rounded-md border font-medium transition-colors ${
+              hideSmall
+                ? 'bg-brand-accent/15 border-brand-accent/30 text-brand-accent'
+                : 'bg-th/[0.04] border-th/[0.1] text-th/50 hover:text-th/70'
+            }`}
+          >
+            {hideSmall ? 'Hiding < 500 MB' : 'Show all'}
+          </button>
           <div className="flex items-center gap-2">
             <label className="text-xs text-th/40">Last updated older than</label>
             <select

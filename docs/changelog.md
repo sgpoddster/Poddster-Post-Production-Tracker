@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Frame.io Storage: hide small projects filter
+
+### Added
+- **`app/admin/FrameioManager.tsx`** — Toggle button "Hiding < 500 MB" / "Show all" (on by default). Filters out projects with less than 500 MB of storage — empty projects and those containing only branding assets. Active state shown with an accent-coloured pill.
+
+---
+
 ## 2026-10-20 — Frame.io Storage: age filter
 
 ### Added

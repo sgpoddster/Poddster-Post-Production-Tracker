@@ -4,6 +4,14 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Drive tab: grouped sessions with collapse/expand
+
+### Changed
+- **`app/admin/DriveManager.tsx`** — Sessions table is now grouped by client. Default view shows one row per client (name, session count, total storage, oldest session age). Click a client row to expand/collapse its sessions. "Expand all" / "Collapse all" button in the section header. When a client is selected via search, their group is always expanded.
+- Fixed alphabetical sort: Client header now sorts by `client_name` (was incorrectly sorting by `folder_name` / session name). Sort columns are now `client`, `storage`, `age`.
+
+---
+
 ## 2026-10-20 — Drive tab: sortable sessions table
 
 ### Added

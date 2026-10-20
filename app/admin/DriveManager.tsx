@@ -40,12 +40,12 @@ const SHOOTS_DEFAULT = 10
 function SortHeader({
   col, label, align, sortCol, sortDir, onSort,
 }: {
-  col: 'name' | 'storage' | 'age'
+  col: 'client' | 'storage' | 'age'
   label: string
   align: 'left' | 'right'
-  sortCol: 'name' | 'storage' | 'age'
+  sortCol: 'client' | 'storage' | 'age'
   sortDir: 'asc' | 'desc'
-  onSort: (col: 'name' | 'storage' | 'age') => void
+  onSort: (col: 'client' | 'storage' | 'age') => void
 }) {
   const active = sortCol === col
   return (
@@ -179,23 +179,32 @@ function DriveSection({
   shoots: DriveShoot[]
   ageDays: number | null
 }) {
-  const [inputValue, setInputValue]     = useState('')
-  const [selected, setSelected]         = useState<DriveFolder | null>(null)
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [showAll, setShowAll]           = useState(false)
-  const [sortCol, setSortCol]   = useState<'name' | 'storage' | 'age'>('age')
-  const [sortDir, setSortDir]   = useState<'asc' | 'desc'>('asc')
+  const [inputValue, setInputValue]       = useState('')
+  const [selected, setSelected]           = useState<DriveFolder | null>(null)
+  const [dropdownOpen, setDropdownOpen]   = useState(false)
+  const [sortCol, setSortCol]             = useState<'client' | 'storage' | 'age'>('client')
+  const [sortDir, setSortDir]             = useState<'asc' | 'desc'>('asc')
+  const [expandedIds, setExpandedIds]     = useState<Set<string>>(new Set())
+  const [allExpanded, setAllExpanded]     = useState(false)
+  const { modal, setModal, removed, doTrash } = useTrash()
 
-  function toggleSort(col: 'name' | 'storage' | 'age') {
+  function toggleSort(col: 'client' | 'storage' | 'age') {
     if (sortCol === col) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     } else {
       setSortCol(col)
-      setSortDir(col === 'name' ? 'asc' : col === 'storage' ? 'desc' : 'asc')
+      setSortDir(col === 'storage' ? 'desc' : 'asc')
     }
-    setShowAll(false)
   }
-  const { modal, setModal, removed, doTrash } = useTrash()
+
+  function toggleExpand(clientFolderId: string) {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(clientFolderId)) next.delete(clientFolderId)
+      else next.add(clientFolderId)
+      return next
+    })
+  }
 
   const allFolders = useMemo(
     () => folders.filter(f => !removed.has(f.folder_id)),
@@ -216,17 +225,15 @@ function DriveSection({
     setSelected(f)
     setInputValue(f.folder_name)
     setDropdownOpen(false)
-    setShowAll(false)
   }
 
   function clearSelection() {
     setSelected(null)
     setInputValue('')
-    setShowAll(false)
   }
 
-  // Shoot rows — filtered by age AND selected client
-  const allShoots = useMemo(() => {
+  // Grouped shoots — filtered, then grouped by client, sorted at group level
+  const clientGroups = useMemo(() => {
     let list = shoots.filter(s => !removed.has(s.folder_id))
     if (ageDays !== null) {
       list = list.filter(s => {
@@ -234,26 +241,40 @@ function DriveSection({
         return age !== null && age >= ageDays
       })
     }
-    if (selected) {
-      list = list.filter(s => s.client_folder_id === selected.folder_id)
-    }
-    list.sort((a, b) => {
-      let cmp = 0
-      if (sortCol === 'name') {
-        cmp = a.folder_name.localeCompare(b.folder_name)
-      } else if (sortCol === 'storage') {
-        cmp = a.size_bytes - b.size_bytes
-      } else {
-        const aa = a.created_at_drive ?? ''
-        const bb = b.created_at_drive ?? ''
-        cmp = aa.localeCompare(bb)
+    if (selected) list = list.filter(s => s.client_folder_id === selected.folder_id)
+
+    // Group by client_folder_id
+    const map = new Map<string, { clientName: string; sessions: DriveShoot[]; totalBytes: number; oldestDate: string | null }>()
+    for (const s of list) {
+      if (!map.has(s.client_folder_id)) {
+        map.set(s.client_folder_id, { clientName: s.client_name, sessions: [], totalBytes: 0, oldestDate: null })
       }
+      const g = map.get(s.client_folder_id)!
+      g.sessions.push(s)
+      g.totalBytes += s.size_bytes
+      if (s.created_at_drive && (!g.oldestDate || s.created_at_drive < g.oldestDate)) {
+        g.oldestDate = s.created_at_drive
+      }
+    }
+
+    // Sort sessions within each group by age asc
+    for (const g of map.values()) {
+      g.sessions.sort((a, b) => (a.created_at_drive ?? '').localeCompare(b.created_at_drive ?? ''))
+    }
+
+    // Sort groups
+    const groups = Array.from(map.entries()).map(([id, g]) => ({ id, ...g }))
+    groups.sort((a, b) => {
+      let cmp = 0
+      if (sortCol === 'client') cmp = a.clientName.localeCompare(b.clientName)
+      else if (sortCol === 'storage') cmp = a.totalBytes - b.totalBytes
+      else cmp = (a.oldestDate ?? '').localeCompare(b.oldestDate ?? '')
       return sortDir === 'asc' ? cmp : -cmp
     })
-    return list
+    return groups
   }, [shoots, removed, ageDays, selected, sortCol, sortDir])
 
-  const visibleShoots = showAll ? allShoots : allShoots.slice(0, SHOOTS_DEFAULT)
+  const totalSessions = clientGroups.reduce((n, g) => n + g.sessions.length, 0)
 
   return (
     <div className="space-y-4">
@@ -372,74 +393,106 @@ function DriveSection({
         </div>
       )}
 
-      {/* Shoot folders */}
+      {/* Sessions — grouped by client */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider">
-            {selected ? `Sessions — ${selected.folder_name}` : 'All sessions'}
-          </p>
-          <span className="text-xs text-th/30">{allShoots.length} sessions</span>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <p className="text-[10px] font-medium text-th/30 uppercase tracking-wider">
+              {selected ? `Sessions — ${selected.folder_name}` : 'Sessions by client'}
+            </p>
+            {!selected && clientGroups.length > 0 && (
+              <button
+                onClick={() => {
+                  if (allExpanded) { setExpandedIds(new Set()); setAllExpanded(false) }
+                  else { setExpandedIds(new Set(clientGroups.map(g => g.id))); setAllExpanded(true) }
+                }}
+                className="text-[10px] text-th/40 hover:text-th transition-colors"
+              >
+                {allExpanded ? 'Collapse all' : 'Expand all'}
+              </button>
+            )}
+          </div>
+          <span className="text-xs text-th/30">{clientGroups.length} clients · {totalSessions} sessions</span>
         </div>
 
-        {allShoots.length === 0 ? (
+        {clientGroups.length === 0 ? (
           <p className="text-sm text-th/25 py-4 text-center">
             {shoots.length === 0 ? 'No shoot data yet — run a scan first.' : 'No sessions match.'}
           </p>
         ) : (
-          <>
-            <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
-              <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] divide-y divide-th/[0.05]">
-                <div className="contents text-[10px] font-medium text-th/30 uppercase tracking-wider">
-                  <SortHeader col="name" label="Client" align="left" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
-                  <SortHeader col="name" label="Session" align="left" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
-                  <div className="px-4 py-2.5 text-right">Year</div>
-                  <SortHeader col="storage" label="Storage" align="right" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
-                  <SortHeader col="age" label="Age" align="right" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
-                  <div className="px-4 py-2.5" />
-                </div>
-                {visibleShoots.map(s => {
-                  const age = daysSince(s.created_at_drive)
-                  const ageColor = age !== null && age > 90
-                    ? 'text-red-400'
-                    : age !== null && age > 60
-                      ? 'text-amber-400'
-                      : 'text-th/40'
-                  return (
-                    <div key={s.id} className="contents">
-                      <div className="px-4 py-3 min-w-0">
-                        <span className="text-xs text-th/60 truncate block whitespace-nowrap">{s.client_name}</span>
-                      </div>
-                      <div className="px-4 py-3 min-w-0">
-                        <span className="text-sm text-th truncate block">{s.folder_name}</span>
-                      </div>
-                      <div className="px-4 py-3 text-right text-xs text-th/40 whitespace-nowrap">{s.year ?? '—'}</div>
-                      <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(s.size_bytes)}</div>
-                      <div className={`px-4 py-3 text-right text-sm whitespace-nowrap font-medium ${ageColor}`}>
-                        {age !== null ? `${age}d` : '—'}
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-end">
-                        <button
-                          onClick={() => setModal({ folderId: s.folder_id, name: s.folder_name })}
-                          className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
-                        >
-                          Trash
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+          <div className="rounded-lg border border-th/[0.06] bg-brand-surface overflow-hidden">
+            {/* Header */}
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] border-b border-th/[0.05]">
+              <SortHeader col="client" label="Client" align="left" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
+              <div className="px-4 py-2.5 text-[10px] font-medium text-th/30 uppercase tracking-wider text-right">Sessions</div>
+              <SortHeader col="storage" label="Storage" align="right" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
+              <SortHeader col="age" label="Oldest" align="right" sortCol={sortCol} sortDir={sortDir} onSort={toggleSort} />
+              <div className="px-4 py-2.5" />
             </div>
 
-            {allShoots.length > SHOOTS_DEFAULT && (
-              <button
-                onClick={() => setShowAll(v => !v)}
-                className="text-xs text-th/40 hover:text-th transition-colors"
-              >
-                {showAll ? 'Show less' : `Show all ${allShoots.length} sessions`}
-              </button>
-            )}
-          </>
+            {clientGroups.map(g => {
+              const isOpen = selected ? true : (allExpanded || expandedIds.has(g.id))
+              const oldestAge = daysSince(g.oldestDate)
+              const ageColor = oldestAge !== null && oldestAge > 90 ? 'text-red-400'
+                : oldestAge !== null && oldestAge > 60 ? 'text-amber-400' : 'text-th/40'
+              return (
+                <div key={g.id} className="border-b border-th/[0.05] last:border-0">
+                  {/* Client row */}
+                  <button
+                    onClick={() => !selected && toggleExpand(g.id)}
+                    className={`w-full grid grid-cols-[1fr_auto_auto_auto_auto] items-center text-left transition-colors ${
+                      selected ? 'cursor-default' : 'hover:bg-th/[0.03]'
+                    }`}
+                  >
+                    <div className="px-4 py-3 flex items-center gap-2 min-w-0">
+                      {!selected && (
+                        <span className="text-th/25 text-[10px] shrink-0">{isOpen ? '▼' : '▶'}</span>
+                      )}
+                      <span className="text-sm font-medium text-th truncate">{g.clientName}</span>
+                    </div>
+                    <div className="px-4 py-3 text-right text-xs text-th/40 whitespace-nowrap">{g.sessions.length}</div>
+                    <div className="px-4 py-3 text-right text-sm text-th/60 whitespace-nowrap">{fmtBytes(g.totalBytes)}</div>
+                    <div className={`px-4 py-3 text-right text-sm whitespace-nowrap font-medium ${ageColor}`}>
+                      {oldestAge !== null ? `${oldestAge}d` : '—'}
+                    </div>
+                    <div className="px-4 py-3" />
+                  </button>
+
+                  {/* Session rows */}
+                  {isOpen && (
+                    <div className="border-t border-th/[0.04] bg-th/[0.015]">
+                      {g.sessions.map(s => {
+                        const age = daysSince(s.created_at_drive)
+                        const sc = age !== null && age > 90 ? 'text-red-400'
+                          : age !== null && age > 60 ? 'text-amber-400' : 'text-th/40'
+                        return (
+                          <div key={s.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center border-b border-th/[0.04] last:border-0">
+                            <div className="pl-10 pr-4 py-2.5 min-w-0">
+                              <span className="text-sm text-th/80 truncate block">{s.folder_name}</span>
+                              <span className="text-[10px] text-th/30">{s.year ?? '—'}</span>
+                            </div>
+                            <div className="px-4 py-2.5" />
+                            <div className="px-4 py-2.5 text-right text-sm text-th/50 whitespace-nowrap">{fmtBytes(s.size_bytes)}</div>
+                            <div className={`px-4 py-2.5 text-right text-sm whitespace-nowrap font-medium ${sc}`}>
+                              {age !== null ? `${age}d` : '—'}
+                            </div>
+                            <div className="px-4 py-2.5 flex items-center justify-end">
+                              <button
+                                onClick={() => setModal({ folderId: s.folder_id, name: s.folder_name })}
+                                className="text-xs text-th/25 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-400/10"
+                              >
+                                Trash
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 

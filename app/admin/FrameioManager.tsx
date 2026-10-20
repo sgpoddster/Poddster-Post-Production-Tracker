@@ -376,7 +376,14 @@ export default function FrameioManager({ projects: initialProjects, sessions: in
                             key={s.folder_id}
                             className="flex items-center justify-between pl-10 pr-4 py-2 border-b border-th/[0.03] last:border-0"
                           >
-                            <span className="text-xs text-th/70 truncate">{s.folder_name}</span>
+                            <a
+                              href={`https://next.frame.io/project/${p.project_id}/view/${s.folder_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-th/70 hover:text-brand-accent truncate transition-colors"
+                            >
+                              {s.folder_name}
+                            </a>
                             <span className="text-xs text-th/35 shrink-0 ml-4">
                               {ageDays(s.created_at_frameio)}
                             </span>

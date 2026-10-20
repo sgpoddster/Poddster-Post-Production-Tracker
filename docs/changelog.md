@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-20 — Frame.io Storage: session folder links
+
+### Added
+- **`app/admin/FrameioManager.tsx`** — Session folder names are now clickable links that open the folder directly in Frame.io (`https://next.frame.io/project/{id}/view/{folderId}`), opening in a new tab.
+
+---
+
 ## 2026-10-20 — Frame.io Storage: hide small projects filter
 
 ### Added

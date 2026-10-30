@@ -78,6 +78,7 @@ export interface FootageDelivery {
   source: string
   conversion_status: 'processing' | 'done' | 'error' | null
   converted_link: string | null  // link to "Smaller File Size 1080p" folder
+  send_on_complete: boolean
   created_at: string
   updated_at: string
 }

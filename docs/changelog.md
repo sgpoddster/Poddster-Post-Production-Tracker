@@ -4,6 +4,19 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-10-30 — Footage Delivery: Convert-only button
+
+### Added
+- **`components/FootageConvertButton.tsx`** — New "Convert" button that triggers 1080p conversion without auto-emailing the client. Existing "Convert & Send" button unchanged.
+- **`app/api/footage/[id]/convert/route.ts`** — Accepts `?send=false` query param; persists `send_on_complete = false` on the delivery row.
+- **`app/api/footage/convert-callback/route.ts`** — Checks `delivery.send_on_complete` before sending the 1080p email.
+- **`supabase/footage_convert_only.sql`** — Migration adding `send_on_complete boolean NOT NULL DEFAULT true` to `footage_deliveries`.
+
+### Changed
+- "✓ 1080p sent" badge renamed to "✓ 1080p ready" to be accurate when conversion runs without send.
+
+---
+
 ## 2026-10-20 — Frame.io Storage: session folder links
 
 ### Added

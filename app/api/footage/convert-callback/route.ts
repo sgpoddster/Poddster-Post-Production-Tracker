@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Delivery not found' }, { status: 404 })
   }
 
-  if (delivery.email) {
+  if (delivery.email && delivery.send_on_complete !== false) {
     await sendFootage1080pEmail({
       toEmails:        [delivery.email],
       ccEmails:        [],

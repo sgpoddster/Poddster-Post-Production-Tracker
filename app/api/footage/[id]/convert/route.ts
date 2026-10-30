@@ -9,7 +9,9 @@ function extractFolderId(url: string): string | null {
 }
 
 // POST /api/footage/[id]/convert — trigger Cloud Run 1080p conversion (admin only)
+// Pass ?send=false to convert without auto-emailing the client when done.
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const sendOnComplete = req.nextUrl.searchParams.get('send') !== 'false'
   const profile = await getUserProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -48,10 +50,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-production-tracker.vercel.app'
   const callbackUrl = `${appUrl}/api/footage/convert-callback`
 
-  // Mark as processing immediately
+  // Mark as processing immediately; persist whether to email when done
   await supabase
     .from('footage_deliveries')
-    .update({ conversion_status: 'processing', updated_at: new Date().toISOString() })
+    .update({ conversion_status: 'processing', send_on_complete: sendOnComplete, updated_at: new Date().toISOString() })
     .eq('id', params.id)
 
   // Fire-and-forget: Cloud Run does the heavy work and POSTs the callback when done

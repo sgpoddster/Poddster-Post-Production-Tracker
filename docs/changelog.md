@@ -4,6 +4,26 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-03 — Footage Delivery: booking email + extra recipients
+
+### Added
+- **`supabase/footage_extra_emails.sql`** — new `extra_emails text[]` column on `footage_deliveries` (must be run in Supabase before deploying).
+- **`components/FootageRecipients.tsx`** — each Footage Delivery row shows the booking email (click to edit; amber "No email — add" when missing) plus extra recipients as chips with × to remove and "+ Add recipient".
+- **`lib/footage-email.ts`** — `deliveryRecipients()` (booking email + extras, de-duplicated) and shared `EMAIL_RE`.
+
+### Changed
+- **`app/api/cron/footage-ingest/route.ts`** — parses the new calendar format `Client email:` (still accepts `User Email:`), stripping HTML links. Only fills the email when the row has none, so admin corrections aren't overwritten. Removed the "same client name" email guessing.
+- **`app/api/footage/[id]/route.ts`** — PATCH now also accepts `email` and `extra_emails` (validated, de-duplicated).
+- **4K send, 1080p callback, expiry reminder/deleted cron, admin send-footage** — all footage emails go to the booking email + extra recipients.
+- **`components/FootageSendButton.tsx`** — confirm dialog lists every recipient; the "type an email" prompt is gone (add it on the row instead).
+- **`app/footage/page.tsx`** — search also matches recipient emails.
+- **`lib/types.ts`** — `FootageDelivery` gains `email` and `extra_emails`.
+
+### Removed
+- `lookupClientEmail` / `resolveDeliveryEmail` name-based fallback (every booking now carries its email).
+
+---
+
 ## 2026-11-03 — Client emails: greeting & font size
 
 ### Changed

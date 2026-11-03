@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSign } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendFootageReminderEmail, sendFootageExpiredEmail } from '@/lib/email'
+import { deliveryRecipients } from '@/lib/footage-email'
 
 // Daily cron: send expiry reminder (T-2 days) and expiry notice (on expiry date),
 // then trash the Drive folder once the expiry email has been sent.
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
   // ── Reminder: expires_at = today + 2 days, reminder not yet sent ─────────────
   let reminderQuery = supabase
     .from('footage_deliveries')
-    .select('id, email, client_name, drive_link')
+    .select('id, email, extra_emails, client_name, drive_link')
     .eq('expires_at', inTwoDays)
     .not('sent_at', 'is', null)
   if (!testTo) reminderQuery = reminderQuery.is('reminder_sent_at', null)
@@ -92,7 +93,7 @@ export async function GET(req: NextRequest) {
 
   for (const row of reminderRows ?? []) {
     if (!row.drive_link) continue
-    const toEmails = testTo ? [testTo] : row.email ? [row.email] : []
+    const toEmails = testTo ? [testTo] : deliveryRecipients(row)
     if (!toEmails.length) continue
     await sendFootageReminderEmail({ toEmails, clientName: row.client_name ?? '', driveLink: row.drive_link })
     if (!testTo) {
@@ -104,7 +105,7 @@ export async function GET(req: NextRequest) {
   // ── Expiry: expires_at <= today, expiry email not yet sent ───────────────────
   let expiredQuery = supabase
     .from('footage_deliveries')
-    .select('id, email, client_name, drive_link')
+    .select('id, email, extra_emails, client_name, drive_link')
     .lte('expires_at', today)
     .not('sent_at', 'is', null)
   if (!testTo) expiredQuery = expiredQuery.is('expired_sent_at', null)
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
   const driveToken = (!testTo && expiredRows?.length) ? await getDriveToken() : null
 
   for (const row of expiredRows ?? []) {
-    const toEmails = testTo ? [testTo] : row.email ? [row.email] : []
+    const toEmails = testTo ? [testTo] : deliveryRecipients(row)
     if (!toEmails.length) continue
 
     await sendFootageExpiredEmail({ toEmails, clientName: row.client_name ?? '' })

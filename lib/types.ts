@@ -66,6 +66,8 @@ export interface FootageDelivery {
   order_id: string | null
   client_name: string | null
   client_code: string | null
+  email: string | null           // booking email (calendar "Client email:")
+  extra_emails: string[]         // additional footage recipients added by admin
   filming_date: string | null    // 'YYYY-MM-DD'
   filming_time: string | null
   setup: string | null

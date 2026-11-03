@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getUserProfile } from '@/lib/auth'
 import { sendFootageDeliveryEmail } from '@/lib/email'
-import { resolveDeliveryEmail } from '@/lib/footage-email'
+import { deliveryRecipients } from '@/lib/footage-email'
 
 // POST /api/footage/[id]/send — fire the footage delivery email (admin only)
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const profile = await getUserProfile()
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -26,23 +26,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'No Drive link saved yet' }, { status: 400 })
   }
 
-  // Optional email typed in by the admin when none is on file — saved to the row
-  const body = await req.json().catch(() => ({})) as { email?: string }
-  const typedEmail = body.email?.trim()
-  if (typedEmail) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typedEmail)) {
-      return NextResponse.json({ error: 'That email address doesn\'t look valid' }, { status: 400 })
-    }
-    await supabase.from('footage_deliveries').update({ email: typedEmail }).eq('id', params.id)
-  }
-
-  const email = typedEmail || await resolveDeliveryEmail(supabase, delivery)
-  if (!email) {
-    return NextResponse.json({ error: `No email on file for "${delivery.client_name}"`, code: 'no_email' }, { status: 400 })
+  const recipients = deliveryRecipients(delivery)
+  if (!recipients.length) {
+    return NextResponse.json({ error: `No email on file for "${delivery.client_name}" — add one first` }, { status: 400 })
   }
 
   await sendFootageDeliveryEmail({
-    toEmails: [email],
+    toEmails: recipients,
     ccEmails: [],
     clientFirstName: null,
     clientName: delivery.client_name ?? '',

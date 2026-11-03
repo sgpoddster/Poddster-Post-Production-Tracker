@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendFootageDeliveryEmail } from '@/lib/email'
+import { deliveryRecipients } from '@/lib/footage-email'
 
 // Admin utility: send the footage delivery email for a specific delivery record.
 // Auth: ?key=<INGEST_API_KEY>
@@ -31,10 +32,11 @@ async function run(req: NextRequest) {
 
   if (fetchErr || !delivery) return NextResponse.json({ error: 'Delivery not found' }, { status: 404 })
   if (!delivery.drive_link) return NextResponse.json({ error: 'No Drive link set on this delivery' }, { status: 400 })
-  if (!delivery.email) return NextResponse.json({ error: 'No email address on this delivery' }, { status: 400 })
+  const recipients = deliveryRecipients(delivery)
+  if (!recipients.length) return NextResponse.json({ error: 'No email address on this delivery' }, { status: 400 })
 
   await sendFootageDeliveryEmail({
-    toEmails:        [delivery.email],
+    toEmails:        recipients,
     ccEmails:        [],
     clientFirstName: null,
     clientName:      delivery.client_name ?? '',
@@ -54,7 +56,7 @@ async function run(req: NextRequest) {
   return NextResponse.json({
     success:    true,
     client:     delivery.client_name,
-    sentTo:     delivery.email,
+    sentTo:     recipients,
     expiresAt,
   })
 }

@@ -8,6 +8,8 @@ import FootageConvertButton from '@/components/FootageConvertButton'
 import FootageShowMore from '@/components/FootageShowMore'
 import FootageUndoButton from '@/components/FootageUndoButton'
 import FootageExtendButton from '@/components/FootageExtendButton'
+import FootageRecipients from '@/components/FootageRecipients'
+import { deliveryRecipients } from '@/lib/footage-email'
 import { SearchBar } from '@/app/dashboard/SearchBar'
 
 function formatDate(d: string | null): string {
@@ -59,6 +61,11 @@ function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
           {delivery.setup && <span>· {delivery.setup}</span>}
           {delivery.order_id && <code className="font-mono text-th/25">{delivery.order_id}</code>}
         </div>
+        <FootageRecipients
+          deliveryId={delivery.id}
+          email={delivery.email}
+          extraEmails={delivery.extra_emails ?? []}
+        />
       </div>
 
       {/* Right: drive link + send buttons */}
@@ -84,7 +91,7 @@ function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
         {/* Action buttons row */}
         <div className="flex items-center gap-2 flex-wrap">
           {!delivery.sent_at ? (
-            <FootageSendButton deliveryId={delivery.id} hasDriveLink={!!delivery.drive_link} />
+            <FootageSendButton deliveryId={delivery.id} hasDriveLink={!!delivery.drive_link} recipients={deliveryRecipients(delivery)} />
           ) : (
             <>
               <span className="shrink-0 text-[11px] text-green-400/70 whitespace-nowrap">
@@ -162,7 +169,7 @@ export default async function FootagePage({
   const q = searchParams?.q?.toLowerCase().trim() ?? ''
   const filtered = q
     ? all.filter(d =>
-        [d.client_name, d.client_code, d.job_id, d.order_id, d.setup, d.filming_date]
+        [d.client_name, d.client_code, d.job_id, d.order_id, d.setup, d.filming_date, d.email, ...(d.extra_emails ?? [])]
           .some(v => v?.toLowerCase().includes(q))
       )
     : all

@@ -168,10 +168,12 @@ function extractClientName(summary: string | undefined): string | null {
   return before || null
 }
 
-// Extract customer email from event description e.g. "User Email: ben@example.com"
+// Extract customer email from event description e.g. "Client email: ben@example.com"
+// (older bookings used "User Email:"). Descriptions may contain HTML links.
 function extractEmail(description: string | undefined): string | null {
   if (!description) return null
-  const m = description.match(/User\s+Email\s*:\s*([^\s\n\r<]+)/i)
+  const text = description.replace(/<[^>]+>/g, ' ')
+  const m = text.match(/(?:Client|User)\s+Email\s*:\s*([^\s<]+@[^\s<]+)/i)
   return m ? m[1].trim() : null
 }
 
@@ -209,11 +211,8 @@ export async function GET(req: NextRequest) {
     .select('job_id, order_id, filming_date, client_name, email')
 
   const knownJobIds     = new Set((existing ?? []).map(r => r.job_id as string))
-  // Repeat clients: reuse their email when a new booking's description has none
-  const knownEmails = new Map<string, string>()
-  for (const r of existing ?? []) {
-    if (r.client_name && r.email) knownEmails.set((r.client_name as string).toLowerCase(), r.email as string)
-  }
+  // Rows that already have an email — never overwrite one an admin may have corrected
+  const jobsWithEmail   = new Set((existing ?? []).filter(r => r.email).map(r => r.job_id as string))
   const knownOrderDates = new Set(
     (existing ?? [])
       .filter(r => r.order_id && r.filming_date)
@@ -242,12 +241,12 @@ export async function GET(req: NextRequest) {
 
       if (knownJobIds.has(ev.id)) {
         // Already a cron row — sync all mutable fields in case the booking was rescheduled
-        // Never blank out an email that was backfilled or typed in manually
+        // Only fill the email if the row has none (admin edits win)
         await supabase
           .from('footage_deliveries')
           .update({
             client_name:  clientName,
-            ...(email ? { email } : {}),
+            ...(email && !jobsWithEmail.has(ev.id) ? { email } : {}),
             filming_date: filmingDate,
             filming_time: buildFilmingTime(startISO, endISO),
             setup:        parsed.setup ?? null,
@@ -259,12 +258,20 @@ export async function GET(req: NextRequest) {
       }
 
       if (orderDateKey && knownOrderDates.has(orderDateKey)) {
-        // A GAS row exists for this order+date — update its name/email from the calendar
+        // A GAS row exists for this order+date — update its name, and its email if blank
         await supabase
           .from('footage_deliveries')
-          .update({ client_name: clientName, ...(email ? { email } : {}) })
+          .update({ client_name: clientName })
           .eq('order_id', parsed.orderId!)
           .eq('filming_date', filmingDate!)
+        if (email) {
+          await supabase
+            .from('footage_deliveries')
+            .update({ email })
+            .eq('order_id', parsed.orderId!)
+            .eq('filming_date', filmingDate!)
+            .is('email', null)
+        }
         skipped++
         continue
       }
@@ -273,7 +280,7 @@ export async function GET(req: NextRequest) {
         job_id:       ev.id,
         order_id:     parsed.orderId  ?? null,
         client_name:  clientName,
-        email:        email ?? knownEmails.get(clientName?.toLowerCase() ?? '') ?? null,
+        email:        email,
         filming_date: filmingDate,
         filming_time: buildFilmingTime(startISO, endISO),
         setup:        parsed.setup    ?? null,

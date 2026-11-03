@@ -6,32 +6,22 @@ import { useRouter } from 'next/navigation'
 export default function FootageSendButton({
   deliveryId,
   hasDriveLink,
+  recipients,
 }: {
   deliveryId: string
   hasDriveLink: boolean
+  recipients: string[]
 }) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   async function send() {
     if (!hasDriveLink) { alert('Save a Drive link first'); return }
-    if (!confirm('Send footage delivery email to the client?')) return
+    if (!recipients.length) { alert('Add the client\'s email first'); return }
+    if (!confirm(`Send footage delivery email to:\n\n${recipients.join('\n')}`)) return
     setLoading(true)
-    let res = await fetch(`/api/footage/${deliveryId}/send`, { method: 'POST' })
-    let d = res.ok ? {} : await res.json().catch(() => ({}))
-
-    // No email on the booking or any previous one — ask for it, save it, and send
-    if (!res.ok && d.code === 'no_email') {
-      const email = prompt(`${d.error}. Enter the client's email to send to (it will be saved):`)?.trim()
-      if (!email) { setLoading(false); return }
-      res = await fetch(`/api/footage/${deliveryId}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      d = res.ok ? {} : await res.json().catch(() => ({}))
-    }
-
+    const res = await fetch(`/api/footage/${deliveryId}/send`, { method: 'POST' })
+    const d = res.ok ? {} : await res.json().catch(() => ({}))
     setLoading(false)
     if (res.ok) {
       router.refresh()

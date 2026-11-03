@@ -5,12 +5,13 @@ const LOGO_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-pr
 
 // Email is sent via a Google Apps Script web app running in the
 // sgproduction@poddster.com mailbox (GmailApp.sendEmail). No DNS/Resend needed.
-async function sendViaGas(to: string, subject: string, html: string, cc?: string) {
+// Returns null on success, or an error message (callers log and carry on).
+async function sendViaGas(to: string, subject: string, html: string, cc?: string): Promise<string | null> {
   const url = process.env.GAS_EMAIL_WEBHOOK_URL
   const secret = process.env.GAS_EMAIL_SECRET
   if (!url) {
     console.warn('[email] GAS_EMAIL_WEBHOOK_URL not set — skipping')
-    return
+    return 'GAS_EMAIL_WEBHOOK_URL not set'
   }
   const res = await fetch(url, {
     method: 'POST',
@@ -21,9 +22,10 @@ async function sendViaGas(to: string, subject: string, html: string, cc?: string
   const text = await res.text()
   if (!res.ok || text.includes('"error"')) {
     console.error('[email] GAS relay error:', res.status, text.slice(0, 200))
-  } else {
-    console.log(`[email] sent to ${to}`)
+    return `GAS relay ${res.status}: ${text.slice(0, 200)}`
   }
+  console.log(`[email] sent to ${to}`)
+  return null
 }
 
 export async function sendAssignmentEmail({
@@ -331,9 +333,10 @@ export async function sendFootageDeliveryEmail({
 
   try {
     const cc = ccEmails.filter(Boolean).join(',')
-    await sendViaGas(to.join(','), 'Your Poddster Footage is Ready', html, cc || undefined)
+    return await sendViaGas(to.join(','), 'Your Poddster Footage is Ready', html, cc || undefined)
   } catch (e) {
     console.error('[email] footage delivery error:', e)
+    return String(e)
   }
 }
 
@@ -424,9 +427,10 @@ export async function sendFootage1080pEmail({
 
   try {
     const cc = ccEmails.filter(Boolean).join(',')
-    await sendViaGas(to.join(','), 'Your Poddster Footage is Ready (Smaller File Size)', html, cc || undefined)
+    return await sendViaGas(to.join(','), 'Your Poddster Footage is Ready (Smaller File Size)', html, cc || undefined)
   } catch (e) {
     console.error('[email] 1080p footage delivery error:', e)
+    return String(e)
   }
 }
 
@@ -497,9 +501,10 @@ export async function sendFootageReminderEmail({
 </body></html>`
 
   try {
-    await sendViaGas(to.join(','), 'Your Poddster footage link expires in 2 days', html)
+    return await sendViaGas(to.join(','), 'Your Poddster footage link expires in 2 days', html)
   } catch (e) {
     console.error('[email] footage reminder error:', e)
+    return String(e)
   }
 }
 
@@ -559,9 +564,10 @@ export async function sendFootageExpiredEmail({
 </body></html>`
 
   try {
-    await sendViaGas(to.join(','), 'Your Poddster footage has been removed', html)
+    return await sendViaGas(to.join(','), 'Your Poddster footage has been removed', html)
   } catch (e) {
     console.error('[email] footage expired error:', e)
+    return String(e)
   }
 }
 
@@ -660,8 +666,9 @@ export async function sendReviewChaseEmail({
   const cc = ccEmails.filter(Boolean).join(',')
 
   try {
-    await sendViaGas(to.join(','), subject, html, cc || undefined)
+    return await sendViaGas(to.join(','), subject, html, cc || undefined)
   } catch (e) {
     console.error('[email] review chase error:', e)
+    return String(e)
   }
 }

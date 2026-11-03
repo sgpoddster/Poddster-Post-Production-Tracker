@@ -4,6 +4,16 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-03 — Client email send errors surfaced
+
+### Fixed
+- **`app/api/admin/test-emails/route.ts`** — `?type=all` reported success but only the last email arrived. Sends are now spaced 2s apart and the response lists each email's actual result (`results`), returning 502 if any failed.
+
+### Changed
+- **`lib/email.ts`** — `sendViaGas` now returns `null` on success or an error message; the client-facing senders (4K, 1080p, reminder, deleted, review chase) return that result instead of silently swallowing relay errors. Existing callers are unaffected.
+
+---
+
 ## 2026-11-03 — Admin: test email sender
 
 ### Added

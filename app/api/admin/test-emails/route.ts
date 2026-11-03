@@ -17,7 +17,7 @@ const SAMPLE_ITEMS = [
   { type: 'highlight' as const, highlightNumber: 1, internalId: 'TEST1H1', filmingDate: '2026-11-03', filmingTime: '17:00 - 18:00', version: 1, orderId: 'TESTORDER' },
 ]
 
-const SENDERS: Record<string, (to: string) => Promise<void>> = {
+const SENDERS: Record<string, (to: string) => Promise<string | null | undefined>> = {
   '4k':       to => sendFootageDeliveryEmail({ toEmails: [to], clientFirstName: null, clientName: 'Test Client', driveLink: SAMPLE_LINK }),
   '1080p':    to => sendFootage1080pEmail({ toEmails: [to], clientFirstName: null, clientName: 'Test Client', convertedLink: SAMPLE_LINK }),
   'reminder': to => sendFootageReminderEmail({ toEmails: [to], clientName: 'Test Client', driveLink: SAMPLE_LINK }),
@@ -39,7 +39,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: `Unknown type: ${unknown.join(', ')}`, types: Object.keys(SENDERS) }, { status: 400 })
   }
 
-  for (const t of types) await SENDERS[t](profile.email)
+  // Send one at a time with a gap — the GAS relay drops rapid back-to-back calls
+  const results: Record<string, string> = {}
+  for (const [i, t] of types.entries()) {
+    if (i > 0) await new Promise(r => setTimeout(r, 2000))
+    results[t] = (await SENDERS[t](profile.email)) ?? 'sent'
+  }
 
-  return NextResponse.json({ ok: true, sentTo: profile.email, sent: types })
+  const ok = Object.values(results).every(r => r === 'sent')
+  return NextResponse.json({ ok, sentTo: profile.email, results }, { status: ok ? 200 : 502 })
 }

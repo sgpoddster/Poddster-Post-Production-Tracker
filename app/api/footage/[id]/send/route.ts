@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getUserProfile } from '@/lib/auth'
 import { sendFootageDeliveryEmail } from '@/lib/email'
+import { resolveDeliveryEmail } from '@/lib/footage-email'
 
 // POST /api/footage/[id]/send — fire the footage delivery email (admin only)
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -25,12 +26,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'No Drive link saved yet' }, { status: 400 })
   }
 
-  if (!delivery.email) {
-    return NextResponse.json({ error: `No email on file for "${delivery.client_name}" — re-run the cron to backfill from the calendar booking` }, { status: 400 })
+  // Optional email typed in by the admin when none is on file — saved to the row
+  const body = await req.json().catch(() => ({})) as { email?: string }
+  const typedEmail = body.email?.trim()
+  if (typedEmail) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typedEmail)) {
+      return NextResponse.json({ error: 'That email address doesn\'t look valid' }, { status: 400 })
+    }
+    await supabase.from('footage_deliveries').update({ email: typedEmail }).eq('id', params.id)
+  }
+
+  const email = typedEmail || await resolveDeliveryEmail(supabase, delivery)
+  if (!email) {
+    return NextResponse.json({ error: `No email on file for "${delivery.client_name}"`, code: 'no_email' }, { status: 400 })
   }
 
   await sendFootageDeliveryEmail({
-    toEmails: [delivery.email],
+    toEmails: [email],
     ccEmails: [],
     clientFirstName: null,
     clientName: delivery.client_name ?? '',

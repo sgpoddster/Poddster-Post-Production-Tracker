@@ -4,6 +4,20 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-03 — Footage Delivery: missing client email fallback
+
+### Fixed
+- **Send failed with "No email on file"** for repeat clients whose newer calendar bookings have no `User Email:` line (e.g. Michael Smith — every booking since July had a blank email).
+- **`app/api/cron/footage-ingest/route.ts`** — No longer overwrites an existing email with `null` when the calendar event has none. New rows with no email reuse the client's email from a previous booking (matched by client name).
+
+### Added
+- **`lib/footage-email.ts`** — `lookupClientEmail()` / `resolveDeliveryEmail()`: finds the most recent email on file for the same client name and saves it to the delivery row.
+- **`app/api/footage/[id]/send/route.ts`** — Falls back to the client's previous email; accepts an optional `{ email }` body typed in by the admin (validated, saved to the row). Returns `code: 'no_email'` when nothing is found.
+- **`components/FootageSendButton.tsx`** — On `no_email`, prompts for the client's email, saves it and sends.
+- **`app/api/footage/convert-callback/route.ts`** — Uses the same fallback before the 1080p email is sent.
+
+---
+
 ## 2026-10-30 — Footage Delivery: Convert-only button
 
 ### Added

@@ -17,12 +17,25 @@ export default function FootageSendButton({
     if (!hasDriveLink) { alert('Save a Drive link first'); return }
     if (!confirm('Send footage delivery email to the client?')) return
     setLoading(true)
-    const res = await fetch(`/api/footage/${deliveryId}/send`, { method: 'POST' })
+    let res = await fetch(`/api/footage/${deliveryId}/send`, { method: 'POST' })
+    let d = res.ok ? {} : await res.json().catch(() => ({}))
+
+    // No email on the booking or any previous one — ask for it, save it, and send
+    if (!res.ok && d.code === 'no_email') {
+      const email = prompt(`${d.error}. Enter the client's email to send to (it will be saved):`)?.trim()
+      if (!email) { setLoading(false); return }
+      res = await fetch(`/api/footage/${deliveryId}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      d = res.ok ? {} : await res.json().catch(() => ({}))
+    }
+
     setLoading(false)
     if (res.ok) {
       router.refresh()
     } else {
-      const d = await res.json().catch(() => ({}))
       alert(`Could not send: ${d.error ?? res.status}`)
     }
   }

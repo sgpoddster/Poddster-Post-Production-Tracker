@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendFootage1080pEmail } from '@/lib/email'
+import { resolveDeliveryEmail } from '@/lib/footage-email'
 
 // POST /api/footage/convert-callback — called by Cloud Run when conversion is complete
 export async function POST(req: NextRequest) {
@@ -63,9 +64,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Delivery not found' }, { status: 404 })
   }
 
-  if (delivery.email && delivery.send_on_complete !== false) {
+  const email = delivery.send_on_complete !== false ? await resolveDeliveryEmail(supabase, delivery) : null
+
+  if (email) {
     await sendFootage1080pEmail({
-      toEmails:        [delivery.email],
+      toEmails:        [email],
       ccEmails:        [],
       clientFirstName: null,
       clientName:      delivery.client_name ?? '',
@@ -86,7 +89,7 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', delivery_id)
     }
-  } else {
+  } else if (delivery.send_on_complete !== false) {
     console.warn(`[convert-callback] no email on file for ${delivery.client_name} — skipping send`)
   }
 

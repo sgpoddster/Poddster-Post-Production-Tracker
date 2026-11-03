@@ -206,9 +206,14 @@ export async function GET(req: NextRequest) {
   // Load existing (order_id, filming_date) pairs to avoid duplicating GAS-ingested rows
   const { data: existing } = await supabase
     .from('footage_deliveries')
-    .select('job_id, order_id, filming_date')
+    .select('job_id, order_id, filming_date, client_name, email')
 
   const knownJobIds     = new Set((existing ?? []).map(r => r.job_id as string))
+  // Repeat clients: reuse their email when a new booking's description has none
+  const knownEmails = new Map<string, string>()
+  for (const r of existing ?? []) {
+    if (r.client_name && r.email) knownEmails.set((r.client_name as string).toLowerCase(), r.email as string)
+  }
   const knownOrderDates = new Set(
     (existing ?? [])
       .filter(r => r.order_id && r.filming_date)
@@ -237,11 +242,12 @@ export async function GET(req: NextRequest) {
 
       if (knownJobIds.has(ev.id)) {
         // Already a cron row — sync all mutable fields in case the booking was rescheduled
+        // Never blank out an email that was backfilled or typed in manually
         await supabase
           .from('footage_deliveries')
           .update({
             client_name:  clientName,
-            email,
+            ...(email ? { email } : {}),
             filming_date: filmingDate,
             filming_time: buildFilmingTime(startISO, endISO),
             setup:        parsed.setup ?? null,
@@ -256,7 +262,7 @@ export async function GET(req: NextRequest) {
         // A GAS row exists for this order+date — update its name/email from the calendar
         await supabase
           .from('footage_deliveries')
-          .update({ client_name: clientName, email })
+          .update({ client_name: clientName, ...(email ? { email } : {}) })
           .eq('order_id', parsed.orderId!)
           .eq('filming_date', filmingDate!)
         skipped++
@@ -267,7 +273,7 @@ export async function GET(req: NextRequest) {
         job_id:       ev.id,
         order_id:     parsed.orderId  ?? null,
         client_name:  clientName,
-        email,
+        email:        email ?? knownEmails.get(clientName?.toLowerCase() ?? '') ?? null,
         filming_date: filmingDate,
         filming_time: buildFilmingTime(startISO, endISO),
         setup:        parsed.setup    ?? null,

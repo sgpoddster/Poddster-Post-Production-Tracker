@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-03 — Client emails: greeting & font size
+
+### Changed
+- **`lib/email.ts`** — Review chase greeting falls back to "Hi there," (was "Hi,") when there's no first name, matching the footage emails. All client emails (4K, 1080p, reminder, deleted, review chase) step font sizes down slightly: headings 22→20px, body 15→14px, smaller text 14/13/12→13/12/11px. Editor assignment emails unchanged.
+
+---
+
 ## 2026-11-03 — Client email send errors surfaced
 
 ### Fixed

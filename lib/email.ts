@@ -279,43 +279,43 @@ export async function sendFootageDeliveryEmail({
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
         <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
-        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
+        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
 
-        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">${greeting}</h1>
+        <h1 style="margin:0 0 20px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.3;">${greeting}</h1>
 
-        <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+        <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;">
           It was a pleasure to host you at Poddster. Here is your footage.
           <strong style="color:#fff;">We will keep it on this link for 7 days:</strong>
         </p>
 
-        <a href="${driveLink}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
+        <a href="${driveLink}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
           Access Your Footage →
         </a>
 
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
-          <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+          <p style="margin:0 0 10px;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;">
             If you prefer us to store your footage for longer, you'll need to subscribe to our
             <strong style="color:#fff;">Poddster Cloud service at S$68</strong> (one time payment),
             and sign a personal data hosting waiver with us. We will then be able to hold on to your
             files for <strong style="color:#fff;">6 months</strong> from the date of recording.
           </p>
-          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.5;">
+          <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.5;">
             (If you have already subscribed to our Poddster Cloud storage service, please disregard the 7-day deadline.)
           </p>
         </div>
 
         <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;margin-bottom:24px;">
-          <p style="margin:0 0 12px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+          <p style="margin:0 0 12px;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;">
             If you enjoyed your session, help us spread the word about Poddster by reviewing us on Google:
           </p>
-          <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
+          <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:12px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
             ⭐ Leave a Google Review →
           </a>
         </div>
 
-        <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.7;">
+        <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.7;">
           Lastly, we want to help promote your podcast!<br />
           If you share any content from your session on social media, tag us
           <strong style="color:#fff;">@poddstersg</strong> — we'd love to reshare it.
@@ -323,7 +323,7 @@ export async function sendFootageDeliveryEmail({
 
       </td></tr>
       <tr><td style="padding-top:24px;">
-        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
+        <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);line-height:1.5;">
           Questions? Just reply to this email — it reaches the Poddster team.
         </p>
       </td></tr>
@@ -370,46 +370,46 @@ export async function sendFootage1080pEmail({
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
         <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
-        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
+        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
 
-        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">${greeting}</h1>
+        <h1 style="margin:0 0 20px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.3;">${greeting}</h1>
 
-        <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+        <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;">
           It was a pleasure to host you at Poddster. Here is your footage in a smaller file size (1080p).
           <strong style="color:#fff;">We will keep it on this link for 7 days:</strong>
         </p>
 
-        <a href="${convertedLink}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
+        <a href="${convertedLink}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
           Access Your Footage (1080p) →
         </a>
 
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
-          <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+          <p style="margin:0 0 10px;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;">
             This folder contains compressed 1080p versions of your camera angles — a fraction of the original file size and much easier to download.
           </p>
-          <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+          <p style="margin:0 0 10px;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;">
             If you prefer us to store your footage for longer, you'll need to subscribe to our
             <strong style="color:#fff;">Poddster Cloud service at S$68</strong> (one time payment),
             and sign a personal data hosting waiver with us. We will then be able to hold on to your
             files for <strong style="color:#fff;">6 months</strong> from the date of recording.
           </p>
-          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.5;">
+          <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.5;">
             (If you have already subscribed to our Poddster Cloud storage service, please disregard the 7-day deadline.)
           </p>
         </div>
 
         <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;margin-bottom:24px;">
-          <p style="margin:0 0 12px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+          <p style="margin:0 0 12px;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;">
             If you enjoyed your session, help us spread the word about Poddster by reviewing us on Google:
           </p>
-          <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
+          <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:12px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
             ⭐ Leave a Google Review →
           </a>
         </div>
 
-        <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.7;">
+        <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.7;">
           Lastly, we want to help promote your podcast!<br />
           If you share any content from your session on social media, tag us
           <strong style="color:#fff;">@poddstersg</strong> — we'd love to reshare it.
@@ -417,7 +417,7 @@ export async function sendFootage1080pEmail({
 
       </td></tr>
       <tr><td style="padding-top:24px;">
-        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
+        <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);line-height:1.5;">
           Questions? Just reply to this email — it reaches the Poddster team.
         </p>
       </td></tr>
@@ -455,44 +455,44 @@ export async function sendFootageReminderEmail({
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
         <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
-        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
+        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
 
-        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">Friendly reminder — your footage link expires in 2 days</h1>
+        <h1 style="margin:0 0 20px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.3;">Friendly reminder — your footage link expires in 2 days</h1>
 
-        <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+        <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;">
           Just a quick note to let you know that the link to your Poddster footage will expire in <strong style="color:#fff;">2 days</strong>.
           Please make sure you've downloaded everything you need before then.
         </p>
 
-        <a href="${driveLink}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
+        <a href="${driveLink}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
           Download Your Footage →
         </a>
 
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
-          <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+          <p style="margin:0 0 10px;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;">
             Need more time? You can subscribe to our <strong style="color:#fff;">Poddster Cloud service at S$68</strong> (one time payment)
             and sign a personal data hosting waiver with us. We'll hold your files for
             <strong style="color:#fff;">6 months</strong> from the date of recording.
           </p>
-          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.5;">
+          <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.5;">
             (If you have already subscribed to our Poddster Cloud storage service, please disregard this reminder.)
           </p>
         </div>
 
         <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;">
-          <p style="margin:0 0 12px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+          <p style="margin:0 0 12px;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;">
             If you enjoyed your session, we'd love a review:
           </p>
-          <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
+          <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:12px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
             ⭐ Leave a Google Review →
           </a>
         </div>
 
       </td></tr>
       <tr><td style="padding-top:24px;">
-        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
+        <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);line-height:1.5;">
           Questions? Just reply to this email — it reaches the Poddster team.
         </p>
       </td></tr>
@@ -526,36 +526,36 @@ export async function sendFootageExpiredEmail({
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
         <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
-        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
+        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
 
-        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">Your footage has been deleted.</h1>
+        <h1 style="margin:0 0 20px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.3;">Your footage has been deleted.</h1>
 
-        <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+        <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;">
           As the 7-day holding period has come to an end, your footage has now been removed from our servers as per our data retention policy.
         </p>
 
-        <p style="margin:0 0 28px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
+        <p style="margin:0 0 28px;font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;">
           If you'd like to record with us again in the future, we'd love to have you back at Poddster.
         </p>
 
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
-          <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
+          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;">
             We can store your footage for up to <strong style="color:#fff;">6 months</strong> if you subscribe to the
             <strong style="color:#fff;">Poddster Cloud service</strong>. It's a one-time payment of
             <strong style="color:#fff;">S$68</strong>. Worth knowing for future sessions!
           </p>
         </div>
 
-        <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.7;">
+        <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.7;">
           Thank you for recording with us, and don't forget to tag us
           <strong style="color:#fff;">@poddstersg</strong> if you share any content on social media!
         </p>
 
       </td></tr>
       <tr><td style="padding-top:24px;">
-        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
+        <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);line-height:1.5;">
           Questions? Just reply to this email — it reaches the Poddster team.
         </p>
       </td></tr>
@@ -605,7 +605,7 @@ export async function sendReviewChaseEmail({
     return
   }
 
-  const greeting = clientFirstName ? `Hi ${clientFirstName},` : 'Hi,'
+  const greeting = clientFirstName ? `Hi ${clientFirstName},` : 'Hi there,'
 
   // Each row: "Episode - DDBA4E1 5pm 8th June 2026 - V1" + muted Booking ID
   const rows = items
@@ -615,7 +615,7 @@ export async function sendReviewChaseEmail({
       const booking = i.orderId
         ? `<span style="color:rgba(255,255,255,0.35);"> · Booking ${i.orderId}</span>`
         : ''
-      return `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;color:rgba(255,255,255,0.85);">${label} - ${filename}${booking}</td></tr>`
+      return `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:rgba(255,255,255,0.85);">${label} - ${filename}${booking}</td></tr>`
     })
     .join('')
 
@@ -633,12 +633,12 @@ export async function sendReviewChaseEmail({
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
         <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
-        <span style="font-size:14px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
+        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
-        <p style="margin:0 0 6px;font-size:13px;color:${accent};text-transform:uppercase;letter-spacing:0.08em;">${heading}</p>
-        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">${greeting}</h1>
-        <p style="margin:0 0 24px;font-size:15px;color:rgba(255,255,255,0.65);line-height:1.6;">${intro}</p>
+        <p style="margin:0 0 6px;font-size:12px;color:${accent};text-transform:uppercase;letter-spacing:0.08em;">${heading}</p>
+        <h1 style="margin:0 0 20px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.3;">${greeting}</h1>
+        <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.65);line-height:1.6;">${intro}</p>
         <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:8px;margin-bottom:28px;">
           <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
             <span style="font-size:11px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.07em;">Awaiting your review</span>
@@ -646,12 +646,12 @@ export async function sendReviewChaseEmail({
           ${rows}
         </table>
         ${stage === 2 && extensionToken
-          ? `<p style="margin:0 0 16px;font-size:13px;color:rgba(255,255,255,0.4);line-height:1.5;">Need more time to download? Click below to extend by 7 days.</p>
-             <a href="${process.env.NEXT_PUBLIC_APP_URL}/api/extend-deletion?token=${extensionToken}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">I need more time →</a>`
+          ? `<p style="margin:0 0 16px;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5;">Need more time to download? Click below to extend by 7 days.</p>
+             <a href="${process.env.NEXT_PUBLIC_APP_URL}/api/extend-deletion?token=${extensionToken}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);text-decoration:none;font-size:12px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">I need more time →</a>`
           : ''}
       </td></tr>
       <tr><td style="padding-top:24px;">
-        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
+        <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);line-height:1.5;">
           Questions? Just reply to this email — it reaches the Poddster production team.
         </p>
       </td></tr>

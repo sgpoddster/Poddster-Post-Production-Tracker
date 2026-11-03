@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-03 — Admin: test email sender
+
+### Added
+- **`app/api/admin/test-emails/route.ts`** — `GET /api/admin/test-emails?type=all` (admin only) sends sample versions of the client emails to the signed-in admin's own address. Types: `4k`, `1080p`, `reminder`, `deleted`, `chase1`, `chase2`, `all`. Uses sample data — no DB reads/writes, no client emails.
+
+---
+
 ## 2026-11-03 — Client emails: copy & branding review (Jess, Frame.io)
 
 ### Changed — `lib/email.ts` (4K delivery, 1080p delivery, reminder, deleted emails)

@@ -1,7 +1,7 @@
 import { formatFullDate, buildOutputFilename } from './utils'
 
 // Hosted logo for email headers (red wordmark, served from the app's public dir)
-const LOGO_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-production-tracker.vercel.app'}/logo.png`
+const LOGO_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-production-tracker.vercel.app'}/logo-white.png`
 
 // Email is sent via a Google Apps Script web app running in the
 // sgproduction@poddster.com mailbox (GmailApp.sendEmail). No DNS/Resend needed.
@@ -119,7 +119,7 @@ export async function sendAssignmentEmail({
               </table>
 
               <!-- CTA -->
-              <a href="${projectUrl}" style="display:inline-block;background:#e53e3e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">
+              <a href="${projectUrl}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">
                 View Project →
               </a>
 
@@ -228,7 +228,7 @@ export async function sendBatchAssignmentEmail({
             <span style="font-size:16px;font-weight:700;color:#f87171;">${dueDateFormatted}</span>
           </td></tr>
         </table>
-        <a href="${projectUrl}" style="display:inline-block;background:#e53e3e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">View Projects →</a>
+        <a href="${projectUrl}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">View Projects →</a>
       </td></tr>
       <tr><td style="padding-top:24px;">
         <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);line-height:1.5;">
@@ -267,7 +267,7 @@ export async function sendFootageDeliveryEmail({
     return
   }
 
-  const greeting = clientFirstName ? `Greetings ${clientFirstName},` : 'Greetings,'
+  const greeting = clientFirstName ? `Hi ${clientFirstName},` : 'Hi there,'
   const GOOGLE_REVIEW = 'https://g.page/r/CeenrgM9UCQxEBM/review'
 
   const html = `<!DOCTYPE html>
@@ -288,25 +288,25 @@ export async function sendFootageDeliveryEmail({
           <strong style="color:#fff;">We will keep it on this link for 7 days:</strong>
         </p>
 
-        <a href="${driveLink}" style="display:inline-block;background:#e53e3e;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
+        <a href="${driveLink}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
           Access Your Footage →
         </a>
 
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
           <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
-            If you prefer us to store it for longer, you would need to subscribe to our
+            If you prefer us to store your footage for longer, you'll need to subscribe to our
             <strong style="color:#fff;">Poddster Cloud service at S$68</strong> (one time payment),
             and sign a personal data hosting waiver with us. We will then be able to hold on to your
             files for <strong style="color:#fff;">6 months</strong> from the date of recording.
           </p>
           <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.5;">
-            (If you have already subscribed to our Poddster Cloud storage service, please disregard the 7 day deadline)
+            (If you have already subscribed to our Poddster Cloud storage service, please disregard the 7-day deadline.)
           </p>
         </div>
 
         <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;margin-bottom:24px;">
           <p style="margin:0 0 12px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
-            If you enjoyed your session, help us spread the word about Poddster and leave a review:
+            If you enjoyed your session, help us spread the word about Poddster by reviewing us on Google:
           </p>
           <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
             ⭐ Leave a Google Review →
@@ -314,9 +314,9 @@ export async function sendFootageDeliveryEmail({
         </div>
 
         <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.7;">
-          Lastly, we want to help promote your podcast! 📣<br />
+          Lastly, we want to help promote your podcast!<br />
           If you share any content from your session on social media, tag us
-          <strong style="color:#fff;">@poddster.sg</strong> — we'd love to reshare it.
+          <strong style="color:#fff;">@poddstersg</strong> — we'd love to reshare it.
         </p>
 
       </td></tr>
@@ -357,7 +357,7 @@ export async function sendFootage1080pEmail({
     return
   }
 
-  const greeting = clientFirstName ? `Greetings ${clientFirstName},` : 'Greetings,'
+  const greeting = clientFirstName ? `Hi ${clientFirstName},` : 'Hi there,'
   const GOOGLE_REVIEW = 'https://g.page/r/CeenrgM9UCQxEBM/review'
 
   const html = `<!DOCTYPE html>
@@ -378,28 +378,28 @@ export async function sendFootage1080pEmail({
           <strong style="color:#fff;">We will keep it on this link for 7 days:</strong>
         </p>
 
-        <a href="${convertedLink}" style="display:inline-block;background:#e53e3e;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
+        <a href="${convertedLink}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
           Access Your Footage (1080p) →
         </a>
 
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
           <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
-            This folder contains a compressed 1080p version of your footage, which is a fraction of the original file size and much easier to download. The audio files are identical to the originals.
+            This folder contains compressed 1080p versions of your camera angles — a fraction of the original file size and much easier to download.
           </p>
           <p style="margin:0 0 10px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
-            If you prefer us to store it for longer, you would need to subscribe to our
+            If you prefer us to store your footage for longer, you'll need to subscribe to our
             <strong style="color:#fff;">Poddster Cloud service at S$68</strong> (one time payment),
             and sign a personal data hosting waiver with us. We will then be able to hold on to your
             files for <strong style="color:#fff;">6 months</strong> from the date of recording.
           </p>
           <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.5;">
-            (If you have already subscribed to our Poddster Cloud storage service, please disregard the 7 day deadline)
+            (If you have already subscribed to our Poddster Cloud storage service, please disregard the 7-day deadline.)
           </p>
         </div>
 
         <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;margin-bottom:24px;">
           <p style="margin:0 0 12px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
-            If you enjoyed your session, help us spread the word about Poddster and leave a review:
+            If you enjoyed your session, help us spread the word about Poddster by reviewing us on Google:
           </p>
           <a href="${GOOGLE_REVIEW}" style="display:inline-block;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);text-decoration:none;font-size:13px;font-weight:500;padding:10px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">
             ⭐ Leave a Google Review →
@@ -407,9 +407,9 @@ export async function sendFootage1080pEmail({
         </div>
 
         <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.7;">
-          Lastly, we want to help promote your podcast! 📣<br />
+          Lastly, we want to help promote your podcast!<br />
           If you share any content from your session on social media, tag us
-          <strong style="color:#fff;">@poddster.sg</strong> — we'd love to reshare it.
+          <strong style="color:#fff;">@poddstersg</strong> — we'd love to reshare it.
         </p>
 
       </td></tr>
@@ -462,7 +462,7 @@ export async function sendFootageReminderEmail({
           Please make sure you've downloaded everything you need before then.
         </p>
 
-        <a href="${driveLink}" style="display:inline-block;background:#e53e3e;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
+        <a href="${driveLink}" style="display:inline-block;background:#ff003a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;margin-bottom:28px;">
           Download Your Footage →
         </a>
 
@@ -473,7 +473,7 @@ export async function sendFootageReminderEmail({
             <strong style="color:#fff;">6 months</strong> from the date of recording.
           </p>
           <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.35);line-height:1.5;">
-            (If you have already subscribed to our Poddster Cloud storage service, please disregard this reminder)
+            (If you have already subscribed to our Poddster Cloud storage service, please disregard this reminder.)
           </p>
         </div>
 
@@ -525,7 +525,7 @@ export async function sendFootageExpiredEmail({
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
 
-        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">Your footage has now been deleted</h1>
+        <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">Your footage has been deleted.</h1>
 
         <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.7;">
           As the 7-day holding period has come to an end, your footage has now been removed from our servers as per our data retention policy.
@@ -537,15 +537,15 @@ export async function sendFootageExpiredEmail({
 
         <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:20px;margin-bottom:28px;">
           <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;">
-            For future sessions, you can avoid this by subscribing to our
-            <strong style="color:#fff;">Poddster Cloud service at S$68</strong> (one time payment),
-            which holds your footage for <strong style="color:#fff;">6 months</strong> from recording.
+            We can store your footage for up to <strong style="color:#fff;">6 months</strong> if you subscribe to the
+            <strong style="color:#fff;">Poddster Cloud service</strong>. It's a one-time payment of
+            <strong style="color:#fff;">S$68</strong>. Worth knowing for future sessions!
           </p>
         </div>
 
         <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.7;">
           Thank you for recording with us, and don't forget to tag us
-          <strong style="color:#fff;">@poddster.sg</strong> if you share any content on social media!
+          <strong style="color:#fff;">@poddstersg</strong> if you share any content on social media!
         </p>
 
       </td></tr>
@@ -614,11 +614,11 @@ export async function sendReviewChaseEmail({
     .join('')
 
   const intro = stage === 1
-    ? `We haven't heard back for 7 days so, when you get a moment, please take a look and let us know if it's good to go or if you'd like any changes. Please make your comments in Frame.io and change the status to 'Needs Review' for revisions or change the status to 'Complete' if the project is finished and no further changes required.`
-    : `We're still waiting to hear back on the edit/s below. If we don't hear from you within 7 days we'll assume the edit/s are approved, are downloaded, and we'll move them into our 30-day archive — after this period lapses they will be permanently deleted. To review, please add your comments and remember to click on the 'Needs Review' status button. Or you can change the status to 'Complete' if the project is finished and no further changes required.`
+    ? `We haven't heard back for 7 days. When you get a moment, please take a look and let us know if it's good to go, or if you'd like any changes. Please make your comments in Frame.io and change the status to 'Needs Review' for revisions or change the status to 'Complete' if the project is finished and no further changes required.`
+    : `We're still waiting to hear back on the edit(s) below. If we don't hear from you within 7 days we'll assume the edit(s) are approved, are downloaded, and we'll move them into our 30-day archive. After this period lapses, they will be permanently deleted. To review, please add your comments and remember to click on the 'Needs Review' status button. Or you can change the status to 'Complete' if the project is finished and no further changes required.`
 
-  const heading = stage === 1 ? 'Reminder on your edit/s' : 'Final reminder'
-  const accent = stage === 1 ? '#3b82f6' : '#f59e0b'
+  const heading = stage === 1 ? 'Reminder: your edit(s)' : 'Final reminder'
+  const accent = '#ffffff'
 
   const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
@@ -654,8 +654,8 @@ export async function sendReviewChaseEmail({
 </body></html>`
 
   const subject = stage === 1
-    ? 'Reminder - Your Poddster Edit/s'
-    : 'Final Reminder - Your Poddster Edit/s'
+    ? 'Reminder - Your Poddster Edit(s)'
+    : 'Final Reminder - Your Poddster Edit(s)'
 
   const cc = ccEmails.filter(Boolean).join(',')
 

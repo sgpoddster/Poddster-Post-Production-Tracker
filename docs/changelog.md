@@ -4,6 +4,35 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-03 — Client emails: copy & branding review (Jess, Frame.io)
+
+### Changed — `lib/email.ts` (4K delivery, 1080p delivery, reminder, deleted emails)
+- **Logo** — white logo (`public/logo-white.png`) on the dark background, for all emails.
+- **Button colour** — `#e53e3e` → Poddster Vermillion `#ff003a`.
+- **Greeting** — "Greetings," → "Hi there," (or "Hi {name},").
+- "store it for longer, you would need to subscribe" → "store your footage for longer, you'll need to subscribe".
+- Added missing full stops to the "(If you have already subscribed…)" notes; "7 day" → "7-day".
+- "help us spread the word about Poddster and leave a review" → "…by reviewing us on Google".
+- Removed 📣 emoji — rendered as ◆◆◆ in Gmail.
+- Instagram handle `@poddster.sg` → `@poddstersg` (Gmail was also auto-linking the old one as a domain).
+- 1080p email: dropped "audio files are identical" line — conversion now only includes camera angles.
+
+### Changed — review chase emails (`sendReviewChaseEmail`, Jess review #2)
+- "REMINDER" / "FINAL REMINDER" label: orange/blue accent → white (brand orange not for use on the navy background).
+- "edit/s" → "edit(s)" in body, heading and subject lines.
+- "…into our 30-day archive — after this period lapses they will…" → "…into our 30-day archive. After this period lapses, they will…".
+- White logo (shared `LOGO_URL`).
+- First chase (Jess review #4): label "Reminder on your edit(s)" → "Reminder: your edit(s)"; intro "…for 7 days so, when you get a moment…good to go or if…" → "…for 7 days. When you get a moment…good to go, or if…".
+
+### Changed — footage deleted email (`sendFootageExpiredEmail`, Jess review #5)
+- Heading "Your footage has now been deleted" → "Your footage has been deleted."
+- Poddster Cloud box reworded: "We can store your footage for up to 6 months if you subscribe to the Poddster Cloud service. It's a one-time payment of S$68. Worth knowing for future sessions!"
+
+### Added
+- **`public/logo-white.png`** — white-on-transparent version of the Poddster logo.
+
+---
+
 ## 2026-11-03 — Footage Delivery: missing client email fallback
 
 ### Fixed

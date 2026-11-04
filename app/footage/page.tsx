@@ -9,7 +9,7 @@ import FootageShowMore from '@/components/FootageShowMore'
 import FootageUndoButton from '@/components/FootageUndoButton'
 import FootageExtendButton from '@/components/FootageExtendButton'
 import FootageRecipients from '@/components/FootageRecipients'
-import { deliveryRecipients } from '@/lib/footage-email'
+import { deliveryRecipients, loadClientContacts, matchClient, ClientContact } from '@/lib/footage-email'
 import { SearchBar } from '@/app/dashboard/SearchBar'
 
 function formatDate(d: string | null): string {
@@ -40,7 +40,8 @@ function ExpiryBadge({ expiresAt }: { expiresAt: string | null }) {
   )
 }
 
-function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
+function DeliveryRow({ delivery, clients }: { delivery: FootageDelivery; clients: ClientContact[] }) {
+  const client = matchClient(delivery, clients)
   const time = delivery.filming_time?.split(' - ')[0] ?? null
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-5 py-4 border-b border-th/[0.05] hover:bg-th/[0.02] transition-colors last:border-0">
@@ -65,6 +66,8 @@ function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
           deliveryId={delivery.id}
           email={delivery.email}
           extraEmails={delivery.extra_emails ?? []}
+          clientName={client?.name ?? null}
+          clientEmails={[client?.email, client?.email_2, client?.email_3].filter((e): e is string => !!e)}
         />
       </div>
 
@@ -91,7 +94,7 @@ function DeliveryRow({ delivery }: { delivery: FootageDelivery }) {
         {/* Action buttons row */}
         <div className="flex items-center gap-2 flex-wrap">
           {!delivery.sent_at ? (
-            <FootageSendButton deliveryId={delivery.id} hasDriveLink={!!delivery.drive_link} recipients={deliveryRecipients(delivery)} />
+            <FootageSendButton deliveryId={delivery.id} hasDriveLink={!!delivery.drive_link} recipients={deliveryRecipients(delivery, clients)} />
           ) : (
             <>
               <span className="shrink-0 text-[11px] text-green-400/70 whitespace-nowrap">
@@ -165,6 +168,7 @@ export default async function FootagePage({
     .order('filming_time', { ascending: false })
 
   const all = (rows ?? []) as FootageDelivery[]
+  const clients = await loadClientContacts(serviceClient)
 
   const q = searchParams?.q?.toLowerCase().trim() ?? ''
   const filtered = q
@@ -191,17 +195,17 @@ export default async function FootagePage({
 
       <Section title="To Send" count={toSend.length} accent="bg-amber-400/15 text-amber-400">
         <FootageShowMore total={toSend.length}>
-          {toSend.map(d => <DeliveryRow key={d.id} delivery={d} />)}
+          {toSend.map(d => <DeliveryRow key={d.id} delivery={d} clients={clients} />)}
         </FootageShowMore>
       </Section>
 
       <Section title="Active" count={active.length} accent="bg-green-500/15 text-green-400">
-        {active.map(d => <DeliveryRow key={d.id} delivery={d} />)}
+        {active.map(d => <DeliveryRow key={d.id} delivery={d} clients={clients} />)}
       </Section>
 
       {expired.length > 0 && (
         <Section title="Expired" count={expired.length}>
-          {expired.map(d => <DeliveryRow key={d.id} delivery={d} />)}
+          {expired.map(d => <DeliveryRow key={d.id} delivery={d} clients={clients} />)}
         </Section>
       )}
     </div>

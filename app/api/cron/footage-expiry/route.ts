@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSign } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendFootageReminderEmail, sendFootageExpiredEmail } from '@/lib/email'
-import { deliveryRecipients } from '@/lib/footage-email'
+import { deliveryRecipients, loadClientContacts } from '@/lib/footage-email'
 
 // Daily cron: send expiry reminder (T-2 days) and expiry notice (on expiry date),
 // then trash the Drive folder once the expiry email has been sent.
@@ -80,6 +80,7 @@ export async function GET(req: NextRequest) {
   const inTwoDays = new Date(Date.now() + 2 * 86_400_000).toISOString().split('T')[0]
 
   let reminders = 0, expired = 0, deleted = 0
+  const clients = await loadClientContacts(supabase)
 
   // ── Reminder: expires_at = today + 2 days, reminder not yet sent ─────────────
   let reminderQuery = supabase
@@ -93,7 +94,7 @@ export async function GET(req: NextRequest) {
 
   for (const row of reminderRows ?? []) {
     if (!row.drive_link) continue
-    const toEmails = testTo ? [testTo] : deliveryRecipients(row)
+    const toEmails = testTo ? [testTo] : deliveryRecipients(row, clients)
     if (!toEmails.length) continue
     await sendFootageReminderEmail({ toEmails, clientName: row.client_name ?? '', driveLink: row.drive_link })
     if (!testTo) {
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest) {
   const driveToken = (!testTo && expiredRows?.length) ? await getDriveToken() : null
 
   for (const row of expiredRows ?? []) {
-    const toEmails = testTo ? [testTo] : deliveryRecipients(row)
+    const toEmails = testTo ? [testTo] : deliveryRecipients(row, clients)
     if (!toEmails.length) continue
 
     await sendFootageExpiredEmail({ toEmails, clientName: row.client_name ?? '' })

@@ -3,15 +3,20 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-// Booking email (from the calendar) + extra people the client wants footage sent to.
+// Booking email (from the calendar), the matched client's emails from Admin → Clients,
+// and one-off extra people for this booking only.
 export default function FootageRecipients({
   deliveryId,
   email,
   extraEmails,
+  clientName,
+  clientEmails,
 }: {
   deliveryId: string
   email: string | null
   extraEmails: string[]
+  clientName: string | null
+  clientEmails: string[]
 }) {
   const [editingPrimary, setEditingPrimary] = useState(false)
   const [primary, setPrimary] = useState(email ?? '')
@@ -83,11 +88,25 @@ export default function FootageRecipients({
       ) : (
         <button
           onClick={() => setEditingPrimary(true)}
-          className="px-2 py-0.5 rounded bg-amber-400/15 text-amber-400 hover:bg-amber-400/25 transition-colors"
+          className={clientEmails.length
+            ? 'px-2 py-0.5 rounded text-th/35 hover:text-th/70 hover:bg-th/[0.05] transition-colors'
+            : 'px-2 py-0.5 rounded bg-amber-400/15 text-amber-400 hover:bg-amber-400/25 transition-colors'}
         >
-          ⚠ No email — add
+          {clientEmails.length ? '+ Booking email' : '⚠ No email — add'}
         </button>
       )}
+
+      {clientEmails
+        .filter(e => e.toLowerCase() !== (email ?? '').toLowerCase())
+        .map(e => (
+          <span
+            key={`c-${e}`}
+            title={`From Admin → Clients: ${clientName} — edit it there`}
+            className="px-2 py-0.5 rounded bg-green-500/10 text-green-300/80"
+          >
+            👤 {e}
+          </span>
+        ))}
 
       {extraEmails.map(e => (
         <span key={e} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded bg-blue-500/10 text-blue-300/80">

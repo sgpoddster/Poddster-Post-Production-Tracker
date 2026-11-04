@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getUserProfile } from '@/lib/auth'
 import { sendFootageDeliveryEmail } from '@/lib/email'
-import { deliveryRecipients } from '@/lib/footage-email'
+import { deliveryRecipients, loadClientContacts } from '@/lib/footage-email'
 
 // POST /api/footage/[id]/send — fire the footage delivery email (admin only)
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -26,7 +26,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'No Drive link saved yet' }, { status: 400 })
   }
 
-  const recipients = deliveryRecipients(delivery)
+  const recipients = deliveryRecipients(delivery, await loadClientContacts(supabase))
   if (!recipients.length) {
     return NextResponse.json({ error: `No email on file for "${delivery.client_name}" — add one first` }, { status: 400 })
   }

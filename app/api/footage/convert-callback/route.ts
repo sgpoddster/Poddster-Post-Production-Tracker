@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendFootage1080pEmail } from '@/lib/email'
-import { deliveryRecipients } from '@/lib/footage-email'
+import { deliveryRecipients, loadClientContacts } from '@/lib/footage-email'
 
 // POST /api/footage/convert-callback — called by Cloud Run when conversion is complete
 export async function POST(req: NextRequest) {
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Delivery not found' }, { status: 404 })
   }
 
-  const recipients = delivery.send_on_complete !== false ? deliveryRecipients(delivery) : []
+  const recipients = delivery.send_on_complete !== false ? deliveryRecipients(delivery, await loadClientContacts(supabase)) : []
 
   if (recipients.length) {
     await sendFootage1080pEmail({

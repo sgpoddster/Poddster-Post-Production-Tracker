@@ -4,6 +4,18 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-04 — Footage emails use Admin → Clients emails
+
+### Added
+- **`lib/footage-email.ts`** — `matchClient()` links a footage delivery to its Admin → Clients record: any of the client's `email` / `email_2` / `email_3` matching the booking email (`@poddster.com` placeholders excluded), falling back to name (ignoring the "(CODE)" suffix). `loadClientContacts()` loads the client list once per request.
+
+### Changed
+- **`deliveryRecipients()`** — footage emails now go to booking email + the matched client's up-to-3 emails + per-booking extras (de-duplicated). Applied to 4K send, 1080p callback, expiry reminder/deleted cron and admin send-footage.
+- **`components/FootageRecipients.tsx`** — client-record emails show as green 👤 chips (edit them in Admin → Clients); per-booking extras stay blue and removable. The amber "No email" warning only shows when there are no recipients at all.
+- **`app/footage/page.tsx`** — loads clients once and passes the match to each row.
+
+---
+
 ## 2026-11-03 — Footage Delivery: booking email + extra recipients
 
 ### Added

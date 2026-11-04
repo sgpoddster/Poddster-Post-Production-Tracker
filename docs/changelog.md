@@ -4,6 +4,15 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-04 — Producer → Editor handover shows in both queues
+
+### Changed
+- **`app/queue/page.tsx`, `app/dashboard/page.tsx`** — a project now appears for anyone who is its Producer (`assigned_editor`) **or** its Editor (`editor`). It's still one project row, so a status change by either person (done, in review, complete) applies for both. The admin Producer filter also matches either role; dashboard search matches the editor's name.
+- **`lib/utils.ts`** — `formatAssignee` shows a handover as "Producer → Editor" (was "Producer (Editor)"). New `isAssignedTo()` / `assignedToFilter()` helpers.
+- **`app/api/projects/add-output/route.ts`** — extra outputs copy the Editor as well as the Producer from the template project.
+
+---
+
 ## 2026-11-04 — Footage emails use Admin → Clients emails
 
 ### Added

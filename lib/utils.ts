@@ -121,7 +121,18 @@ export function formatAssignee(
   const producer = producerEmail ? (nameMap[producerEmail] ?? producerEmail) : '—'
   if (!editorEmail || editorEmail === producerEmail) return producer
   const editor = nameMap[editorEmail] ?? editorEmail
-  return `${producer} (${editor})`
+  return `${producer} → ${editor}`   // producer handed over to a separate editor
+}
+
+// True if this person is the project's producer or its (separate) editor —
+// a handed-over project shows in both queues as one project.
+export function isAssignedTo(p: { assigned_editor: string | null; editor: string | null }, email: string): boolean {
+  return p.assigned_editor === email || p.editor === email
+}
+
+// Supabase .or() filter: projects where this person is producer or editor
+export function assignedToFilter(email: string): string {
+  return `assigned_editor.eq.${email},editor.eq.${email}`
 }
 
 // Working days from submitted date per version

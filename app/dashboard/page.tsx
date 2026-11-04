@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project } from '@/lib/types'
-import { formatDate, formatDateShort, formatAssignee, groupByJob, summarizeDeliverables } from '@/lib/utils'
+import { formatDate, formatDateShort, formatAssignee, groupByJob, summarizeDeliverables, isAssignedTo, assignedToFilter } from '@/lib/utils'
 import { TimeDisplay } from '@/components/TimeDisplay'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
@@ -71,7 +71,7 @@ export default async function DashboardPage({
     .order('filming_date', { ascending: true })
 
   if (!isAdmin) {
-    query = query.eq('assigned_editor', user.email)
+    query = query.or(assignedToFilter(user.email!))
   }
 
   // Fetch recently completed (last 30 days), newest first
@@ -83,7 +83,7 @@ export default async function DashboardPage({
     .order('updated_at', { ascending: false })
 
   if (!isAdmin) {
-    completedQuery = completedQuery.eq('assigned_editor', user.email)
+    completedQuery = completedQuery.or(assignedToFilter(user.email!))
   }
 
   const [{ data: projects }, { data: completedProjects }, { data: clientsData }, { data: profilesData }] =
@@ -114,12 +114,13 @@ export default async function DashboardPage({
     return (
       (p.client_name ?? '').toLowerCase().includes(q) ||
       (p.internal_id ?? '').toLowerCase().includes(q) ||
-      (editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '').toLowerCase().includes(q)
+      (editorNames[p.assigned_editor ?? ''] ?? p.assigned_editor ?? '').toLowerCase().includes(q) ||
+      (editorNames[p.editor ?? ''] ?? p.editor ?? '').toLowerCase().includes(q)
     )
   }
   const matchesEditor = (p: Project) => {
     if (!editorFilters.length) return true
-    return editorFilters.includes(p.assigned_editor ?? '')
+    return editorFilters.some(e => isAssignedTo(p, e))
   }
   const clientFilters = searchParams?.client
     ? searchParams.client.split(',').filter(Boolean)

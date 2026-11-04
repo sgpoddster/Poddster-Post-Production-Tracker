@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Project, Version } from '@/lib/types'
-import { formatDate, formatAssignee, addWorkDays, groupByJob, summarizeDeliverables } from '@/lib/utils'
+import { formatDate, formatAssignee, addWorkDays, groupByJob, summarizeDeliverables, isAssignedTo, assignedToFilter } from '@/lib/utils'
 import { StatusBadge } from '@/components/StatusBadge'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { JobGroup } from '@/components/JobGroup'
@@ -34,7 +34,7 @@ export default async function QueuePage({
     .in('status', ['active', 'in_revision'])
 
   if (!isAdmin) {
-    query = query.eq('assigned_editor', userEmail)
+    query = query.or(assignedToFilter(userEmail))
   }
 
   const [{ data: projects }, { data: profilesData }] = await Promise.all([
@@ -53,7 +53,7 @@ export default async function QueuePage({
     ? searchParams.editors.split(',').filter(Boolean)
     : []
   const matchesEditor = (p: Project) =>
-    editorFilters.length === 0 || editorFilters.includes(p.assigned_editor ?? '')
+    editorFilters.length === 0 || editorFilters.some(e => isAssignedTo(p, e))
 
   // Due-date window filter via ?due=0|1|2 (working days from today). Absent = all.
   const dueParam = searchParams?.due ?? 'all'

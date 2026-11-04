@@ -45,6 +45,7 @@ export async function POST(request: Request) {
         client_name:       template.client_name,
         client_code:       template.client_code,
         assigned_editor:   template.assigned_editor,
+        editor:            template.editor,
         assigned_producer: template.assigned_producer,
         type,
         highlight_number:  type === 'highlight' ? n : null,

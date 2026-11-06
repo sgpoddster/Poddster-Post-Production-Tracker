@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendReviewChaseEmail, sendEditsArchivedEmail, EditEmailItem } from '@/lib/email'
 import { deleteFrameIoFolder } from '@/lib/frameio-folders'
+import { getDriveToken, extractFolderId, trashFolder, isClientLevelFolder } from '@/lib/drive-trash'
 
 // Daily job (called by a GAS time-trigger): chase clients who haven't responded
 // to a Client Review.
 //   Day 7  in review  → reminder    (review_chase_stage 0 → 1)
 //   Day 14 in review  → final notice (review_chase_stage 1 → 2) + extension link
 //   Day 21 in review  → delete Frame.io folder (→ 30-day archive), auto-complete project,
-//                       email the client that edits + raw footage are archived
+//                       bin the raw-footage Drive folder (Drive keeps it 30 days, live only),
+//                       email the client (BCC producer) that edits + raw footage are archived
 // Auth: ?key=<INGEST_API_KEY>.
 export async function GET(req: NextRequest)  { return run(req) }
 export async function POST(req: NextRequest) { return run(req) }
@@ -49,11 +51,14 @@ async function run(req: NextRequest) {
   // Archived projects grouped by client → one "archived" email per client
   const archivedByClient = new Map<string, { items: EditEmailItem[]; producers: Set<string> }>()
   let archivedEmailsSent = 0
+  // Raw-footage Drive folders of archived projects (folder ID → internal IDs)
+  const rawFolders = new Map<string, string[]>()
+  const rawFootageLog: { folderId: string; projects: string[]; result: string }[] = []
 
   if (mode === 'live' || testDeletion) {
     let delQuery = supabase
       .from('projects')
-      .select('id, internal_id, client_name, type, highlight_number, filming_date, filming_time, order_id, assigned_editor, frameio_folder_link, current_version, deletion_hold_until, versions(*)')
+      .select('id, internal_id, client_name, type, highlight_number, filming_date, filming_time, order_id, assigned_editor, drive_link, frameio_folder_link, current_version, deletion_hold_until, versions(*)')
       .eq('status', 'in_client_review')
       .eq('review_chase_stage', 2)
     if (onlyClient) delQuery = delQuery.eq('client_name', onlyClient)
@@ -98,10 +103,36 @@ async function run(req: NextRequest) {
         orderId: p.order_id,
       })
       if (p.assigned_editor) group.producers.add(p.assigned_editor)
+
+      const rawId = extractFolderId(p.drive_link)
+      if (rawId) rawFolders.set(rawId, [...(rawFolders.get(rawId) ?? []), p.internal_id])
+    }
+
+    // Bin each raw-footage folder once (live only). Skipped if another project or
+    // footage delivery still using the same folder isn't finished, or if the link
+    // points at a whole client folder rather than a session folder.
+    const driveToken = mode === 'live' && rawFolders.size ? await getDriveToken() : null
+    for (const [folderId, ids] of Array.from(rawFolders.entries())) {
+      if (!driveToken) { rawFootageLog.push({ folderId, projects: ids, result: mode === 'live' ? 'skipped: no Drive token' : 'skipped: not live' }); continue }
+
+      const [{ count: openProjects }, { count: openDeliveries }] = await Promise.all([
+        supabase.from('projects').select('id', { count: 'exact', head: true })
+          .ilike('drive_link', `%${folderId}%`).not('status', 'in', '("complete","cancelled")'),
+        supabase.from('footage_deliveries').select('id', { count: 'exact', head: true })
+          .ilike('drive_link', `%${folderId}%`).is('expired_sent_at', null),
+      ])
+      if ((openProjects ?? 0) > 0 || (openDeliveries ?? 0) > 0) {
+        rawFootageLog.push({ folderId, projects: ids, result: 'skipped: folder still used by unfinished work' }); continue
+      }
+      if (await isClientLevelFolder(folderId, driveToken)) {
+        rawFootageLog.push({ folderId, projects: ids, result: 'skipped: client-level folder' }); continue
+      }
+      const ok = await trashFolder(folderId, driveToken)
+      rawFootageLog.push({ folderId, projects: ids, result: ok ? 'binned' : 'failed' })
     }
 
     // "Archived" email: Frame.io versions + raw footage archived, permanently deleted in 30 days.
-    // Live → client (CC producers); a non-live testDeletion run only sends if testTo is given.
+    // Live → client (BCC producers); a non-live testDeletion run only sends if testTo is given.
     const deletionDate = new Date(todayMs + 30 * dayMs).toISOString().split('T')[0]
     for (const [clientName, group] of Array.from(archivedByClient.entries())) {
       const { data: client } = await supabase
@@ -120,7 +151,7 @@ async function run(req: NextRequest) {
 
       await sendEditsArchivedEmail({
         toEmails,
-        ccEmails: mode === 'live' ? Array.from(group.producers) : [],
+        bccEmails: mode === 'live' ? Array.from(group.producers) : [],
         clientFirstName: client?.first_name ?? null,
         clientName,
         items: group.items,
@@ -236,5 +267,6 @@ async function run(req: NextRequest) {
     deletedCount,
     deletionLog,
     archivedEmailsSent,
+    rawFootageLog,
   })
 }

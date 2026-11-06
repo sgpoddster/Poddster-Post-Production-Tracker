@@ -4,6 +4,20 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-06 — Archived email BCCs producer + raw footage auto-binned
+
+### Added
+- **`lib/drive-trash.ts`** — shared Drive helpers (`getDriveToken`, `extractFolderId`, `trashFolder`, moved from the footage-expiry cron) plus `isClientLevelFolder()` guard: refuses shared-drive roots and top-level client folders.
+
+### Changed
+- **`app/api/cron/review-chase/route.ts`** — day-21 pass now bins each archived project's raw-footage Drive folder once (Drive keeps it 30 days, matching the email). Live mode only. Skipped when another unfinished project or unsent/unexpired footage delivery uses the same folder, when the link is a client-level folder, or when it isn't a `/folders/` link. Results in `rawFootageLog`.
+- **Archived email** — producer(s) now on **BCC** instead of CC, so they know they can clear local copies.
+- **`lib/email.ts`** — `sendViaGas` accepts an optional `bcc`.
+- **`docs/gas-email-webapp.gs`** — relay passes `bcc` through to `GmailApp.sendEmail` (requires redeploying the GAS web app).
+- **`app/api/cron/footage-expiry/route.ts`** — uses the shared Drive helpers (no behaviour change).
+
+---
+
 ## 2026-11-06 — Post-production "archived" email
 
 ### Added

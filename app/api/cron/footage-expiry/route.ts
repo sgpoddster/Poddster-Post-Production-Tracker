@@ -1,62 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSign } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { sendFootageReminderEmail, sendFootageExpiredEmail } from '@/lib/email'
 import { deliveryRecipients, loadClientContacts } from '@/lib/footage-email'
+import { getDriveToken, extractFolderId, trashFolder } from '@/lib/drive-trash'
 
 // Daily cron: send expiry reminder (T-2 days) and expiry notice (on expiry date),
 // then trash the Drive folder once the expiry email has been sent.
-
-async function getDriveToken(): Promise<string | null> {
-  const saJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
-  if (!saJson) return null
-
-  const sa = JSON.parse(saJson) as { client_email: string; private_key: string }
-  const now     = Math.floor(Date.now() / 1000)
-  const header  = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url')
-  const payload = Buffer.from(JSON.stringify({
-    iss:   sa.client_email,
-    scope: 'https://www.googleapis.com/auth/drive',
-    aud:   'https://oauth2.googleapis.com/token',
-    iat:   now,
-    exp:   now + 3600,
-  })).toString('base64url')
-
-  const sigInput  = `${header}.${payload}`
-  const sign      = createSign('RSA-SHA256')
-  sign.update(sigInput)
-  const jwt = `${sigInput}.${sign.sign(sa.private_key, 'base64url')}`
-
-  const res  = await fetch('https://oauth2.googleapis.com/token', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt }),
-  })
-  const json = await res.json()
-  return json.access_token ?? null
-}
-
-function extractFolderId(url: string | null): string | null {
-  if (!url) return null
-  return url.match(/\/folders\/([a-zA-Z0-9_-]+)/)?.[1] ?? null
-}
-
-async function trashFolder(folderId: string, token: string): Promise<boolean> {
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${folderId}?supportsAllDrives=true`,
-    {
-      method:  'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ trashed: true }),
-    },
-  )
-  if (!res.ok) {
-    const text = await res.text()
-    console.error(`[footage-expiry] trash failed for ${folderId}: ${res.status} ${text.slice(0, 200)}`)
-    return false
-  }
-  return true
-}
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')

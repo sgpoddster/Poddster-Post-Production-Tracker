@@ -6,7 +6,7 @@ const LOGO_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-pr
 // Email is sent via a Google Apps Script web app running in the
 // sgproduction@poddster.com mailbox (GmailApp.sendEmail). No DNS/Resend needed.
 // Returns null on success, or an error message (callers log and carry on).
-async function sendViaGas(to: string, subject: string, html: string, cc?: string): Promise<string | null> {
+async function sendViaGas(to: string, subject: string, html: string, cc?: string, bcc?: string): Promise<string | null> {
   const url = process.env.GAS_EMAIL_WEBHOOK_URL
   const secret = process.env.GAS_EMAIL_SECRET
   if (!url) {
@@ -16,7 +16,7 @@ async function sendViaGas(to: string, subject: string, html: string, cc?: string
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret, to, subject, html, cc: cc || undefined, fromName: 'Poddster Post Production' }),
+    body: JSON.stringify({ secret, to, subject, html, cc: cc || undefined, bcc: bcc || undefined, fromName: 'Poddster Post Production' }),
     redirect: 'follow',
   })
   const text = await res.text()
@@ -683,14 +683,14 @@ export async function sendReviewChaseEmail({
 // ── Edits archived (day 21: Frame.io folder moved to archive, project completed) ──
 export async function sendEditsArchivedEmail({
   toEmails,
-  ccEmails = [],
+  bccEmails = [],
   clientFirstName,
   clientName,
   items,
   deletionDate,
 }: {
   toEmails: string[]
-  ccEmails?: string[]
+  bccEmails?: string[]   // producer(s) — so they know they can clear local copies
   clientFirstName: string | null
   clientName: string
   items: EditEmailItem[]
@@ -754,10 +754,10 @@ export async function sendEditsArchivedEmail({
   </td></tr></table>
 </body></html>`
 
-  const cc = ccEmails.filter(Boolean).join(',')
+  const bcc = bccEmails.filter(Boolean).join(',')
 
   try {
-    return await sendViaGas(to.join(','), 'Your Poddster Edit(s) Have Been Archived', html, cc || undefined)
+    return await sendViaGas(to.join(','), 'Your Poddster Edit(s) Have Been Archived', html, undefined, bcc || undefined)
   } catch (e) {
     console.error('[email] edits archived error:', e)
     return String(e)

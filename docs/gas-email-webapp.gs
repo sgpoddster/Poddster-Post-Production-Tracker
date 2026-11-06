@@ -35,7 +35,8 @@ function doPost(e) {
       // Optional: reply-to so editors can reply to the team
       replyTo:  body.replyTo || 'sgproduction@poddster.com',
     };
-    if (body.cc) options.cc = body.cc;   // comma-separated CC list (e.g. producer)
+    if (body.cc)  options.cc  = body.cc;   // comma-separated CC list (e.g. producer)
+    if (body.bcc) options.bcc = body.bcc;  // comma-separated BCC list (e.g. producer on the archived email)
 
     GmailApp.sendEmail(body.to, body.subject, body.text || '', options);
 

@@ -4,6 +4,18 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-06 — Post-production "archived" email
+
+### Added
+- **`lib/email.ts`** — `sendEditsArchivedEmail()`: sent when edits are auto-archived. Lists the archived edit(s) and says both the Frame.io versions and the raw footage have been moved to the archive and will be permanently deleted from our systems in 30 days (with the date), with a reply-to-retrieve note. Same style as the raw footage "deleted" email. Subject: "Your Poddster Edit(s) Have Been Archived".
+- **`app/api/admin/test-emails/route.ts`** — new `?type=archived` (also included in `all`).
+
+### Changed
+- **`app/api/cron/review-chase/route.ts`** — the day-21 pass (Frame.io folder deleted → Frame.io's 30-day Recently Deleted, project auto-completed) now sends one archived email per client, CC'ing the producer(s). Live mode only; a `testDeletion=1` run sends only to `testTo` if given. Respects `exclude_from_reminders`. Response includes `archivedEmailsSent`.
+- **`lib/email.ts`** — edit item rows and `EditEmailItem` type shared between the review chase and archived emails.
+
+---
+
 ## 2026-11-04 — Producer → Editor handover shows in both queues
 
 ### Changed

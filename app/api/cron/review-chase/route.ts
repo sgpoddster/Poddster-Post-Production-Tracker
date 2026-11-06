@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { sendReviewChaseEmail } from '@/lib/email'
+import { sendReviewChaseEmail, sendEditsArchivedEmail, EditEmailItem } from '@/lib/email'
 import { deleteFrameIoFolder } from '@/lib/frameio-folders'
 
 // Daily job (called by a GAS time-trigger): chase clients who haven't responded
 // to a Client Review.
 //   Day 7  in review  → reminder    (review_chase_stage 0 → 1)
 //   Day 14 in review  → final notice (review_chase_stage 1 → 2) + extension link
-//   Day 21 in review  → delete Frame.io folder, auto-complete project
+//   Day 21 in review  → delete Frame.io folder (→ 30-day archive), auto-complete project,
+//                       email the client that edits + raw footage are archived
 // Auth: ?key=<INGEST_API_KEY>.
 export async function GET(req: NextRequest)  { return run(req) }
 export async function POST(req: NextRequest) { return run(req) }
@@ -45,11 +46,14 @@ async function run(req: NextRequest) {
   // ago and whose deletion hold has expired (or was never set).
   let deletedCount = 0
   const deletionLog: { internalId: string; result: boolean }[] = []
+  // Archived projects grouped by client → one "archived" email per client
+  const archivedByClient = new Map<string, { items: EditEmailItem[]; producers: Set<string> }>()
+  let archivedEmailsSent = 0
 
   if (mode === 'live' || testDeletion) {
     let delQuery = supabase
       .from('projects')
-      .select('id, internal_id, client_name, frameio_folder_link, current_version, deletion_hold_until, versions(*)')
+      .select('id, internal_id, client_name, type, highlight_number, filming_date, filming_time, order_id, assigned_editor, frameio_folder_link, current_version, deletion_hold_until, versions(*)')
       .eq('status', 'in_client_review')
       .eq('review_chase_stage', 2)
     if (onlyClient) delQuery = delQuery.eq('client_name', onlyClient)
@@ -80,6 +84,49 @@ async function run(req: NextRequest) {
         .eq('id', p.id)
 
       deletedCount++
+
+      const key = p.client_name ?? ''
+      if (!archivedByClient.has(key)) archivedByClient.set(key, { items: [], producers: new Set() })
+      const group = archivedByClient.get(key)!
+      group.items.push({
+        type: p.type,
+        highlightNumber: p.highlight_number,
+        internalId: p.internal_id,
+        filmingDate: p.filming_date,
+        filmingTime: p.filming_time,
+        version: p.current_version,
+        orderId: p.order_id,
+      })
+      if (p.assigned_editor) group.producers.add(p.assigned_editor)
+    }
+
+    // "Archived" email: Frame.io versions + raw footage archived, permanently deleted in 30 days.
+    // Live → client (CC producers); a non-live testDeletion run only sends if testTo is given.
+    const deletionDate = new Date(todayMs + 30 * dayMs).toISOString().split('T')[0]
+    for (const [clientName, group] of Array.from(archivedByClient.entries())) {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('first_name, email, email_2, email_3, exclude_from_reminders')
+        .eq('name', clientName)
+        .maybeSingle()
+      if (client?.exclude_from_reminders) continue
+
+      const toEmails = testTo
+        ? [testTo]
+        : mode === 'live'
+          ? [client?.email, client?.email_2, client?.email_3].filter((e): e is string => !!e)
+          : []
+      if (!toEmails.length) continue
+
+      await sendEditsArchivedEmail({
+        toEmails,
+        ccEmails: mode === 'live' ? Array.from(group.producers) : [],
+        clientFirstName: client?.first_name ?? null,
+        clientName,
+        items: group.items,
+        deletionDate,
+      })
+      archivedEmailsSent++
     }
   }
 
@@ -188,5 +235,6 @@ async function run(req: NextRequest) {
     preview,
     deletedCount,
     deletionLog,
+    archivedEmailsSent,
   })
 }

@@ -6,10 +6,11 @@ import {
   sendFootageReminderEmail,
   sendFootageExpiredEmail,
   sendReviewChaseEmail,
+  sendEditsArchivedEmail,
 } from '@/lib/email'
 
 // GET /api/admin/test-emails?type=all — send sample client emails to the signed-in admin only.
-// Sample data, no DB reads or writes. type: 4k | 1080p | reminder | deleted | chase1 | chase2 | all
+// Sample data, no DB reads or writes. type: 4k | 1080p | reminder | deleted | chase1 | chase2 | archived | all
 const SAMPLE_LINK = 'https://drive.google.com/drive/my-drive'
 
 const SAMPLE_ITEMS = [
@@ -24,6 +25,7 @@ const SENDERS: Record<string, (to: string) => Promise<string | null | undefined>
   'deleted':  to => sendFootageExpiredEmail({ toEmails: [to], clientName: 'Test Client' }),
   'chase1':   to => sendReviewChaseEmail({ toEmails: [to], clientFirstName: null, clientName: 'Test Client', stage: 1, items: SAMPLE_ITEMS, portalUrl: null }),
   'chase2':   to => sendReviewChaseEmail({ toEmails: [to], clientFirstName: null, clientName: 'Test Client', stage: 2, items: SAMPLE_ITEMS, portalUrl: null, extensionToken: 'test-preview' }),
+  'archived': to => sendEditsArchivedEmail({ toEmails: [to], clientFirstName: null, clientName: 'Test Client', items: SAMPLE_ITEMS, deletionDate: new Date(Date.now() + 30 * 86_400_000).toISOString().split('T')[0] }),
 }
 
 export async function GET(req: NextRequest) {

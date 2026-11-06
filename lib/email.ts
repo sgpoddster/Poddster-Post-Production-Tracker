@@ -571,6 +571,31 @@ export async function sendFootageExpiredEmail({
   }
 }
 
+// ── Edit item list shared by the review chase + archived emails ──────────────
+export interface EditEmailItem {
+  type: 'episode' | 'highlight'
+  highlightNumber?: number | null
+  internalId: string
+  filmingDate: string | null
+  filmingTime: string | null
+  version: number
+  orderId: string | null
+}
+
+// Each row: "Episode - DDBA4E1 5pm 8th June 2026 - V1" + muted Booking ID
+function editItemRows(items: EditEmailItem[]): string {
+  return items
+    .map(i => {
+      const label = i.type === 'episode' ? 'Episode' : `Highlight ${i.highlightNumber ?? ''}`.trim()
+      const filename = buildOutputFilename(i.internalId, i.filmingDate, i.filmingTime, i.version)
+      const booking = i.orderId
+        ? `<span style="color:rgba(255,255,255,0.35);"> · Booking ${i.orderId}</span>`
+        : ''
+      return `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:rgba(255,255,255,0.85);">${label} - ${filename}${booking}</td></tr>`
+    })
+    .join('')
+}
+
 // ── Review chase emails to the client (no response after 7 / 14 days) ────────
 export async function sendReviewChaseEmail({
   toEmails,
@@ -587,15 +612,7 @@ export async function sendReviewChaseEmail({
   clientFirstName: string | null
   clientName: string
   stage: 1 | 2
-  items: {
-    type: 'episode' | 'highlight'
-    highlightNumber?: number | null
-    internalId: string
-    filmingDate: string | null
-    filmingTime: string | null
-    version: number
-    orderId: string | null
-  }[]
+  items: EditEmailItem[]
   portalUrl: string | null
   extensionToken?: string | null
 }) {
@@ -607,17 +624,7 @@ export async function sendReviewChaseEmail({
 
   const greeting = clientFirstName ? `Hi ${clientFirstName},` : 'Hi there,'
 
-  // Each row: "Episode - DDBA4E1 5pm 8th June 2026 - V1" + muted Booking ID
-  const rows = items
-    .map(i => {
-      const label = i.type === 'episode' ? 'Episode' : `Highlight ${i.highlightNumber ?? ''}`.trim()
-      const filename = buildOutputFilename(i.internalId, i.filmingDate, i.filmingTime, i.version)
-      const booking = i.orderId
-        ? `<span style="color:rgba(255,255,255,0.35);"> · Booking ${i.orderId}</span>`
-        : ''
-      return `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:rgba(255,255,255,0.85);">${label} - ${filename}${booking}</td></tr>`
-    })
-    .join('')
+  const rows = editItemRows(items)
 
   const intro = stage === 1
     ? `We haven't heard back for 7 days. When you get a moment, please take a look and let us know if it's good to go, or if you'd like any changes. Please make your comments in Frame.io and change the status to 'Needs Review' for revisions or change the status to 'Complete' if the project is finished and no further changes required.`
@@ -669,6 +676,90 @@ export async function sendReviewChaseEmail({
     return await sendViaGas(to.join(','), subject, html, cc || undefined)
   } catch (e) {
     console.error('[email] review chase error:', e)
+    return String(e)
+  }
+}
+
+// ── Edits archived (day 21: Frame.io folder moved to archive, project completed) ──
+export async function sendEditsArchivedEmail({
+  toEmails,
+  ccEmails = [],
+  clientFirstName,
+  clientName,
+  items,
+  deletionDate,
+}: {
+  toEmails: string[]
+  ccEmails?: string[]
+  clientFirstName: string | null
+  clientName: string
+  items: EditEmailItem[]
+  deletionDate: string   // 'YYYY-MM-DD' — permanent deletion, 30 days after archiving
+}) {
+  const to = toEmails.filter(Boolean)
+  if (to.length === 0) {
+    console.warn(`[email] edits archived: no email on file for ${clientName} — skipping`)
+    return
+  }
+
+  const greeting = clientFirstName ? `Hi ${clientFirstName},` : 'Hi there,'
+  const rows = editItemRows(items)
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#0f0f1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;padding:40px 20px;"><tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+      <tr><td style="padding-bottom:32px;">
+        <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
+        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
+      </td></tr>
+      <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
+
+        <p style="margin:0 0 6px;font-size:12px;color:#ffffff;text-transform:uppercase;letter-spacing:0.08em;">Archived</p>
+        <h1 style="margin:0 0 20px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.3;">${greeting}</h1>
+
+        <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;">
+          As we haven't heard back on the edit(s) below, we've assumed they're approved and the project is complete.
+          Both the <strong style="color:#fff;">Frame.io versions</strong> of your edit(s) and the <strong style="color:#fff;">raw footage</strong>
+          from your session have now been moved to our archive.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:8px;margin-bottom:24px;">
+          <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:11px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.07em;">Archived</span>
+          </td></tr>
+          ${rows}
+        </table>
+
+        <div style="background:rgba(255,0,58,0.08);border:1px solid rgba(255,0,58,0.25);border-radius:8px;padding:20px;margin-bottom:28px;">
+          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;">
+            Everything will be <strong style="color:#fff;">permanently deleted from our systems in 30 days</strong>
+            (on ${formatFullDate(deletionDate)}). If you still need anything, just reply to this email before then and we'll help you retrieve it.
+          </p>
+        </div>
+
+        <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.7;">
+          Thank you for working with us, and don't forget to tag us
+          <strong style="color:#fff;">@poddstersg</strong> if you share any content on social media!
+        </p>
+
+      </td></tr>
+      <tr><td style="padding-top:24px;">
+        <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);line-height:1.5;">
+          Questions? Just reply to this email — it reaches the Poddster production team.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
+
+  const cc = ccEmails.filter(Boolean).join(',')
+
+  try {
+    return await sendViaGas(to.join(','), 'Your Poddster Edit(s) Have Been Archived', html, cc || undefined)
+  } catch (e) {
+    console.error('[email] edits archived error:', e)
     return String(e)
   }
 }

@@ -14,6 +14,12 @@
  *  6. Copy the Web App URL → set it as GAS_EMAIL_WEBHOOK_URL in Vercel
  *
  * Re-deploy (Manage deployments → edit → new version) whenever you change this file.
+ *
+ * SECOND COPY — singapore@poddster.com (footage delivery emails):
+ *  Repeat steps 1–5 logged in as singapore@poddster.com, with its own SHARED_SECRET.
+ *  Set in Vercel: GAS_STUDIO_EMAIL_WEBHOOK_URL (that copy's Web App URL) and
+ *  GAS_STUDIO_EMAIL_SECRET (its SHARED_SECRET). Until both are set, footage
+ *  emails fall back to the sgproduction relay.
  */
 
 const SHARED_SECRET = 'CHANGE_ME_to_a_long_random_string';

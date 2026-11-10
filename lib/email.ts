@@ -3,12 +3,38 @@ import { formatFullDate, buildOutputFilename } from './utils'
 // Hosted logo for email headers (red wordmark, served from the app's public dir)
 const LOGO_URL = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://poddster-post-production-tracker.vercel.app'}/logo-white.png`
 
-// Email is sent via a Google Apps Script web app running in the
-// sgproduction@poddster.com mailbox (GmailApp.sendEmail). No DNS/Resend needed.
+// Email is sent via Google Apps Script web apps (GmailApp.sendEmail), one per mailbox:
+//   production — sgproduction@poddster.com: editor + post-production client emails
+//   studio     — singapore@poddster.com: footage delivery emails (raw footage, no edit)
+// The studio relay falls back to the production one until its env vars are set.
 // Returns null on success, or an error message (callers log and carry on).
-async function sendViaGas(to: string, subject: string, html: string, cc?: string, bcc?: string): Promise<string | null> {
-  const url = process.env.GAS_EMAIL_WEBHOOK_URL
-  const secret = process.env.GAS_EMAIL_SECRET
+type Mailbox = 'production' | 'studio'
+
+function relayFor(mailbox: Mailbox) {
+  if (mailbox === 'studio' && process.env.GAS_STUDIO_EMAIL_WEBHOOK_URL) {
+    return {
+      url: process.env.GAS_STUDIO_EMAIL_WEBHOOK_URL,
+      secret: process.env.GAS_STUDIO_EMAIL_SECRET,
+      fromName: 'Poddster Singapore',
+      replyTo: 'singapore@poddster.com',
+    }
+  }
+  if (mailbox === 'studio') console.warn('[email] GAS_STUDIO_EMAIL_WEBHOOK_URL not set — sending via production mailbox')
+  return {
+    url: process.env.GAS_EMAIL_WEBHOOK_URL,
+    secret: process.env.GAS_EMAIL_SECRET,
+    fromName: 'Poddster Post Production',
+    replyTo: undefined,
+  }
+}
+
+async function sendViaGas(
+  to: string,
+  subject: string,
+  html: string,
+  { cc, bcc, mailbox = 'production' }: { cc?: string; bcc?: string; mailbox?: Mailbox } = {},
+): Promise<string | null> {
+  const { url, secret, fromName, replyTo } = relayFor(mailbox)
   if (!url) {
     console.warn('[email] GAS_EMAIL_WEBHOOK_URL not set — skipping')
     return 'GAS_EMAIL_WEBHOOK_URL not set'
@@ -16,7 +42,7 @@ async function sendViaGas(to: string, subject: string, html: string, cc?: string
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret, to, subject, html, cc: cc || undefined, bcc: bcc || undefined, fromName: 'Poddster Post Production' }),
+    body: JSON.stringify({ secret, to, subject, html, cc: cc || undefined, bcc: bcc || undefined, fromName, replyTo }),
     redirect: 'follow',
   })
   const text = await res.text()
@@ -24,7 +50,7 @@ async function sendViaGas(to: string, subject: string, html: string, cc?: string
     console.error('[email] GAS relay error:', res.status, text.slice(0, 200))
     return `GAS relay ${res.status}: ${text.slice(0, 200)}`
   }
-  console.log(`[email] sent to ${to}`)
+  console.log(`[email] sent to ${to} (${mailbox})`)
   return null
 }
 
@@ -333,7 +359,7 @@ export async function sendFootageDeliveryEmail({
 
   try {
     const cc = ccEmails.filter(Boolean).join(',')
-    return await sendViaGas(to.join(','), 'Your Poddster Footage is Ready', html, cc || undefined)
+    return await sendViaGas(to.join(','), 'Your Poddster Footage is Ready', html, { cc: cc || undefined, mailbox: 'studio' })
   } catch (e) {
     console.error('[email] footage delivery error:', e)
     return String(e)
@@ -427,7 +453,7 @@ export async function sendFootage1080pEmail({
 
   try {
     const cc = ccEmails.filter(Boolean).join(',')
-    return await sendViaGas(to.join(','), 'Your Poddster Footage is Ready (Smaller File Size)', html, cc || undefined)
+    return await sendViaGas(to.join(','), 'Your Poddster Footage is Ready (Smaller File Size)', html, { cc: cc || undefined, mailbox: 'studio' })
   } catch (e) {
     console.error('[email] 1080p footage delivery error:', e)
     return String(e)
@@ -501,7 +527,7 @@ export async function sendFootageReminderEmail({
 </body></html>`
 
   try {
-    return await sendViaGas(to.join(','), 'Your Poddster footage link expires in 2 days', html)
+    return await sendViaGas(to.join(','), 'Your Poddster footage link expires in 2 days', html, { mailbox: 'studio' })
   } catch (e) {
     console.error('[email] footage reminder error:', e)
     return String(e)
@@ -564,7 +590,7 @@ export async function sendFootageExpiredEmail({
 </body></html>`
 
   try {
-    return await sendViaGas(to.join(','), 'Your Poddster footage has been removed', html)
+    return await sendViaGas(to.join(','), 'Your Poddster footage has been removed', html, { mailbox: 'studio' })
   } catch (e) {
     console.error('[email] footage expired error:', e)
     return String(e)
@@ -673,7 +699,7 @@ export async function sendReviewChaseEmail({
   const cc = ccEmails.filter(Boolean).join(',')
 
   try {
-    return await sendViaGas(to.join(','), subject, html, cc || undefined)
+    return await sendViaGas(to.join(','), subject, html, { cc: cc || undefined })
   } catch (e) {
     console.error('[email] review chase error:', e)
     return String(e)
@@ -757,7 +783,7 @@ export async function sendEditsArchivedEmail({
   const bcc = bccEmails.filter(Boolean).join(',')
 
   try {
-    return await sendViaGas(to.join(','), 'Your Poddster Edit(s) Have Been Archived', html, undefined, bcc || undefined)
+    return await sendViaGas(to.join(','), 'Your Poddster Edit(s) Have Been Archived', html, { bcc: bcc || undefined })
   } catch (e) {
     console.error('[email] edits archived error:', e)
     return String(e)

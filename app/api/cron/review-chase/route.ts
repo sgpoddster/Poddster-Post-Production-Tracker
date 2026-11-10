@@ -51,8 +51,6 @@ async function run(req: NextRequest) {
   // Archived projects grouped by client → one "archived" email per client
   const archivedByClient = new Map<string, { items: EditEmailItem[]; producers: Set<string> }>()
   let archivedEmailsSent = 0
-  // Raw-footage Drive folders of archived projects (folder ID → internal IDs)
-  const rawFolders = new Map<string, string[]>()
   const rawFootageLog: { folderId: string; projects: string[]; result: string }[] = []
 
   if (mode === 'live' || testDeletion) {
@@ -85,7 +83,7 @@ async function run(req: NextRequest) {
       // Auto-complete regardless of whether deletion succeeded (folder may already be gone)
       await supabase
         .from('projects')
-        .update({ status: 'complete', frameio_folder_link: null })
+        .update({ status: 'complete', frameio_folder_link: null, archived_at: new Date().toISOString() })
         .eq('id', p.id)
 
       deletedCount++
@@ -103,32 +101,6 @@ async function run(req: NextRequest) {
         orderId: p.order_id,
       })
       if (p.assigned_editor) group.producers.add(p.assigned_editor)
-
-      const rawId = extractFolderId(p.drive_link)
-      if (rawId) rawFolders.set(rawId, [...(rawFolders.get(rawId) ?? []), p.internal_id])
-    }
-
-    // Bin each raw-footage folder once (live only). Skipped if another project or
-    // footage delivery still using the same folder isn't finished, or if the link
-    // points at a whole client folder rather than a session folder.
-    const driveToken = mode === 'live' && rawFolders.size ? await getDriveToken() : null
-    for (const [folderId, ids] of Array.from(rawFolders.entries())) {
-      if (!driveToken) { rawFootageLog.push({ folderId, projects: ids, result: mode === 'live' ? 'skipped: no Drive token' : 'skipped: not live' }); continue }
-
-      const [{ count: openProjects }, { count: openDeliveries }] = await Promise.all([
-        supabase.from('projects').select('id', { count: 'exact', head: true })
-          .ilike('drive_link', `%${folderId}%`).not('status', 'in', '("complete","cancelled")'),
-        supabase.from('footage_deliveries').select('id', { count: 'exact', head: true })
-          .ilike('drive_link', `%${folderId}%`).is('expired_sent_at', null),
-      ])
-      if ((openProjects ?? 0) > 0 || (openDeliveries ?? 0) > 0) {
-        rawFootageLog.push({ folderId, projects: ids, result: 'skipped: folder still used by unfinished work' }); continue
-      }
-      if (await isClientLevelFolder(folderId, driveToken)) {
-        rawFootageLog.push({ folderId, projects: ids, result: 'skipped: client-level folder' }); continue
-      }
-      const ok = await trashFolder(folderId, driveToken)
-      rawFootageLog.push({ folderId, projects: ids, result: ok ? 'binned' : 'failed' })
     }
 
     // "Archived" email: Frame.io versions + raw footage archived, permanently deleted in 30 days.
@@ -158,6 +130,52 @@ async function run(req: NextRequest) {
         deletionDate,
       })
       archivedEmailsSent++
+    }
+  }
+
+  // ─── Raw-footage clean-up (live only, every run) ─────────────────────────
+  // Bin the raw-footage Drive folder of each archived project once nothing else
+  // using that folder is unfinished — so a folder held back because a sibling
+  // was still in revision gets binned later, even if that sibling is completed
+  // by hand. Never bins a client-level folder. Drive keeps binned items 30 days.
+  if (mode === 'live') {
+    const { data: archived } = await supabase
+      .from('projects')
+      .select('internal_id, drive_link')
+      .not('archived_at', 'is', null)
+      .is('raw_footage_binned_at', null)
+
+    const rawFolders = new Map<string, string[]>()
+    for (const p of archived ?? []) {
+      const id = extractFolderId(p.drive_link)
+      if (id) rawFolders.set(id, [...(rawFolders.get(id) ?? []), p.internal_id])
+    }
+
+    const driveToken = rawFolders.size ? await getDriveToken() : null
+    for (const [folderId, ids] of Array.from(rawFolders.entries())) {
+      if (!driveToken) { rawFootageLog.push({ folderId, projects: ids, result: 'skipped: no Drive token' }); continue }
+
+      const [{ count: openProjects }, { count: openDeliveries }] = await Promise.all([
+        supabase.from('projects').select('id', { count: 'exact', head: true })
+          .ilike('drive_link', `%${folderId}%`).not('status', 'in', '("complete","cancelled")'),
+        supabase.from('footage_deliveries').select('id', { count: 'exact', head: true })
+          .ilike('drive_link', `%${folderId}%`).is('expired_sent_at', null),
+      ])
+      if ((openProjects ?? 0) > 0 || (openDeliveries ?? 0) > 0) {
+        rawFootageLog.push({ folderId, projects: ids, result: 'skipped: folder still used by unfinished work' }); continue
+      }
+      if (await isClientLevelFolder(folderId, driveToken)) {
+        rawFootageLog.push({ folderId, projects: ids, result: 'skipped: client-level folder' }); continue
+      }
+      const ok = await trashFolder(folderId, driveToken)
+      rawFootageLog.push({ folderId, projects: ids, result: ok ? 'binned' : 'failed' })
+
+      if (ok) {
+        await supabase
+          .from('projects')
+          .update({ raw_footage_binned_at: new Date().toISOString() })
+          .ilike('drive_link', `%${folderId}%`)
+      }
     }
   }
 

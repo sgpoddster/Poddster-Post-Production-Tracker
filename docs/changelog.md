@@ -4,6 +4,18 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-10 — Footage emails from singapore@ + raw-footage clean-up catch-up
+
+### Added
+- **`supabase/projects_archive_columns.sql`** — `archived_at` and `raw_footage_binned_at` on `projects` (run in Supabase before deploying).
+- **Studio mail relay** — footage delivery emails (4K, 1080p, 2-day reminder, deleted) now send through a second copy of the GAS relay in the **singapore@poddster.com** mailbox: from name "Poddster Singapore", reply-to singapore@poddster.com. New env vars `GAS_STUDIO_EMAIL_WEBHOOK_URL` / `GAS_STUDIO_EMAIL_SECRET`; falls back to the sgproduction relay until they're set. Setup notes in `docs/gas-email-webapp.gs`.
+
+### Changed
+- **`lib/email.ts`** — `sendViaGas(to, subject, html, { cc, bcc, mailbox })`; editor and post-production client emails stay on sgproduction.
+- **`app/api/cron/review-chase/route.ts`** — day-21 pass stamps `archived_at`. Raw-footage binning moved to a sweep that runs on every live run over archived projects not yet binned, so a folder held back because a sibling was unfinished gets binned once that sibling is complete or cancelled — including when it's completed by hand. Same guards as before; binned projects get `raw_footage_binned_at`.
+
+---
+
 ## 2026-11-06 — Archived email BCCs producer + raw footage auto-binned
 
 ### Added

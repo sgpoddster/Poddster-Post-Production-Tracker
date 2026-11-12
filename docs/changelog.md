@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-12 — Test mode for the day-21 archive + raw-footage clean-up
+
+### Changed
+- **`app/api/cron/review-chase/route.ts`** — a non-live `testDeletion=1` run with `onlyClient` now also runs the raw-footage clean-up for that one client, and honours `days=<n>` in the day-21 pass, so the whole archive → email → bin-folder flow can be tested end to end on a dummy project without touching real clients. Live runs are unchanged.
+
+---
+
 ## 2026-11-10 — Footage emails from singapore@ + raw-footage clean-up catch-up
 
 ### Added

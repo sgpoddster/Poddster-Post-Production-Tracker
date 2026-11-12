@@ -33,7 +33,8 @@ async function run(req: NextRequest) {
   // Test-only knobs (ignored in live runs):
   //   onlyClient=<name>    → restrict to one client
   //   days=<n>             → pretend every project's been in review n days
-  //   testDeletion=1       → run the day-21 deletion pass for onlyClient (non-live safe)
+  //   testDeletion=1       → run the day-21 deletion pass + raw-footage clean-up for
+  //                          onlyClient (non-live safe; honours days=<n>)
   const onlyClient = params.get('onlyClient')
   const daysOverride = params.get('days') ? Number(params.get('days')) : null
   const testDeletion = params.get('testDeletion') === '1'
@@ -67,9 +68,12 @@ async function run(req: NextRequest) {
       if (p.deletion_hold_until && p.deletion_hold_until >= today) continue
 
       const ver = (p.versions ?? []).find((v: { version_number: number }) => v.version_number === p.current_version)
-      const days = ver?.done_date
-        ? Math.floor((todayMs - new Date(ver.done_date + 'T00:00:00').getTime()) / dayMs)
-        : null
+      // A non-live testDeletion run may pretend the edit is n days old (?days=n)
+      const days = mode !== 'live' && testDeletion && daysOverride != null
+        ? daysOverride
+        : ver?.done_date
+          ? Math.floor((todayMs - new Date(ver.done_date + 'T00:00:00').getTime()) / dayMs)
+          : null
       if (days == null || days < 21) continue
 
       // Delete Frame.io folder if present
@@ -138,12 +142,16 @@ async function run(req: NextRequest) {
   // using that folder is unfinished — so a folder held back because a sibling
   // was still in revision gets binned later, even if that sibling is completed
   // by hand. Never bins a client-level folder. Drive keeps binned items 30 days.
-  if (mode === 'live') {
-    const { data: archived } = await supabase
+  // A non-live testDeletion run with onlyClient sweeps that one client only.
+  const testSweep = mode !== 'live' && testDeletion && !!onlyClient
+  if (mode === 'live' || testSweep) {
+    let archivedQuery = supabase
       .from('projects')
       .select('internal_id, drive_link')
       .not('archived_at', 'is', null)
       .is('raw_footage_binned_at', null)
+    if (testSweep) archivedQuery = archivedQuery.eq('client_name', onlyClient)
+    const { data: archived } = await archivedQuery
 
     const rawFolders = new Map<string, string[]>()
     for (const p of archived ?? []) {

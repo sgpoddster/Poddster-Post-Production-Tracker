@@ -305,7 +305,6 @@ export async function sendFootageDeliveryEmail({
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
         <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
-        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
 
@@ -396,7 +395,6 @@ export async function sendFootage1080pEmail({
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
         <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
-        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
 
@@ -481,7 +479,6 @@ export async function sendFootageReminderEmail({
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
         <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
-        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
 
@@ -552,7 +549,6 @@ export async function sendFootageExpiredEmail({
     <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
       <tr><td style="padding-bottom:32px;">
         <img src="${LOGO_URL}" alt="Poddster" height="26" style="height:26px;width:auto;vertical-align:middle;display:inline-block;" />
-        <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;vertical-align:middle;">Post Production</span>
       </td></tr>
       <tr><td style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:36px;">
 

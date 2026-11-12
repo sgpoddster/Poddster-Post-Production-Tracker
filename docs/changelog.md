@@ -4,6 +4,13 @@ All notable changes to the web app. Newest first. Dates are when the work shippe
 
 ---
 
+## 2026-11-12 — Footage emails drop the "Post Production" label
+
+### Changed
+- **`lib/email.ts`** — removed the "Post Production" label beside the logo in the four footage delivery emails (4K, 1080p, 2-day reminder, deleted). Post-production emails (assignments, review chase, archived) keep it.
+
+---
+
 ## 2026-11-12 — Test mode for the day-21 archive + raw-footage clean-up
 
 ### Changed
